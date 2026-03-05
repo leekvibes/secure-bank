@@ -1,17 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import { sendSms, isTwilioConfigured } from "@/lib/sms";
 import { LINK_TYPES } from "@/lib/utils";
 import { z } from "zod";
+import { writeAuditLog } from "@/lib/audit";
+import { isValidPhoneNumber } from "@/lib/validation";
+import { apiError, apiSuccess } from "@/lib/api-response";
 
 const schema = z.object({
   to: z
     .string()
     .min(7, "Phone number required")
     .max(30)
-    .regex(/^\+?[\d\s\-().]+$/, "Invalid phone number"),
+    .refine(isValidPhoneNumber, "Invalid phone number"),
 });
 
 export async function POST(
@@ -20,14 +23,11 @@ export async function POST(
 ) {
   const session = await getServerSession(authOptions);
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return apiError(401, "UNAUTHORIZED", "Unauthorized");
   }
 
   if (!isTwilioConfigured()) {
-    return NextResponse.json(
-      { error: "SMS is not configured on this server." },
-      { status: 503 }
-    );
+    return apiError(503, "SMS_NOT_CONFIGURED", "SMS is not configured on this server.");
   }
 
   const link = await db.secureLink.findFirst({
@@ -35,15 +35,16 @@ export async function POST(
   });
 
   if (!link) {
-    return NextResponse.json({ error: "Not found." }, { status: 404 });
+    return apiError(404, "LINK_NOT_FOUND", "Not found.");
   }
 
   const body = await req.json().catch(() => ({}));
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.flatten().fieldErrors.to?.[0] ?? "Invalid input." },
-      { status: 400 }
+    return apiError(
+      400,
+      "VALIDATION_ERROR",
+      parsed.error.flatten().fieldErrors.to?.[0] ?? "Invalid input."
     );
   }
 
@@ -60,8 +61,16 @@ export async function POST(
   const result = await sendSms(parsed.data.to, message);
 
   if (!result.success) {
-    return NextResponse.json({ error: result.error }, { status: 500 });
+    return apiError(500, "SMS_SEND_FAILED", result.error ?? "Failed to send SMS.");
   }
 
-  return NextResponse.json({ success: true });
+  await writeAuditLog({
+    event: "LINK_SENT",
+    agentId: session.user.id,
+    linkId: link.id,
+    request: req,
+    metadata: { action: "sms_sent" },
+  });
+
+  return apiSuccess({ success: true });
 }

@@ -149,17 +149,17 @@ export default function NewFormPage() {
 
   return (
     <div className="max-w-2xl">
-      <div className="mb-6">
-        <Button variant="ghost" size="sm" asChild className="-ml-2">
+      <div className="mb-5">
+        <Button variant="ghost" size="sm" asChild className="-ml-2 text-slate-500">
           <Link href="/dashboard/forms">
             <ArrowLeft className="w-4 h-4" />
-            Back to forms
+            All forms
           </Link>
         </Button>
       </div>
 
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">New form</h1>
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">New form</h1>
         <p className="text-sm text-slate-500 mt-1">
           Build a custom form — fields are encrypted and delivered securely.
         </p>

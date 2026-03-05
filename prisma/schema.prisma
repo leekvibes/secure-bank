@@ -44,6 +44,7 @@ model SecureLink {
   token         String     @unique
   // BANKING_INFO | SSN_ONLY | FULL_INTAKE | ID_UPLOAD
   linkType      String
+  destination   String?
   clientName    String?
   clientPhone   String?
   clientEmail   String?
@@ -59,6 +60,7 @@ model SecureLink {
   submission Submission?
   idUpload   IdUpload?
   assets     SecureLinkAsset[]
+  sends      LinkDispatch[]
   auditLogs  AuditLog[]
 }
 
@@ -154,6 +156,19 @@ model FormLink {
   form       Form            @relation(fields: [formId], references: [id], onDelete: Cascade)
   submission FormSubmission?
   assets     FormLinkAsset[]
+}
+
+model LinkDispatch {
+  id        String   @id @default(cuid())
+  linkId    String
+  method    String   // SMS | EMAIL | COPY
+  recipient String
+  message   String
+  createdAt DateTime @default(now())
+
+  link SecureLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([linkId, createdAt])
 }
 
 model FormSubmission {

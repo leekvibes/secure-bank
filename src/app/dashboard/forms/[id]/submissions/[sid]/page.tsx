@@ -62,7 +62,7 @@ export default async function FormSubmissionPage({
             Back to form
           </Link>
         </Button>
-        <h1 className="text-2xl font-bold text-slate-900">Submission</h1>
+        <h1 className="ui-page-title">Submission</h1>
         <p className="text-sm text-slate-500 mt-1">{form.title}</p>
       </div>
 
@@ -70,7 +70,7 @@ export default async function FormSubmissionPage({
       {(submission.formLink.clientName || submission.formLink.clientEmail || submission.formLink.clientPhone) && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Client</CardTitle>
+            <CardTitle className="ui-section-title">Client</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
             {submission.formLink.clientName && (
@@ -100,7 +100,7 @@ export default async function FormSubmissionPage({
       {/* Field values */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Submitted data</CardTitle>
+          <CardTitle className="ui-section-title">Submitted data</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">

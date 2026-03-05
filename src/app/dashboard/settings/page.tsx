@@ -32,11 +32,11 @@ export default async function SettingsPage() {
   if (!user) redirect("/auth");
 
   return (
-    <div className="max-w-xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
+    <div className="max-w-2xl space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Settings</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Your profile and verification page settings.
+          Manage your agent profile, branding, and compliance settings.
         </p>
       </div>
       <SettingsForm user={user} />

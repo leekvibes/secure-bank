@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, CheckCheck, ArrowLeft, Shield } from "lucide-react";
+import { Copy, CheckCheck, ArrowLeft, Shield, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,9 +20,12 @@ import { BrandingSelector } from "@/components/branding-selector";
 type LinkType = "BANKING_INFO" | "SSN_ONLY" | "FULL_INTAKE" | "ID_UPLOAD";
 
 interface CreatedLink {
+  id: string;
   token: string;
   url: string;
   smsText: string;
+  trustMessage: string;
+  destination: string | null;
   expiresAt: string;
 }
 
@@ -33,10 +36,19 @@ export default function NewLinkPage() {
   const [created, setCreated] = useState<CreatedLink | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedSms, setCopiedSms] = useState(false);
+  const [sendMethod, setSendMethod] = useState<"SMS" | "EMAIL" | "COPY">("SMS");
+  const [sendMessage, setSendMessage] = useState("");
+  const [sendPhone, setSendPhone] = useState("");
+  const [sendEmail, setSendEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sendSuccess, setSendSuccess] = useState(false);
 
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [form, setForm] = useState({
     linkType: "BANKING_INFO" as LinkType,
+    destinationChoice: "Internal processing",
+    destinationCustom: "",
     clientName: "",
     clientPhone: "",
     clientEmail: "",
@@ -52,7 +64,14 @@ export default function NewLinkPage() {
     const res = await fetch("/api/links", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, assetIds: selectedAssetIds }),
+      body: JSON.stringify({
+        ...form,
+        destination:
+          form.destinationChoice === "Custom text"
+            ? form.destinationCustom
+            : form.destinationChoice,
+        assetIds: selectedAssetIds,
+      }),
     });
 
     const data = await res.json();
@@ -64,6 +83,9 @@ export default function NewLinkPage() {
     }
 
     setCreated(data);
+    setSendMessage(data.trustMessage ?? data.smsText);
+    setSendPhone(form.clientPhone);
+    setSendEmail(form.clientEmail);
   }
 
   function copyLink() {
@@ -78,6 +100,41 @@ export default function NewLinkPage() {
     navigator.clipboard.writeText(created.smsText);
     setCopiedSms(true);
     setTimeout(() => setCopiedSms(false), 2000);
+  }
+
+  async function sendLinkNow() {
+    if (!created) return;
+    setSending(true);
+    setSendError(null);
+    setSendSuccess(false);
+    const recipient =
+      sendMethod === "SMS"
+        ? sendPhone.trim()
+        : sendMethod === "EMAIL"
+        ? sendEmail.trim()
+        : "clipboard";
+
+    if (sendMethod === "COPY") {
+      await navigator.clipboard.writeText(sendMessage);
+    }
+
+    const res = await fetch(`/api/links/${created.id}/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        method: sendMethod,
+        recipient,
+        message: sendMessage,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setSending(false);
+
+    if (!res.ok) {
+      setSendError(data.error?.message ?? data.error ?? "Failed to send.");
+      return;
+    }
+    setSendSuccess(true);
   }
 
   if (created) {
@@ -142,6 +199,40 @@ export default function NewLinkPage() {
               </Button>
             </div>
 
+            <div className="space-y-2 border-t border-slate-200 pt-4">
+              <Label>Send secure link</Label>
+              <div className="flex gap-2">
+                <Button size="sm" variant={sendMethod === "SMS" ? "default" : "outline"} onClick={() => setSendMethod("SMS")}>SMS</Button>
+                <Button size="sm" variant={sendMethod === "EMAIL" ? "default" : "outline"} onClick={() => setSendMethod("EMAIL")}>Email</Button>
+                <Button size="sm" variant={sendMethod === "COPY" ? "default" : "outline"} onClick={() => setSendMethod("COPY")}>Copy link</Button>
+              </div>
+              {sendMethod === "SMS" && (
+                <Input value={sendPhone} onChange={(e) => setSendPhone(e.target.value)} placeholder="+1 555-000-0000" />
+              )}
+              {sendMethod === "EMAIL" && (
+                <Input value={sendEmail} onChange={(e) => setSendEmail(e.target.value)} placeholder="client@email.com" />
+              )}
+              <textarea
+                value={sendMessage}
+                onChange={(e) => setSendMessage(e.target.value)}
+                className="w-full min-h-[130px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <Button
+                onClick={sendLinkNow}
+                disabled={
+                  sending ||
+                  !sendMessage.trim() ||
+                  (sendMethod === "SMS" && !sendPhone.trim()) ||
+                  (sendMethod === "EMAIL" && !sendEmail.trim())
+                }
+                className="w-full"
+              >
+                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send now"}
+              </Button>
+              {sendError && <p className="text-xs text-red-600">{sendError}</p>}
+              {sendSuccess && <p className="text-xs text-emerald-600">Sent successfully.</p>}
+            </div>
+
             <div className="pt-2 flex gap-2">
               <Button
                 onClick={() => {
@@ -149,6 +240,8 @@ export default function NewLinkPage() {
                   setSelectedAssetIds([]);
                   setForm({
                     linkType: "BANKING_INFO",
+                    destinationChoice: "Internal processing",
+                    destinationCustom: "",
                     clientName: "",
                     clientPhone: "",
                     clientEmail: "",
@@ -172,20 +265,11 @@ export default function NewLinkPage() {
   }
 
   return (
-    <div className="max-w-xl">
-      <div className="mb-6">
-        <Button variant="ghost" size="sm" asChild className="-ml-2">
-          <Link href="/dashboard">
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </Link>
-        </Button>
-      </div>
-
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Create secure link</h1>
+    <div className="max-w-2xl">
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Create secure link</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Generate a private link for your client to submit sensitive information.
+          Generate a private, encrypted link for your client to submit sensitive information.
         </p>
       </div>
 
@@ -281,6 +365,32 @@ export default function NewLinkPage() {
                   placeholder="client@email.com"
                 />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="destination">
+                Where will this information be submitted?
+              </Label>
+              <select
+                id="destination"
+                value={form.destinationChoice}
+                onChange={(e) => setForm({ ...form, destinationChoice: e.target.value })}
+                className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option>Mutual of Omaha</option>
+                <option>Americo</option>
+                <option>Aetna</option>
+                <option>Internal processing</option>
+                <option>Custom text</option>
+              </select>
+              {form.destinationChoice === "Custom text" && (
+                <Input
+                  value={form.destinationCustom}
+                  onChange={(e) => setForm({ ...form, destinationCustom: e.target.value })}
+                  placeholder="Enter destination"
+                  required
+                />
+              )}
             </div>
 
             {/* Expiration */}

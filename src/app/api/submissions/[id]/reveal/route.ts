@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import { decryptFields } from "@/lib/crypto";
 import { writeAuditLog } from "@/lib/audit";
-import { NO_STORE_HEADERS } from "@/lib/http";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { apiError, apiSuccess } from "@/lib/api-response";
 
 export async function POST(
   req: NextRequest,
@@ -12,7 +13,13 @@ export async function POST(
 ) {
   const session = await getServerSession(authOptions);
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE_HEADERS });
+    return apiError(401, "UNAUTHORIZED", "Unauthorized");
+  }
+
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const { allowed } = await checkRateLimit(`reveal:${params.id}:${session.user.id}:${ip}`);
+  if (!allowed) {
+    return apiError(429, "RATE_LIMITED", "Too many attempts. Please wait 15 minutes.");
   }
 
   const submission = await db.submission.findFirst({
@@ -21,7 +28,7 @@ export async function POST(
   });
 
   if (!submission) {
-    return NextResponse.json({ error: "Not found." }, { status: 404, headers: NO_STORE_HEADERS });
+    return apiError(404, "NOT_FOUND", "Not found.");
   }
 
   let fields: Record<string, string>;
@@ -29,10 +36,7 @@ export async function POST(
     const encryptedFields: Record<string, string> = JSON.parse(submission.encryptedData);
     fields = decryptFields(encryptedFields);
   } catch {
-    return NextResponse.json(
-      { error: "Failed to decrypt submission." },
-      { status: 500, headers: NO_STORE_HEADERS }
-    );
+    return apiError(500, "DECRYPTION_FAILED", "Failed to decrypt submission.");
   }
 
   // Track reveal count and first-reveal timestamp (for audit, not gating)
@@ -53,5 +57,5 @@ export async function POST(
     metadata: { submissionId: submission.id, revealCount: submission.revealCount + 1 },
   });
 
-  return NextResponse.json({ fields }, { headers: NO_STORE_HEADERS });
+  return apiSuccess({ fields });
 }

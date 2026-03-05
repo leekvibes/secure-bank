@@ -143,7 +143,7 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
       <ClientTrustHeader logoUrls={logoUrls} agent={agentProfile} expiresAt={link.expiresAt} />
 
       <main className="flex-1 px-4 py-10">
-      <div className="max-w-md mx-auto">
+        <div className="max-w-md mx-auto">
 
         {/* Form */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
@@ -206,7 +206,7 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
             </p>
           </form>
         </div>
-      </div>
+        </div>
       </main>
     </div>
   );

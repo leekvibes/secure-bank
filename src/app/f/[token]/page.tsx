@@ -3,6 +3,7 @@ import { isExpired } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import { DynamicFormClient } from "@/components/dynamic-form-client";
 import type { FormFieldType } from "@/lib/schemas";
+import { ensureLegacyLogoAsset, toAssetRenderEntry } from "@/lib/asset-library";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ export default async function FormPage({ params }: Props) {
           fields: { orderBy: { order: "asc" } },
           agent: {
             select: {
+              id: true,
               displayName: true,
               agencyName: true,
               company: true,
@@ -27,11 +29,13 @@ export default async function FormPage({ params }: Props) {
               destinationLabel: true,
               licenseNumber: true,
               verificationStatus: true,
+              phone: true,
             },
           },
         },
       },
       submission: { select: { id: true } },
+      assets: { orderBy: { order: "asc" }, include: { asset: true } },
     },
   });
 
@@ -62,12 +66,27 @@ export default async function FormPage({ params }: Props) {
     dropdownOptions: f.dropdownOptions ? JSON.parse(f.dropdownOptions) as string[] : null,
   }));
 
+  // Resolve logo URLs from link-specific assets, or fall back to agent default
+  await ensureLegacyLogoAsset(link.form.agent.id);
+  const selectedAssets = link.assets.length > 0
+    ? link.assets.map((a) => a.asset)
+    : await db.agentAsset.findMany({
+        where: { userId: link.form.agent.id, type: "LOGO" },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      });
+  const renderedAssets = (
+    await Promise.all(selectedAssets.map(toAssetRenderEntry))
+  ).filter((a) => a.url && a.mimeType.startsWith("image/"));
+  const logoUrls = renderedAssets.map((a) => a.url as string);
+
   return (
     <DynamicFormClient
       token={params.token}
       form={{ title: link.form.title, description: link.form.description }}
       fields={fields}
       agent={link.form.agent}
+      logoUrls={logoUrls}
       link={{ clientName: link.clientName, expiresAt: link.expiresAt.toISOString() }}
     />
   );

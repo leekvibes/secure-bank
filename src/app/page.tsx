@@ -22,7 +22,7 @@ export default async function HomePage() {
 
         {/* Hero */}
         <div className="max-w-2xl">
-          <h1 className="text-4xl sm:text-5xl font-bold text-slate-900 leading-tight mb-6">
+          <h1 className="text-4xl sm:text-5xl font-semibold text-slate-900 leading-tight mb-6">
             Your clients shouldn't have to read sensitive info aloud.
           </h1>
           <p className="text-xl text-slate-500 mb-10 leading-relaxed">
@@ -66,7 +66,7 @@ export default async function HomePage() {
           ].map(({ icon: Icon, title, desc }) => (
             <div
               key={title}
-              className="flex gap-4 p-5 bg-white rounded-xl border border-slate-100 shadow-sm"
+              className="flex gap-4 p-5 bg-white rounded-xl border border-slate-100 shadow-sm shadow-slate-200/70 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
               <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
                 <Icon className="w-5 h-5 text-blue-600" />

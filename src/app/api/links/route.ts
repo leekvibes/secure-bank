@@ -7,6 +7,7 @@ import { generateToken } from "@/lib/tokens";
 import { writeAuditLog } from "@/lib/audit";
 import { assertAssetOwnership } from "@/lib/asset-library";
 import { addHours } from "date-fns";
+import { buildTrustMessage } from "@/lib/link-message";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -26,6 +27,7 @@ export async function POST(req: NextRequest) {
 
     const {
       linkType,
+      destination,
       clientName,
       clientPhone,
       clientEmail,
@@ -60,6 +62,7 @@ export async function POST(req: NextRequest) {
       data: {
         token,
         linkType,
+        destination: destination?.trim() || "Internal processing",
         clientName: clientName || null,
         clientPhone: clientPhone || null,
         clientEmail: clientEmail || null,
@@ -95,6 +98,12 @@ export async function POST(req: NextRequest) {
         : "your information";
 
     const smsText = `${clientPart}I need to securely collect your ${typePart} for your application. Instead of reading it aloud, please tap this private link and enter it directly — it's encrypted and expires soon:\n\n${url}\n\nLet me know once you've submitted it.`;
+    const trustMessage = buildTrustMessage({
+      clientName: clientName || null,
+      destination: destination || "Internal processing",
+      linkType,
+      url,
+    });
 
     return NextResponse.json(
       {
@@ -102,6 +111,8 @@ export async function POST(req: NextRequest) {
         token,
         url,
         smsText,
+        trustMessage,
+        destination: link.destination,
         expiresAt: expiresAt.toISOString(),
       },
       { status: 201 }
@@ -124,7 +135,15 @@ export async function GET(req: NextRequest) {
   try {
     const links = await db.secureLink.findMany({
       where: { agentId: session.user.id },
-      include: { submission: { select: { id: true } } },
+      include: {
+        submission: { select: { id: true } },
+        sends: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { method: true, recipient: true, createdAt: true },
+        },
+        _count: { select: { sends: true } },
+      },
       orderBy: { createdAt: "desc" },
       take: 100,
     });

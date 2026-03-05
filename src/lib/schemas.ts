@@ -1,6 +1,8 @@
 import { z } from "zod";
 import {
   fieldsMatch,
+  isValidEmailAddress,
+  isValidPhoneNumber,
   isValidRoutingNumberChecksum,
   isValidSsnFormat,
 } from "@/lib/validation";
@@ -19,9 +21,10 @@ export type SignUpInput = z.infer<typeof signUpSchema>;
 
 export const createLinkSchema = z.object({
   linkType: z.enum(["BANKING_INFO", "SSN_ONLY", "FULL_INTAKE", "ID_UPLOAD"]),
+  destination: z.string().min(2, "Destination is required").max(120).optional(),
   clientName: z.string().max(120).optional(),
-  clientPhone: z.string().max(30).optional(),
-  clientEmail: z.string().email().optional().or(z.literal("")),
+  clientPhone: z.string().max(30).optional().refine((v) => isValidPhoneNumber(v ?? ""), "Invalid phone number"),
+  clientEmail: z.string().optional().or(z.literal("")).refine((v) => isValidEmailAddress(v ?? ""), "Invalid email address"),
   expirationHours: z.number().int().min(1).max(168).default(24),
   retentionDays: z.number().int().min(1).max(30).default(7),
   assetIds: z.array(z.string().min(1)).max(10).optional().default([]),
@@ -94,8 +97,8 @@ export const fullIntakeSchema = z
     dateOfBirth: z.string().min(1, "Date of birth required"),
     ssn: z.string().refine(isValidSsnFormat, "SSN must be in format XXX-XX-XXXX"),
     address: z.string().min(5, "Address required").max(300),
-    phone: z.string().min(7, "Phone required").max(30),
-    email: z.string().email("Valid email required"),
+    phone: z.string().min(7, "Phone required").max(30).refine(isValidPhoneNumber, "Invalid phone number"),
+    email: z.string().email("Valid email required").refine(isValidEmailAddress, "Invalid email address"),
     beneficiaryName: z.string().max(120).optional(),
     beneficiaryRelationship: z.string().max(80).optional(),
     bankName: z.string().max(120).optional(),
@@ -133,14 +136,14 @@ export const updateProfileSchema = z.object({
   displayName: z.string().min(2).max(80),
   agencyName: z.string().max(120).optional(),
   company: z.string().max(120).optional(),
-  phone: z.string().max(30).optional(),
+  phone: z.string().max(30).optional().refine((v) => isValidPhoneNumber(v ?? ""), "Invalid phone number"),
   licenseNumber: z.string().max(60).optional(),
   licensedStates: z.string().max(200).optional(),
   // Onboarding fields
   industry: z.string().max(80).optional(),
   destinationLabel: z.string().max(120).optional(),
   carriersList: z.string().max(400).optional(),
-  notificationEmail: z.string().email().optional().or(z.literal("")),
+  notificationEmail: z.string().optional().or(z.literal("")).refine((v) => isValidEmailAddress(v ?? ""), "Invalid email address"),
   // Compliance / trust
   verificationStatus: z.enum(["UNVERIFIED", "LICENSED", "CERTIFIED", "REGULATED"]).optional(),
   dataRetentionDays: z.number().int().refine((v) => [30, 60, 90, -1].includes(v)).optional(),
@@ -182,8 +185,8 @@ export type CreateFormInput = z.infer<typeof createFormSchema>;
 
 export const createFormLinkSchema = z.object({
   clientName: z.string().max(120).optional(),
-  clientPhone: z.string().max(30).optional(),
-  clientEmail: z.string().email().optional().or(z.literal("")),
+  clientPhone: z.string().max(30).optional().refine((v) => isValidPhoneNumber(v ?? ""), "Invalid phone number"),
+  clientEmail: z.string().optional().or(z.literal("")).refine((v) => isValidEmailAddress(v ?? ""), "Invalid email address"),
   expirationHours: z.number().int().min(1).max(168).default(24),
   assetIds: z.array(z.string().min(1)).max(10).optional().default([]),
 });

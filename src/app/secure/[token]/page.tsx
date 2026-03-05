@@ -4,6 +4,7 @@ import { isExpired } from "@/lib/utils";
 import { writeAuditLog } from "@/lib/audit";
 import { headers } from "next/headers";
 import { SecureFormClient } from "@/components/secure-form-client";
+import { ensureLegacyLogoAsset, toAssetRenderEntry } from "@/lib/asset-library";
 
 interface Props {
   params: { token: string };
@@ -17,11 +18,21 @@ export default async function SecurePage({ params }: Props) {
     include: {
       agent: {
         select: {
+          id: true,
           displayName: true,
           agencyName: true,
+          company: true,
+          industry: true,
           logoUrl: true,
           destinationLabel: true,
+          licenseNumber: true,
+          verificationStatus: true,
+          phone: true,
         },
+      },
+      assets: {
+        orderBy: { order: "asc" },
+        include: { asset: true },
       },
     },
   });
@@ -60,14 +71,35 @@ export default async function SecurePage({ params }: Props) {
     });
   }
 
+  // Resolve logo URLs: link-specific assets → fallback to agent logoUrl
+  await ensureLegacyLogoAsset(link.agent.id);
+  const selectedAssets = link.assets.length > 0
+    ? link.assets.map((a) => a.asset)
+    : await db.agentAsset.findMany({
+        where: { userId: link.agent.id, type: "LOGO" },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      });
+  const renderedAssets = (
+    await Promise.all(selectedAssets.map(toAssetRenderEntry))
+  ).filter((a) => a.url && a.mimeType.startsWith("image/"));
+  const logoUrls = renderedAssets.map((a) => a.url as string);
+
   return (
     <SecureFormClient
       token={params.token}
       linkType={link.linkType}
-      agentName={link.agent.displayName}
-      agencyName={link.agent.agencyName}
-      logoUrl={link.agent.logoUrl}
-      destinationLabel={link.agent.destinationLabel}
+      agent={{
+        displayName: link.agent.displayName,
+        agencyName: link.agent.agencyName,
+        company: link.agent.company,
+        industry: link.agent.industry,
+        destinationLabel: link.agent.destinationLabel,
+        licenseNumber: link.agent.licenseNumber,
+        verificationStatus: link.agent.verificationStatus,
+        phone: link.agent.phone,
+      }}
+      logoUrls={logoUrls}
       clientName={link.clientName}
       expiresAt={link.expiresAt.toISOString()}
     />

@@ -37,6 +37,7 @@ interface SubmissionViewerProps {
 
 const EVENT_LABELS: Record<string, string> = {
   LINK_CREATED: "Link created",
+  LINK_SENT: "Link sent to client",
   LINK_OPENED: "Link opened by client",
   SUBMITTED: "Client submitted form",
   REVEALED: "Agent revealed data",
@@ -156,7 +157,7 @@ export function SubmissionViewer({
       </div>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Submission</h1>
+        <h1 className="ui-page-title">Submission</h1>
         <p className="text-sm text-slate-500 mt-1">
           {LINK_TYPES[submission.link.linkType as LinkType]}{" "}
           {submission.link.clientName && `· ${submission.link.clientName}`}
@@ -167,7 +168,7 @@ export function SubmissionViewer({
       <Card className="mb-4">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Submitted data</CardTitle>
+            <CardTitle className="ui-section-title">Submitted data</CardTitle>
             <span className="text-xs text-slate-400">
               Deletes {formatDate(submission.deleteAt)}
             </span>
@@ -239,7 +240,7 @@ export function SubmissionViewer({
       {/* Audit log */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
+          <CardTitle className="ui-section-title flex items-center gap-2">
             <Clock className="w-4 h-4" />
             Activity log
           </CardTitle>

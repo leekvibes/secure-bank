@@ -8,7 +8,6 @@
 const store = new Map<string, { count: number; resetAt: number }>();
 
 const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-const WINDOW_SEC = Math.ceil(WINDOW_MS / 1000);
 const MAX_REQUESTS = 5;
 const KEY_PREFIX = "rate:submit";
 
@@ -18,23 +17,34 @@ type RateLimitResult = {
   resetAt: number;
 };
 
-function inMemoryRateLimit(key: string): RateLimitResult {
+type RateLimitOptions = {
+  maxRequests?: number;
+  windowMs?: number;
+  prefix?: string;
+};
+
+function inMemoryRateLimit(
+  key: string,
+  options: Required<RateLimitOptions>
+): RateLimitResult {
   const now = Date.now();
   const entry = store.get(key);
+  const maxRequests = options.maxRequests;
+  const windowMs = options.windowMs;
 
   if (!entry || entry.resetAt < now) {
-    store.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return { allowed: true, remaining: MAX_REQUESTS - 1, resetAt: now + WINDOW_MS };
+    store.set(key, { count: 1, resetAt: now + windowMs });
+    return { allowed: true, remaining: maxRequests - 1, resetAt: now + windowMs };
   }
 
-  if (entry.count >= MAX_REQUESTS) {
+  if (entry.count >= maxRequests) {
     return { allowed: false, remaining: 0, resetAt: entry.resetAt };
   }
 
   entry.count += 1;
   return {
     allowed: true,
-    remaining: MAX_REQUESTS - entry.count,
+    remaining: maxRequests - entry.count,
     resetAt: entry.resetAt,
   };
 }
@@ -70,47 +80,64 @@ async function upstashCommand(args: (string | number)[]): Promise<unknown> {
   return data[0].result;
 }
 
-async function redisRateLimit(key: string): Promise<RateLimitResult> {
-  const scopedKey = `${KEY_PREFIX}:${key}`;
+async function redisRateLimit(
+  key: string,
+  options: Required<RateLimitOptions>
+): Promise<RateLimitResult> {
+  const scopedKey = `${options.prefix}:${key}`;
   const now = Date.now();
+  const windowSec = Math.ceil(options.windowMs / 1000);
 
   const incrResult = await upstashCommand(["INCR", scopedKey]);
   const count = Number(incrResult ?? 0);
 
   if (count === 1) {
-    await upstashCommand(["EXPIRE", scopedKey, WINDOW_SEC]);
+    await upstashCommand(["EXPIRE", scopedKey, windowSec]);
   }
 
   const ttlResult = await upstashCommand(["TTL", scopedKey]);
-  const ttl = Math.max(Number(ttlResult ?? WINDOW_SEC), 0);
+  const ttl = Math.max(Number(ttlResult ?? windowSec), 0);
   const resetAt = now + ttl * 1000;
 
-  if (count > MAX_REQUESTS) {
+  if (count > options.maxRequests) {
     return { allowed: false, remaining: 0, resetAt };
   }
 
   return {
     allowed: true,
-    remaining: Math.max(MAX_REQUESTS - count, 0),
+    remaining: Math.max(options.maxRequests - count, 0),
     resetAt,
   };
 }
 
-export async function checkRateLimit(key: string): Promise<RateLimitResult> {
+export async function checkRateLimit(
+  key: string,
+  options: RateLimitOptions = {}
+): Promise<RateLimitResult> {
+  const normalized: Required<RateLimitOptions> = {
+    maxRequests: options.maxRequests ?? MAX_REQUESTS,
+    windowMs: options.windowMs ?? WINDOW_MS,
+    prefix: options.prefix ?? KEY_PREFIX,
+  };
   if (upstashConfigured()) {
     try {
-      return await redisRateLimit(key);
+      return await redisRateLimit(key, normalized);
     } catch {
-      return inMemoryRateLimit(key);
+      return inMemoryRateLimit(key, normalized);
     }
   }
-  return inMemoryRateLimit(key);
+  return inMemoryRateLimit(key, normalized);
 }
 
 // Clean up expired entries periodically to prevent memory leaks
-setInterval(() => {
+const cleanupTimer = setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of Array.from(store.entries())) {
     if (entry.resetAt < now) store.delete(key);
   }
 }, 5 * 60 * 1000);
+cleanupTimer.unref?.();
+
+export function __resetRateLimitForTests() {
+  store.clear();
+}

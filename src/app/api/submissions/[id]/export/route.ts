@@ -6,6 +6,8 @@ import { decryptFields } from "@/lib/crypto";
 import { writeAuditLog } from "@/lib/audit";
 import { LINK_TYPES } from "@/lib/utils";
 import { NO_STORE_HEADERS } from "@/lib/http";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { apiError } from "@/lib/api-response";
 
 export async function GET(
   req: NextRequest,
@@ -13,10 +15,13 @@ export async function GET(
 ) {
   const session = await getServerSession(authOptions);
   if (!session) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401, headers: NO_STORE_HEADERS }
-    );
+    return apiError(401, "UNAUTHORIZED", "Unauthorized");
+  }
+
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const { allowed } = await checkRateLimit(`export:${params.id}:${session.user.id}:${ip}`);
+  if (!allowed) {
+    return apiError(429, "RATE_LIMITED", "Too many attempts. Please wait 15 minutes.");
   }
 
   const format = req.nextUrl.searchParams.get("format") ?? "json";
@@ -27,10 +32,7 @@ export async function GET(
   });
 
   if (!submission) {
-    return NextResponse.json(
-      { error: "Not found." },
-      { status: 404, headers: NO_STORE_HEADERS }
-    );
+    return apiError(404, "NOT_FOUND", "Not found.");
   }
 
   let fields: Record<string, string>;
@@ -38,10 +40,7 @@ export async function GET(
     const encrypted: Record<string, string> = JSON.parse(submission.encryptedData);
     fields = decryptFields(encrypted);
   } catch {
-    return NextResponse.json(
-      { error: "Failed to decrypt." },
-      { status: 500, headers: NO_STORE_HEADERS }
-    );
+    return apiError(500, "DECRYPTION_FAILED", "Failed to decrypt.");
   }
 
   await writeAuditLog({

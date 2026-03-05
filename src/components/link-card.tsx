@@ -109,12 +109,12 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
   }
 
   const statusColor =
-    LINK_STATUS_COLORS[link.status] ?? "bg-gray-100 text-gray-600";
+    LINK_STATUS_COLORS[link.status] ?? "bg-slate-100 text-slate-600 ring-slate-200/70";
   const expired = isExpired(link.expiresAt);
   const canAct = !expired && link.status !== "SUBMITTED";
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm shadow-slate-200/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
       <div className="flex items-start justify-between gap-4 p-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -122,7 +122,7 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
               {LINK_TYPES[link.linkType as LinkType] ?? link.linkType}
             </span>
             <span
-              className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${statusColor}`}
+              className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ring-1 ${statusColor}`}
             >
               {LINK_STATUS_LABELS[link.status] ?? link.status}
             </span>

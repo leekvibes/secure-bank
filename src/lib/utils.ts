@@ -36,8 +36,9 @@ export const LINK_STATUS_LABELS: Record<string, string> = {
 };
 
 export const LINK_STATUS_COLORS: Record<string, string> = {
-  CREATED: "bg-blue-50 text-blue-700 ring-blue-200/60",
-  OPENED: "bg-amber-50 text-amber-700 ring-amber-200/60",
-  SUBMITTED: "bg-emerald-50 text-emerald-700 ring-emerald-200/60",
-  EXPIRED: "bg-slate-100 text-slate-500 ring-slate-200/60",
+  CREATED: "bg-amber-50 text-amber-700 ring-amber-200/70",
+  OPENED: "bg-amber-50 text-amber-700 ring-amber-200/70",
+  SUBMITTED: "bg-blue-50 text-blue-700 ring-blue-200/70",
+  EXPIRED: "bg-red-50 text-red-700 ring-red-200/70",
+  ACTIVE: "bg-emerald-50 text-emerald-700 ring-emerald-200/70",
 };

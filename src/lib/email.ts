@@ -77,6 +77,12 @@ interface PasswordResetArgs {
   resetUrl: string;
 }
 
+interface SendLinkEmailArgs {
+  toEmail: string;
+  agentName: string;
+  message: string;
+}
+
 export async function sendPasswordResetEmail(
   args: PasswordResetArgs
 ): Promise<void> {
@@ -107,5 +113,41 @@ export async function sendPasswordResetEmail(
     });
   } catch (err) {
     console.error("[email] Failed to send password reset:", err);
+  }
+}
+
+export async function sendSecureLinkEmail(
+  args: SendLinkEmailArgs
+): Promise<{ success: boolean; error?: string }> {
+  const resend = getClient();
+  if (!resend) {
+    return { success: false, error: "Email is not configured on this server." };
+  }
+
+  const { toEmail, agentName, message } = args;
+  const html = message
+    .split("\n")
+    .map((line) => line.trim())
+    .join("<br />");
+
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: toEmail,
+      subject: `${agentName} sent you a secure link`,
+      html: `
+        <div style="font-family: system-ui, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #1e293b;">
+          <p style="margin: 0 0 12px;">${html}</p>
+          <p style="margin: 18px 0 0; color: #64748b; font-size: 12px;">
+            This secure link may expire. Please complete it as soon as possible.
+          </p>
+        </div>
+      `,
+    });
+    return { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Email send failed.";
+    console.error("[email] Failed to send secure link:", msg);
+    return { success: false, error: msg };
   }
 }

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import {
   bankingInfoSchema,
@@ -7,11 +7,11 @@ import {
 } from "@/lib/schemas";
 import { writeAuditLog } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { isExpired } from "@/lib/utils";
 import { addDays } from "date-fns";
 import { sendSubmissionNotification } from "@/lib/email";
-import { NO_STORE_HEADERS } from "@/lib/http";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { buildEncryptedSubmissionData } from "@/lib/submission-storage";
+import { isValidSingleUseToken } from "@/lib/validation";
 import {
   ensureLegacyLogoAsset,
   selectAssetsForToken,
@@ -19,9 +19,20 @@ import {
 } from "@/lib/asset-library";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { token: string } }
 ) {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const viewLimit = await checkRateLimit(`secure:view:${params.token}:${ip}`);
+  if (!viewLimit.allowed) {
+    return apiError(
+      429,
+      "RATE_LIMITED",
+      "Too many attempts. Please wait 15 minutes."
+    );
+  }
+
   const link = await db.secureLink.findUnique({
     where: { token: params.token },
     include: {
@@ -41,19 +52,37 @@ export async function GET(
   });
 
   if (!link) {
-    return NextResponse.json(
-      { error: "Link not found." },
-      { status: 404, headers: NO_STORE_HEADERS }
-    );
+    return apiError(404, "LINK_NOT_FOUND", "Link not found.");
   }
 
   await ensureLegacyLogoAsset(link.agentId);
 
-  if (isExpired(link.expiresAt) || link.status === "EXPIRED") {
-    return NextResponse.json(
-      { error: "This link has expired." },
-      { status: 410, headers: NO_STORE_HEADERS }
+  const [existingSubmission, existingUpload] = await Promise.all([
+    db.submission.findUnique({ where: { linkId: link.id }, select: { id: true } }),
+    db.idUpload.findUnique({ where: { linkId: link.id }, select: { id: true } }),
+  ]);
+  const tokenState = isValidSingleUseToken(
+    link.expiresAt,
+    link.status,
+    Boolean(existingSubmission || existingUpload)
+  );
+  if (!tokenState.ok) {
+    return apiError(
+      tokenState.code === "expired" ? 410 : 409,
+      tokenState.code === "expired" ? "LINK_EXPIRED" : "LINK_ALREADY_USED",
+      tokenState.message
     );
+  }
+
+  if (link.status === "CREATED") {
+    await db.secureLink.update({ where: { id: link.id }, data: { status: "OPENED" } });
+    await writeAuditLog({
+      event: link.linkType === "SSN_ONLY" ? "SSN_OPENED" : "LINK_OPENED",
+      agentId: link.agentId,
+      linkId: link.id,
+      request: req,
+      metadata: { via: "api" },
+    });
   }
 
   const fallbackAssets = await db.agentAsset.findMany({
@@ -76,7 +105,7 @@ export async function GET(
     logoUrls.push(link.agent.logoUrl);
   }
 
-  return NextResponse.json(
+  return apiSuccess(
     {
       link: {
         token: params.token,
@@ -91,7 +120,7 @@ export async function GET(
       assets: assetPayload,
       logoUrls,
     },
-    { headers: NO_STORE_HEADERS }
+    200
   );
 }
 
@@ -106,10 +135,7 @@ export async function POST(
   const { allowed } = await checkRateLimit(rateLimitKey);
 
   if (!allowed) {
-    return NextResponse.json(
-      { error: "Too many attempts. Please wait 15 minutes." },
-      { status: 429, headers: NO_STORE_HEADERS }
-    );
+    return apiError(429, "RATE_LIMITED", "Too many attempts. Please wait 15 minutes.");
   }
 
   // Fetch link + agent email for notification
@@ -119,27 +145,23 @@ export async function POST(
   });
 
   if (!link) {
-    return NextResponse.json(
-      { error: "Link not found." },
-      { status: 404, headers: NO_STORE_HEADERS }
-    );
+    return apiError(404, "LINK_NOT_FOUND", "Link not found.");
   }
 
-  if (isExpired(link.expiresAt) || link.status === "EXPIRED") {
-    return NextResponse.json(
-      { error: "This link has expired." },
-      { status: 410, headers: NO_STORE_HEADERS }
-    );
+  if (link.linkType === "ID_UPLOAD") {
+    return apiError(400, "INVALID_LINK_TYPE", "This link accepts ID uploads only.");
   }
 
   // Prevent double submission
   const existing = await db.submission.findUnique({
     where: { linkId: link.id },
   });
-  if (existing) {
-    return NextResponse.json(
-      { error: "This link has already been submitted." },
-      { status: 409, headers: NO_STORE_HEADERS }
+  const tokenState = isValidSingleUseToken(link.expiresAt, link.status, Boolean(existing));
+  if (!tokenState.ok) {
+    return apiError(
+      tokenState.code === "expired" ? 410 : 409,
+      tokenState.code === "expired" ? "LINK_EXPIRED" : "LINK_ALREADY_USED",
+      tokenState.message
     );
   }
 
@@ -148,10 +170,7 @@ export async function POST(
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json(
-      { error: "Invalid request body." },
-      { status: 400, headers: NO_STORE_HEADERS }
-    );
+    return apiError(400, "INVALID_JSON", "Invalid request body.");
   }
 
   let validated: Record<string, string | boolean>;
@@ -169,9 +188,11 @@ export async function POST(
     for (const [k, v] of Object.entries(flat.fieldErrors)) {
       fieldErrors[k] = (v as string[])[0];
     }
-    return NextResponse.json(
-      { error: "Please fix the errors below.", fieldErrors },
-      { status: 422, headers: NO_STORE_HEADERS }
+    return apiError(
+      422,
+      "VALIDATION_ERROR",
+      "Please fix the errors below.",
+      { fieldErrors }
     );
   }
 
@@ -196,7 +217,7 @@ export async function POST(
   ]);
 
   await writeAuditLog({
-    event: "SUBMITTED",
+    event: link.linkType === "SSN_ONLY" ? "SSN_SUBMITTED" : "SUBMITTED",
     agentId: link.agentId,
     linkId: link.id,
     request: req,
@@ -218,8 +239,5 @@ export async function POST(
     });
   }
 
-  return NextResponse.json(
-    { success: true },
-    { status: 201, headers: NO_STORE_HEADERS }
-  );
+  return apiSuccess({ success: true }, 201);
 }

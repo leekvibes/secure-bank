@@ -1,18 +1,27 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { encrypt } from "@/lib/crypto";
 import { SENSITIVE_FIELD_TYPES, type FormFieldType } from "@/lib/schemas";
-import { isExpired } from "@/lib/utils";
 import { addDays } from "date-fns";
 import {
   ensureLegacyLogoAsset,
   selectAssetsForToken,
   toAssetRenderEntry,
 } from "@/lib/asset-library";
-import { NO_STORE_HEADERS } from "@/lib/http";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { apiError, apiSuccess } from "@/lib/api-response";
+import { isValidSingleUseToken } from "@/lib/validation";
+import { validateDynamicSubmission } from "@/lib/form-submission-validation";
+import { writeAuditLog } from "@/lib/audit";
 
 // GET — public: return form config for client rendering
 export async function GET(req: NextRequest, { params }: { params: { token: string } }) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const { allowed } = await checkRateLimit(`form:view:${params.token}:${ip}`);
+  if (!allowed) {
+    return apiError(429, "RATE_LIMITED", "Too many attempts. Please wait 15 minutes.");
+  }
+
   const link = await db.formLink.findUnique({
     where: { token: params.token },
     include: {
@@ -41,30 +50,37 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
   });
 
   if (!link) {
-    return NextResponse.json(
-      { error: "Not found" },
-      { status: 404, headers: NO_STORE_HEADERS }
-    );
+    return apiError(404, "LINK_NOT_FOUND", "Not found.");
   }
 
   await ensureLegacyLogoAsset(link.form.agentId);
 
-  if (isExpired(link.expiresAt) || link.status === "EXPIRED") {
-    return NextResponse.json(
-      { error: "expired" },
-      { status: 410, headers: NO_STORE_HEADERS }
-    );
-  }
-  if (link.status === "SUBMITTED") {
-    return NextResponse.json(
-      { error: "already_submitted" },
-      { status: 409, headers: NO_STORE_HEADERS }
+  const existingSubmission = await db.formSubmission.findUnique({
+    where: { formLinkId: link.id },
+    select: { id: true },
+  });
+  const tokenState = isValidSingleUseToken(
+    link.expiresAt,
+    link.status,
+    Boolean(existingSubmission)
+  );
+  if (!tokenState.ok) {
+    return apiError(
+      tokenState.code === "expired" ? 410 : 409,
+      tokenState.code === "expired" ? "LINK_EXPIRED" : "LINK_ALREADY_USED",
+      tokenState.message
     );
   }
 
   // Mark as opened
   if (link.status === "CREATED") {
     await db.formLink.update({ where: { id: link.id }, data: { status: "OPENED" } });
+    await writeAuditLog({
+      event: "FORM_OPENED",
+      agentId: link.form.agentId,
+      request: req,
+      metadata: { formId: link.formId, formLinkId: link.id, via: "api" },
+    });
   }
 
   const fields = link.form.fields.map((f) => ({
@@ -101,7 +117,7 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
 
   const resolvedLogoUrl = logoUrls[0] ?? link.form.agent.logoUrl ?? null;
 
-  return NextResponse.json({
+  return apiSuccess({
     form: {
       title: link.form.title,
       description: link.form.description,
@@ -117,11 +133,17 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
       clientName: link.clientName,
       expiresAt: link.expiresAt.toISOString(),
     },
-  }, { headers: NO_STORE_HEADERS });
+  });
 }
 
 // POST — public: submit the form
 export async function POST(req: NextRequest, { params }: { params: { token: string } }) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const { allowed } = await checkRateLimit(`form:submit:${params.token}:${ip}`);
+  if (!allowed) {
+    return apiError(429, "RATE_LIMITED", "Too many attempts. Please wait 15 minutes.");
+  }
+
   const link = await db.formLink.findUnique({
     where: { token: params.token },
     include: {
@@ -131,71 +153,47 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
     },
   });
 
-  if (!link) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (isExpired(link.expiresAt) || link.status === "EXPIRED") {
-    return NextResponse.json({ error: "This link has expired." }, { status: 410 });
-  }
-  if (link.status === "SUBMITTED") {
-    return NextResponse.json({ error: "Already submitted." }, { status: 409 });
+  if (!link) return apiError(404, "LINK_NOT_FOUND", "Not found.");
+  if (link.form.status !== "ACTIVE") {
+    return apiError(409, "FORM_INACTIVE", "This form is no longer accepting submissions.");
   }
 
   // Check no existing submission
   const existing = await db.formSubmission.findUnique({ where: { formLinkId: link.id } });
-  if (existing) return NextResponse.json({ error: "Already submitted." }, { status: 409 });
+  const tokenState = isValidSingleUseToken(link.expiresAt, link.status, Boolean(existing));
+  if (!tokenState.ok) {
+    return apiError(
+      tokenState.code === "expired" ? 410 : 409,
+      tokenState.code === "expired" ? "LINK_EXPIRED" : "LINK_ALREADY_USED",
+      tokenState.message
+    );
+  }
 
-  const body = await req.json();
-  const values: {
-    fieldId: string;
-    fieldLabel: string;
-    value: string;
-    isEncrypted: boolean;
-  }[] = [];
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body !== "object") {
+    return apiError(400, "INVALID_JSON", "Invalid request body.");
+  }
 
-  // Validate + collect values
-  const fieldErrors: Record<string, string> = {};
+  const { values: validatedValues, fieldErrors } = validateDynamicSubmission(
+    link.form.fields,
+    body as Record<string, unknown>,
+    (fieldType) => SENSITIVE_FIELD_TYPES.includes(fieldType as FormFieldType)
+  );
 
-  for (const field of link.form.fields) {
-    const rawValue = body[field.id] ?? "";
-    const value = String(rawValue).trim();
-
-    if (field.required && !value) {
-      fieldErrors[field.id] = `${field.label} is required.`;
-      continue;
-    }
-
-    if (!value) continue; // Optional + empty — skip
-
-    // Validate confirm field pair
-    if (field.confirmField) {
-      const confirmValue = String(body[`confirm_${field.id}`] ?? "").trim();
-      const normalize = (v: string) => v.replace(/\D/g, "");
-      const isSensitive = SENSITIVE_FIELD_TYPES.includes(field.fieldType as FormFieldType);
-      const a = isSensitive ? normalize(value) : value;
-      const b = isSensitive ? normalize(confirmValue) : confirmValue;
-      if (a !== b) {
-        fieldErrors[`confirm_${field.id}`] = `${field.label} values do not match.`;
-      }
-    }
-
-    // Determine encryption
-    const isSensitive = SENSITIVE_FIELD_TYPES.includes(field.fieldType as FormFieldType);
-    const shouldEncrypt = isSensitive || field.encrypted;
-
-    values.push({
-      fieldId: field.id,
-      fieldLabel: field.label,
-      value: shouldEncrypt ? encrypt(value) : value,
-      isEncrypted: shouldEncrypt,
+  if (Object.keys(fieldErrors).length > 0) {
+    return apiError(422, "VALIDATION_ERROR", "Please fix the errors below.", {
+      fieldErrors,
     });
   }
 
-  if (Object.keys(fieldErrors).length > 0) {
-    return NextResponse.json({ error: "Please fix the errors below.", fieldErrors }, { status: 422 });
+  if (validatedValues.length === 0) {
+    return apiError(400, "EMPTY_SUBMISSION", "No values submitted.");
   }
 
-  if (values.length === 0) {
-    return NextResponse.json({ error: "No values submitted." }, { status: 400 });
-  }
+  const values = validatedValues.map((value) => ({
+    ...value,
+    value: value.isEncrypted ? encrypt(value.value) : value.value,
+  }));
 
   const deleteAt = addDays(new Date(), link.form.retentionDays > 0 ? link.form.retentionDays : 3650);
 
@@ -216,5 +214,12 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
     }),
   ]);
 
-  return NextResponse.json({ success: true }, { status: 201 });
+  await writeAuditLog({
+    event: "FORM_SUBMITTED",
+    agentId: link.form.agentId,
+    request: req,
+    metadata: { formId: link.formId, formLinkId: link.id },
+  });
+
+  return apiSuccess({ success: true }, 201);
 }

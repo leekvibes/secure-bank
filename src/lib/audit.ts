@@ -3,7 +3,10 @@ import { NextRequest } from "next/server";
 
 export type AuditEvent =
   | "LINK_CREATED"
+  | "LINK_SENT"
   | "LINK_OPENED"
+  | "FORM_OPENED"
+  | "FORM_SUBMITTED"
   | "SUBMITTED"
   | "REVEALED"
   | "SSN_OPENED"
