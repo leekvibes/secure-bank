@@ -47,6 +47,13 @@ npm run db:push       # Create SQLite database from schema
 npm run db:seed       # Add demo agent account
 ```
 
+When pulling new backend schema changes (including asset library updates), run:
+
+```bash
+npm run db:generate
+npm run db:push
+```
+
 ### 4. Run locally
 
 ```bash
@@ -104,6 +111,30 @@ Common causes:
 | `/dashboard/settings` | Agent profile settings |
 | `/secure/[token]` | Client-facing secure form |
 | `/verify/[agentSlug]` | Public agent verification page |
+
+---
+
+## Asset Library (Agent Branding)
+
+Agents can store reusable branding assets and attach multiple assets to links.
+
+- `POST /api/assets` (auth): upload/register asset (`file`, optional `type`, optional `name`)
+- `GET /api/assets` (auth): list current agent assets
+- `DELETE /api/assets/[id]` (auth): delete asset
+  - blocked if attached to links unless `?force=true`
+- `POST /api/links/[id]/assets` (auth): set ordered assets for a legacy secure link
+- `POST /api/forms/[id]/link` (auth): accepts `assetIds[]` and attaches on form-link creation
+- `GET /api/f/[token]`: returns selected assets for token-rendered form config
+- `GET /api/secure/[token]`: returns selected assets for token-rendered secure-link config
+
+Upload/security rules:
+- Allowed types: `jpg`, `jpeg`, `png`, `pdf`
+- Max size: `5MB`
+- `LOGO` / `AVATAR` asset types enforce image-only uploads (`jpg/jpeg/png`)
+- Stored privately as encrypted files under server-side storage (not public static files)
+
+Backward compatibility:
+- Existing single `logoUrl` values are auto-migrated into `AgentAsset` entries on first asset-aware access.
 
 ---
 
