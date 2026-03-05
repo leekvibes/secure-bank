@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Eye, EyeOff, Shield, Clock, AlertTriangle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Eye, EyeOff, Shield, Clock, AlertTriangle, Download, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -51,14 +52,27 @@ export function SubmissionViewer({
   auditLogs,
   maskedSsn,
 }: SubmissionViewerProps) {
+  const router = useRouter();
   const [revealed, setRevealed] = useState(false);
   const [fields, setFields] = useState<Record<string, string> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const alreadyRevealed = submission.revealedAt !== null;
   const isViewOnce = submission.link.viewOnce;
   const isBlocked = isViewOnce && alreadyRevealed;
+
+  async function handleDelete() {
+    if (!confirm("Permanently delete this submission and its link? This cannot be undone.")) return;
+    setDeleting(true);
+    await fetch(`/api/links/${submission.link.id}`, { method: "DELETE" });
+    router.push("/dashboard");
+  }
+
+  function exportUrl(format: string) {
+    return `/api/submissions/${submission.id}/export?format=${format}`;
+  }
 
   async function revealData() {
     if (loading) return;
@@ -83,13 +97,37 @@ export function SubmissionViewer({
 
   return (
     <div className="max-w-2xl">
-      <div className="mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <Button variant="ghost" size="sm" asChild className="-ml-2">
           <Link href="/dashboard">
             <ArrowLeft className="w-4 h-4" />
             Back to dashboard
           </Link>
         </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <a href={exportUrl("json")} download>
+              <Download className="w-3.5 h-3.5" />
+              JSON
+            </a>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <a href={exportUrl("text")} download>
+              <Download className="w-3.5 h-3.5" />
+              TXT
+            </a>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="text-red-600 hover:bg-red-50 hover:border-red-300"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete
+          </Button>
+        </div>
       </div>
 
       <div className="mb-6">
