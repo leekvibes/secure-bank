@@ -21,22 +21,46 @@ export default async function DashboardPage() {
     data: { status: "EXPIRED" },
   });
 
-  const [links, idUploads, formCount, twilioEnabled] = await Promise.all([
-    db.secureLink.findMany({
-      where: { agentId: session.user.id, linkType: { not: "ID_UPLOAD" } },
-      include: { submission: { select: { id: true, revealedAt: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    }),
-    db.secureLink.findMany({
-      where: { agentId: session.user.id, linkType: "ID_UPLOAD" },
-      include: { idUpload: { select: { id: true, viewedAt: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    }),
-    db.form.count({ where: { agentId: session.user.id, status: "ACTIVE" } }),
-    Promise.resolve(isTwilioConfigured()),
-  ]);
+  let links: any[] = [];
+  let idUploads: any[] = [];
+  let formCount = 0;
+  const twilioEnabled = isTwilioConfigured();
+
+  try {
+    [links, idUploads, formCount] = await Promise.all([
+      db.secureLink.findMany({
+        where: { agentId: session.user.id, linkType: { not: "ID_UPLOAD" } },
+        include: { submission: { select: { id: true, revealedAt: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      }) as Promise<any[]>,
+      db.secureLink.findMany({
+        where: { agentId: session.user.id, linkType: "ID_UPLOAD" },
+        include: { idUpload: { select: { id: true, viewedAt: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      }) as Promise<any[]>,
+      db.form.count({ where: { agentId: session.user.id, status: "ACTIVE" } }),
+    ]);
+  } catch (error) {
+    // Keep dashboard usable if schema/data is temporarily out of sync during migrations.
+    console.error("[dashboard/load]", error);
+    [links, idUploads] = await Promise.all([
+      db.secureLink.findMany({
+        where: { agentId: session.user.id, linkType: { not: "ID_UPLOAD" } },
+        include: { submission: { select: { id: true, revealedAt: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      }) as Promise<any[]>,
+      db.secureLink.findMany({
+        where: { agentId: session.user.id, linkType: "ID_UPLOAD" },
+        include: { idUpload: { select: { id: true, viewedAt: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      }) as Promise<any[]>,
+    ]);
+    formCount = 0;
+  }
 
   const submitted = links.filter((l) => l.status === "SUBMITTED").length;
   const pending = links.filter((l) => l.status === "CREATED" || l.status === "OPENED").length;
