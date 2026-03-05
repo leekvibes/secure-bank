@@ -12,6 +12,81 @@ import { addDays } from "date-fns";
 import { sendSubmissionNotification } from "@/lib/email";
 import { NO_STORE_HEADERS } from "@/lib/http";
 import { buildEncryptedSubmissionData } from "@/lib/submission-storage";
+import {
+  ensureLegacyLogoAsset,
+  selectAssetsForToken,
+  toAssetRenderEntry,
+} from "@/lib/asset-library";
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { token: string } }
+) {
+  const link = await db.secureLink.findUnique({
+    where: { token: params.token },
+    include: {
+      assets: {
+        orderBy: { order: "asc" },
+        include: { asset: true },
+      },
+      agent: {
+        select: {
+          displayName: true,
+          agencyName: true,
+          destinationLabel: true,
+          logoUrl: true,
+        },
+      },
+    },
+  });
+
+  if (!link) {
+    return NextResponse.json(
+      { error: "Link not found." },
+      { status: 404, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  await ensureLegacyLogoAsset(link.agentId);
+
+  if (isExpired(link.expiresAt) || link.status === "EXPIRED") {
+    return NextResponse.json(
+      { error: "This link has expired." },
+      { status: 410, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const fallbackAssets = await db.agentAsset.findMany({
+    where: { userId: link.agentId, type: "LOGO" },
+    orderBy: { createdAt: "desc" },
+    take: 1,
+  });
+  const selectedAssets = selectAssetsForToken(
+    link.assets.map((entry) => entry.asset),
+    fallbackAssets
+  );
+
+  const assetPayload = (
+    await Promise.all(selectedAssets.map((asset) => toAssetRenderEntry(asset)))
+  ).filter((asset) => asset.url && asset.mimeType.startsWith("image/"));
+
+  return NextResponse.json(
+    {
+      link: {
+        token: params.token,
+        linkType: link.linkType,
+        clientName: link.clientName,
+        expiresAt: link.expiresAt.toISOString(),
+      },
+      agent: {
+        ...link.agent,
+        logoUrl: assetPayload[0]?.url ?? link.agent.logoUrl,
+      },
+      assets: assetPayload,
+    },
+    { headers: NO_STORE_HEADERS }
+  );
+}
 
 export async function POST(
   req: NextRequest,

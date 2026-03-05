@@ -24,6 +24,7 @@ export const createLinkSchema = z.object({
   clientEmail: z.string().email().optional().or(z.literal("")),
   expirationHours: z.number().int().min(1).max(168).default(24),
   retentionDays: z.number().int().min(1).max(30).default(7),
+  assetIds: z.array(z.string().min(1)).max(10).optional().default([]),
 });
 export type CreateLinkInput = z.infer<typeof createLinkSchema>;
 
@@ -184,5 +185,6 @@ export const createFormLinkSchema = z.object({
   clientPhone: z.string().max(30).optional(),
   clientEmail: z.string().email().optional().or(z.literal("")),
   expirationHours: z.number().int().min(1).max(168).default(24),
+  assetIds: z.array(z.string().min(1)).max(10).optional().default([]),
 });
 export type CreateFormLinkInput = z.infer<typeof createFormLinkSchema>;

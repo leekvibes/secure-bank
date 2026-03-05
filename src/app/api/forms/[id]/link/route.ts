@@ -5,27 +5,61 @@ import { db } from "@/lib/db";
 import { createFormLinkSchema } from "@/lib/schemas";
 import { generateToken } from "@/lib/tokens";
 import { addHours } from "date-fns";
+import { assertAssetOwnership } from "@/lib/asset-library";
+import { NO_STORE_HEADERS } from "@/lib/http";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401, headers: NO_STORE_HEADERS }
+    );
+  }
 
   const form = await db.form.findFirst({
     where: { id: params.id, agentId: session.user.id, status: "ACTIVE" },
   });
-  if (!form) return NextResponse.json({ error: "Form not found" }, { status: 404 });
+  if (!form) {
+    return NextResponse.json(
+      { error: "Form not found" },
+      { status: 404, headers: NO_STORE_HEADERS }
+    );
+  }
 
   const body = await req.json();
   const parsed = createFormLinkSchema.safeParse(body);
   if (!parsed.success) {
     const first = Object.values(parsed.error.flatten().fieldErrors).flat()[0];
-    return NextResponse.json({ error: first ?? "Invalid input" }, { status: 400 });
+    return NextResponse.json(
+      { error: first ?? "Invalid input" },
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
   }
 
-  const { clientName, clientPhone, clientEmail, expirationHours } = parsed.data;
+  const { clientName, clientPhone, clientEmail, expirationHours, assetIds } = parsed.data;
 
   const token = generateToken();
   const expiresAt = addHours(new Date(), expirationHours);
+
+  const uniqueAssetIds = Array.from(new Set(assetIds));
+  if (uniqueAssetIds.length > 0) {
+    const owned = await db.agentAsset.findMany({
+      where: { userId: session.user.id, id: { in: uniqueAssetIds } },
+      select: { id: true },
+    });
+    try {
+      assertAssetOwnership(
+        owned.map((a) => a.id),
+        uniqueAssetIds
+      );
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Invalid assets." },
+        { status: 403, headers: NO_STORE_HEADERS }
+      );
+    }
+  }
 
   const link = await db.formLink.create({
     data: {
@@ -35,6 +69,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       clientPhone: clientPhone || null,
       clientEmail: clientEmail || null,
       expiresAt,
+      assets:
+        uniqueAssetIds.length > 0
+          ? {
+              create: uniqueAssetIds.map((assetId, order) => ({
+                assetId,
+                order,
+              })),
+            }
+          : undefined,
     },
   });
 
@@ -44,5 +87,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const clientPart = clientName ? `Hi ${clientName.split(" ")[0]}, ` : "";
   const smsText = `${clientPart}Please fill out this secure form for ${form.title}. Your information is encrypted and goes directly to your agent:\n\n${url}\n\nLet me know once you've submitted it.`;
 
-  return NextResponse.json({ id: link.id, token, url, smsText, expiresAt: expiresAt.toISOString() }, { status: 201 });
+  return NextResponse.json(
+    { id: link.id, token, url, smsText, expiresAt: expiresAt.toISOString() },
+    { status: 201, headers: NO_STORE_HEADERS }
+  );
 }

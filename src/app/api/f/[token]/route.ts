@@ -4,12 +4,22 @@ import { encrypt } from "@/lib/crypto";
 import { SENSITIVE_FIELD_TYPES, type FormFieldType } from "@/lib/schemas";
 import { isExpired } from "@/lib/utils";
 import { addDays } from "date-fns";
+import {
+  ensureLegacyLogoAsset,
+  selectAssetsForToken,
+  toAssetRenderEntry,
+} from "@/lib/asset-library";
+import { NO_STORE_HEADERS } from "@/lib/http";
 
 // GET — public: return form config for client rendering
 export async function GET(req: NextRequest, { params }: { params: { token: string } }) {
   const link = await db.formLink.findUnique({
     where: { token: params.token },
     include: {
+      assets: {
+        orderBy: { order: "asc" },
+        include: { asset: true },
+      },
       form: {
         include: {
           fields: { orderBy: { order: "asc" } },
@@ -30,12 +40,26 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
     },
   });
 
-  if (!link) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!link) {
+    return NextResponse.json(
+      { error: "Not found" },
+      { status: 404, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  await ensureLegacyLogoAsset(link.form.agentId);
+
   if (isExpired(link.expiresAt) || link.status === "EXPIRED") {
-    return NextResponse.json({ error: "expired" }, { status: 410 });
+    return NextResponse.json(
+      { error: "expired" },
+      { status: 410, headers: NO_STORE_HEADERS }
+    );
   }
   if (link.status === "SUBMITTED") {
-    return NextResponse.json({ error: "already_submitted" }, { status: 409 });
+    return NextResponse.json(
+      { error: "already_submitted" },
+      { status: 409, headers: NO_STORE_HEADERS }
+    );
   }
 
   // Mark as opened
@@ -55,18 +79,38 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
     dropdownOptions: f.dropdownOptions ? JSON.parse(f.dropdownOptions) : null,
   }));
 
+  const fallbackAssets = await db.agentAsset.findMany({
+    where: { userId: link.form.agentId, type: "LOGO" },
+    orderBy: { createdAt: "desc" },
+    take: 1,
+  });
+  const selectedAssets = selectAssetsForToken(
+    link.assets.map((entry) => entry.asset),
+    fallbackAssets
+  );
+
+  const assetPayload = (
+    await Promise.all(selectedAssets.map((asset) => toAssetRenderEntry(asset)))
+  ).filter((asset) => asset.url && asset.mimeType.startsWith("image/"));
+
+  const resolvedLogoUrl = assetPayload[0]?.url ?? link.form.agent.logoUrl ?? null;
+
   return NextResponse.json({
     form: {
       title: link.form.title,
       description: link.form.description,
     },
     fields,
-    agent: link.form.agent,
+    agent: {
+      ...link.form.agent,
+      logoUrl: resolvedLogoUrl,
+    },
+    assets: assetPayload,
     link: {
       clientName: link.clientName,
       expiresAt: link.expiresAt.toISOString(),
     },
-  });
+  }, { headers: NO_STORE_HEADERS });
 }
 
 // POST — public: submit the form
