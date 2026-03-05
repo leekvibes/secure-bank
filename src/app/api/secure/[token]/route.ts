@@ -58,8 +58,8 @@ export async function GET(
 
   const fallbackAssets = await db.agentAsset.findMany({
     where: { userId: link.agentId, type: "LOGO" },
-    orderBy: { createdAt: "desc" },
-    take: 1,
+    orderBy: { createdAt: "asc" },
+    take: 10,
   });
   const selectedAssets = selectAssetsForToken(
     link.assets.map((entry) => entry.asset),
@@ -69,6 +69,12 @@ export async function GET(
   const assetPayload = (
     await Promise.all(selectedAssets.map((asset) => toAssetRenderEntry(asset)))
   ).filter((asset) => asset.url && asset.mimeType.startsWith("image/"));
+  const logoUrls = assetPayload
+    .map((asset) => asset.url)
+    .filter((url): url is string => Boolean(url));
+  if (logoUrls.length === 0 && link.agent.logoUrl) {
+    logoUrls.push(link.agent.logoUrl);
+  }
 
   return NextResponse.json(
     {
@@ -80,9 +86,10 @@ export async function GET(
       },
       agent: {
         ...link.agent,
-        logoUrl: assetPayload[0]?.url ?? link.agent.logoUrl,
+        logoUrl: logoUrls[0] ?? link.agent.logoUrl,
       },
       assets: assetPayload,
+      logoUrls,
     },
     { headers: NO_STORE_HEADERS }
   );

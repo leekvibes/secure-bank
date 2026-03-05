@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { createLinkSchema } from "@/lib/schemas";
 import { generateToken } from "@/lib/tokens";
 import { writeAuditLog } from "@/lib/audit";
+import { assertAssetOwnership } from "@/lib/asset-library";
 import { addHours } from "date-fns";
 
 export async function POST(req: NextRequest) {
@@ -30,7 +31,25 @@ export async function POST(req: NextRequest) {
       clientEmail,
       expirationHours,
       retentionDays,
+      assetIds,
     } = parsed.data;
+
+    // Validate asset ownership
+    const uniqueAssetIds = Array.from(new Set(assetIds ?? []));
+    if (uniqueAssetIds.length > 0) {
+      const owned = await db.agentAsset.findMany({
+        where: { userId: session.user.id, id: { in: uniqueAssetIds } },
+        select: { id: true },
+      });
+      try {
+        assertAssetOwnership(owned.map((a) => a.id), uniqueAssetIds);
+      } catch (error) {
+        return NextResponse.json(
+          { error: error instanceof Error ? error.message : "Invalid assets." },
+          { status: 403 }
+        );
+      }
+    }
 
     const token = generateToken();
     const effectiveExpirationHours =
@@ -47,6 +66,9 @@ export async function POST(req: NextRequest) {
         expiresAt,
         retentionDays,
         agentId: session.user.id,
+        assets: uniqueAssetIds.length > 0 ? {
+          create: uniqueAssetIds.map((assetId, order) => ({ assetId, order })),
+        } : undefined,
       },
     });
 

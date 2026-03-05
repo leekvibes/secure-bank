@@ -81,8 +81,8 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
 
   const fallbackAssets = await db.agentAsset.findMany({
     where: { userId: link.form.agentId, type: "LOGO" },
-    orderBy: { createdAt: "desc" },
-    take: 1,
+    orderBy: { createdAt: "asc" },
+    take: 10,
   });
   const selectedAssets = selectAssetsForToken(
     link.assets.map((entry) => entry.asset),
@@ -92,8 +92,14 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
   const assetPayload = (
     await Promise.all(selectedAssets.map((asset) => toAssetRenderEntry(asset)))
   ).filter((asset) => asset.url && asset.mimeType.startsWith("image/"));
+  const logoUrls = assetPayload
+    .map((asset) => asset.url)
+    .filter((url): url is string => Boolean(url));
+  if (logoUrls.length === 0 && link.form.agent.logoUrl) {
+    logoUrls.push(link.form.agent.logoUrl);
+  }
 
-  const resolvedLogoUrl = assetPayload[0]?.url ?? link.form.agent.logoUrl ?? null;
+  const resolvedLogoUrl = logoUrls[0] ?? link.form.agent.logoUrl ?? null;
 
   return NextResponse.json({
     form: {
@@ -106,6 +112,7 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
       logoUrl: resolvedLogoUrl,
     },
     assets: assetPayload,
+    logoUrls,
     link: {
       clientName: link.clientName,
       expiresAt: link.expiresAt.toISOString(),
