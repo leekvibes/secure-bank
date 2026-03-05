@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import { NO_STORE_HEADERS } from "@/lib/http";
+import { ensureLegacyLogoAsset } from "@/lib/asset-library";
 
 const MAX_LOGO_BYTES = 512 * 1024; // 512 KB max
 
@@ -45,6 +46,8 @@ export async function POST(req: NextRequest) {
     where: { id: session.user.id },
     data: { logoUrl },
   });
+
+  await ensureLegacyLogoAsset(session.user.id);
 
   return NextResponse.json({ success: true, logoUrl }, { headers: NO_STORE_HEADERS });
 }

@@ -36,6 +36,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   idUploads           IdUpload[]
   forms               Form[]
+  assets              AgentAsset[]
 }
 
 model SecureLink {
@@ -57,6 +58,7 @@ model SecureLink {
 
   submission Submission?
   idUpload   IdUpload?
+  assets     SecureLinkAsset[]
   auditLogs  AuditLog[]
 }
 
@@ -151,6 +153,7 @@ model FormLink {
 
   form       Form            @relation(fields: [formId], references: [id], onDelete: Cascade)
   submission FormSubmission?
+  assets     FormLinkAsset[]
 }
 
 model FormSubmission {
@@ -176,6 +179,50 @@ model FormSubmissionValue {
 
   submission FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   field      FormField      @relation(fields: [fieldId], references: [id])
+}
+
+model AgentAsset {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   @default("LOGO") // LOGO | AVATAR | BANNER
+  name      String?
+  fileKey   String?
+  url       String?
+  mimeType  String
+  sizeBytes Int
+  createdAt DateTime @default(now())
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secureLinkRefs  SecureLinkAsset[]
+  formLinkRefs    FormLinkAsset[]
+}
+
+model SecureLinkAsset {
+  id           String   @id @default(cuid())
+  secureLinkId String
+  assetId      String
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  secureLink SecureLink @relation(fields: [secureLinkId], references: [id], onDelete: Cascade)
+  asset      AgentAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([secureLinkId, assetId])
+  @@index([secureLinkId, order])
+}
+
+model FormLinkAsset {
+  id         String   @id @default(cuid())
+  formLinkId String
+  assetId    String
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  formLink FormLink   @relation(fields: [formLinkId], references: [id], onDelete: Cascade)
+  asset    AgentAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([formLinkId, assetId])
+  @@index([formLinkId, order])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
