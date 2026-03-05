@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useRef } from "react";
-import {
-  Lock, Shield, Clock, CheckCircle2, BadgeCheck, Building2,
-} from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ClientTrustHeader } from "@/components/client-trust-header";
 
 type FormFieldType =
   | "text" | "email" | "phone" | "address" | "date"
@@ -33,6 +32,7 @@ interface Agent {
   destinationLabel: string | null;
   licenseNumber: string | null;
   verificationStatus: string;
+  phone?: string | null;
 }
 
 interface Props {
@@ -40,22 +40,11 @@ interface Props {
   form: { title: string; description: string | null };
   fields: FormField[];
   agent: Agent;
+  logoUrls?: string[];
   link: { clientName: string | null; expiresAt: string };
 }
 
-const VERIFICATION_LABELS: Record<string, string> = {
-  LICENSED: "Licensed Agent",
-  CERTIFIED: "Certified Agent",
-  REGULATED: "Regulated Professional",
-};
-
-const VERIFICATION_COLORS: Record<string, string> = {
-  LICENSED: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  CERTIFIED: "bg-blue-50 text-blue-700 border-blue-200",
-  REGULATED: "bg-purple-50 text-purple-700 border-purple-200",
-};
-
-export function DynamicFormClient({ token, form, fields, agent, link }: Props) {
+export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], link }: Props) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [confirmValues, setConfirmValues] = useState<Record<string, string>>({});
   const [consent, setConsent] = useState(false);
@@ -108,9 +97,16 @@ export function DynamicFormClient({ token, form, fields, agent, link }: Props) {
     setSubmitted(true);
   }
 
-  const expiresDate = new Date(link.expiresAt).toLocaleDateString();
-  const verificationBadge = VERIFICATION_LABELS[agent.verificationStatus];
-  const verificationColor = VERIFICATION_COLORS[agent.verificationStatus] ?? "";
+  const agentProfile = {
+    displayName: agent.displayName,
+    agencyName: agent.agencyName,
+    company: agent.company,
+    industry: agent.industry,
+    destinationLabel: agent.destinationLabel,
+    licenseNumber: agent.licenseNumber,
+    verificationStatus: agent.verificationStatus,
+    phone: agent.phone ?? null,
+  };
 
   if (submitted) {
     return (
@@ -143,82 +139,11 @@ export function DynamicFormClient({ token, form, fields, agent, link }: Props) {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white px-4 py-10">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex flex-col">
+      <ClientTrustHeader logoUrls={logoUrls} agent={agentProfile} expiresAt={link.expiresAt} />
+
+      <main className="flex-1 px-4 py-10">
       <div className="max-w-md mx-auto">
-
-        {/* Agent branding */}
-        <div className="text-center mb-8">
-          {agent.logoUrl ? (
-            <div className="flex justify-center mb-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={agent.logoUrl}
-                alt={agent.agencyName ?? agent.displayName}
-                className="h-14 w-auto object-contain rounded-lg"
-              />
-            </div>
-          ) : (
-            <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
-              <Lock className="w-7 h-7 text-white" />
-            </div>
-          )}
-
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">
-            Secure Submission
-          </p>
-          <h1 className="text-xl font-bold text-slate-900">
-            {agent.displayName}
-            {agent.agencyName && (
-              <span className="font-normal text-slate-500"> · {agent.agencyName}</span>
-            )}
-          </h1>
-
-          {/* Industry + company */}
-          {(agent.industry || agent.company) && (
-            <p className="text-sm text-slate-500 mt-1 flex items-center justify-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-slate-400" />
-              {[agent.company, agent.industry].filter(Boolean).join(" · ")}
-            </p>
-          )}
-
-          {/* Verification badge */}
-          {verificationBadge && (
-            <div className="flex justify-center mt-2">
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${verificationColor}`}>
-                <BadgeCheck className="w-3.5 h-3.5" />
-                {verificationBadge}
-              </span>
-            </div>
-          )}
-
-          {/* License number */}
-          {agent.licenseNumber && (
-            <p className="text-xs text-slate-400 mt-1.5">License #{agent.licenseNumber}</p>
-          )}
-
-          {/* Destination label */}
-          {agent.destinationLabel && (
-            <p className="text-xs text-slate-400 mt-1.5">
-              Data sent to: <span className="text-slate-600 font-medium">{agent.destinationLabel}</span>
-            </p>
-          )}
-        </div>
-
-        {/* Trust strip */}
-        <div className="flex items-center justify-center gap-6 mb-8">
-          {[
-            { icon: Lock, label: "AES-256" },
-            { icon: Shield, label: "Private" },
-            { icon: Clock, label: `Expires ${expiresDate}` },
-          ].map(({ icon: Icon, label }) => (
-            <div key={label} className="flex flex-col items-center gap-1">
-              <div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center">
-                <Icon className="w-4 h-4 text-slate-600" />
-              </div>
-              <span className="text-xs text-slate-400">{label}</span>
-            </div>
-          ))}
-        </div>
 
         {/* Form */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
@@ -282,7 +207,8 @@ export function DynamicFormClient({ token, form, fields, agent, link }: Props) {
           </form>
         </div>
       </div>
-    </main>
+      </main>
+    </div>
   );
 }
 

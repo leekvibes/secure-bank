@@ -15,6 +15,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { LINK_TYPES } from "@/lib/utils";
+import { BrandingSelector } from "@/components/branding-selector";
 
 type LinkType = "BANKING_INFO" | "SSN_ONLY" | "FULL_INTAKE" | "ID_UPLOAD";
 
@@ -33,6 +34,7 @@ export default function NewLinkPage() {
   const [copied, setCopied] = useState(false);
   const [copiedSms, setCopiedSms] = useState(false);
 
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [form, setForm] = useState({
     linkType: "BANKING_INFO" as LinkType,
     clientName: "",
@@ -50,7 +52,7 @@ export default function NewLinkPage() {
     const res = await fetch("/api/links", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, assetIds: selectedAssetIds }),
     });
 
     const data = await res.json();
@@ -144,6 +146,7 @@ export default function NewLinkPage() {
               <Button
                 onClick={() => {
                   setCreated(null);
+                  setSelectedAssetIds([]);
                   setForm({
                     linkType: "BANKING_INFO",
                     clientName: "",
@@ -302,6 +305,15 @@ export default function NewLinkPage() {
                 <option value={72}>3 days</option>
                 <option value={168}>7 days</option>
               </select>
+            </div>
+
+            {/* Branding */}
+            <div className="space-y-2">
+              <Label>Branding <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <BrandingSelector
+                selectedIds={selectedAssetIds}
+                onChange={setSelectedAssetIds}
+              />
             </div>
 
             <Button type="submit" className="w-full" size="lg" disabled={loading}>

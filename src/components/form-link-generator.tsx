@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { BrandingSelector } from "@/components/branding-selector";
 
 interface Props {
   formId: string;
   formTitle: string;
+  agentName?: string;
 }
 
 interface GeneratedLink {
@@ -18,13 +20,14 @@ interface GeneratedLink {
   expiresAt: string;
 }
 
-export function FormLinkGenerator({ formId, formTitle }: Props) {
+export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generated, setGenerated] = useState<GeneratedLink | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedSms, setCopiedSms] = useState(false);
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
 
   const [form, setForm] = useState({
     clientName: "",
@@ -40,7 +43,7 @@ export function FormLinkGenerator({ formId, formTitle }: Props) {
     const res = await fetch(`/api/forms/${formId}/link`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, assetIds: selectedAssetIds }),
     });
 
     const data = await res.json();
@@ -130,6 +133,7 @@ export function FormLinkGenerator({ formId, formTitle }: Props) {
                 className="w-full"
                 onClick={() => {
                   setGenerated(null);
+                  setSelectedAssetIds([]);
                   setForm({ clientName: "", clientPhone: "", clientEmail: "", expirationHours: 24 });
                 }}
               >
@@ -185,6 +189,14 @@ export function FormLinkGenerator({ formId, formTitle }: Props) {
                   <option value={72}>3 days</option>
                   <option value={168}>7 days</option>
                 </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Branding <span className="text-xs text-muted-foreground font-normal">(optional)</span></Label>
+                <BrandingSelector
+                  selectedIds={selectedAssetIds}
+                  onChange={setSelectedAssetIds}
+                  agentName={agentName}
+                />
               </div>
               <div className="flex gap-2 pt-1">
                 <Button variant="outline" size="sm" onClick={() => setOpen(false)} className="flex-1">
