@@ -64,6 +64,32 @@ npm run typecheck
 npm test
 ```
 
+### Troubleshooting UI Load
+
+If the UI is blank, constantly refreshing, or routes fail to load:
+
+1. Clean stale Next.js build artifacts and restart:
+```bash
+npm run dev
+```
+`predev` now clears `.next` automatically.
+
+2. Ensure DB schema is up to date (required for dashboard/auth flows):
+```bash
+npm run db:push
+```
+
+3. If another dev server is already running, stop it first:
+```bash
+lsof -nP -iTCP:3000 -sTCP:LISTEN
+kill <PID>
+```
+
+Common causes:
+- Stale/corrupted `.next` chunk files after branch switches or concurrent edits
+- SQLite schema drift (new tables/columns referenced by server routes before `db:push`)
+- Multiple `next dev` processes running on different ports causing confusion
+
 ---
 
 ## Routes
