@@ -57,6 +57,13 @@ Open [http://localhost:3000](http://localhost:3000).
 
 **Demo credentials:** `demo@agentsecurelinks.com` / `demo1234`
 
+### 5. Security checks
+
+```bash
+npm run typecheck
+npm test
+```
+
 ---
 
 ## Routes
@@ -166,6 +173,8 @@ Every client form requires an explicit consent checkbox before submission can pr
 | `NEXTAUTH_SECRET` | Yes | 32-byte random hex string for JWT signing |
 | `ENCRYPTION_KEY` | Yes | 32-byte random hex string for AES-256-GCM field encryption |
 | `AUDIT_STORE_IP` | No | Set to `"true"` to store IP addresses in audit logs (default: off) |
+| `UPSTASH_REDIS_REST_URL` | No | Upstash REST URL for distributed rate limiting |
+| `UPSTASH_REDIS_REST_TOKEN` | No | Upstash REST token for distributed rate limiting |
 
 ---
 

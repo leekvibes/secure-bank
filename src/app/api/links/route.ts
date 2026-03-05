@@ -29,7 +29,6 @@ export async function POST(req: NextRequest) {
       clientPhone,
       clientEmail,
       expirationHours,
-      viewOnce,
       retentionDays,
     } = parsed.data;
 
@@ -46,7 +45,6 @@ export async function POST(req: NextRequest) {
         clientPhone: clientPhone || null,
         clientEmail: clientEmail || null,
         expiresAt,
-        viewOnce,
         retentionDays,
         agentId: session.user.id,
       },
@@ -70,8 +68,8 @@ export async function POST(req: NextRequest) {
         ? "banking information"
         : linkType === "SSN_ONLY"
         ? "your Social Security Number"
-        : linkType === "SSN_DOB"
-        ? "your SSN and date of birth"
+        : linkType === "ID_UPLOAD"
+        ? "a photo of your ID"
         : "your information";
 
     const smsText = `${clientPart}I need to securely collect your ${typePart} for your application. Instead of reading it aloud, please tap this private link and enter it directly — it's encrypted and expires soon:\n\n${url}\n\nLet me know once you've submitted it.`;
