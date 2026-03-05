@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { decryptFields } from "@/lib/crypto";
 import { writeAuditLog } from "@/lib/audit";
 import { LINK_TYPES } from "@/lib/utils";
+import { NO_STORE_HEADERS } from "@/lib/http";
 
 export async function GET(
   req: NextRequest,
@@ -12,7 +13,10 @@ export async function GET(
 ) {
   const session = await getServerSession(authOptions);
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401, headers: NO_STORE_HEADERS }
+    );
   }
 
   const format = req.nextUrl.searchParams.get("format") ?? "json";
@@ -23,7 +27,10 @@ export async function GET(
   });
 
   if (!submission) {
-    return NextResponse.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Not found." },
+      { status: 404, headers: NO_STORE_HEADERS }
+    );
   }
 
   let fields: Record<string, string>;
@@ -31,7 +38,10 @@ export async function GET(
     const encrypted: Record<string, string> = JSON.parse(submission.encryptedData);
     fields = decryptFields(encrypted);
   } catch {
-    return NextResponse.json({ error: "Failed to decrypt." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to decrypt." },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
   }
 
   await writeAuditLog({
@@ -68,6 +78,7 @@ export async function GET(
 
     return new NextResponse(lines.join("\n"), {
       headers: {
+        ...NO_STORE_HEADERS,
         "Content-Type": "text/plain; charset=utf-8",
         "Content-Disposition": `attachment; filename="submission-${params.id.slice(0, 8)}.txt"`,
       },
@@ -86,6 +97,7 @@ export async function GET(
 
   return new NextResponse(JSON.stringify(payload, null, 2), {
     headers: {
+      ...NO_STORE_HEADERS,
       "Content-Type": "application/json",
       "Content-Disposition": `attachment; filename="submission-${params.id.slice(0, 8)}.json"`,
     },

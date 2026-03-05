@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
   bankingInfoSchema,
-  ssnDobSchema,
   ssnOnlySchema,
   fullIntakeSchema,
 } from "@/lib/schemas";
@@ -12,6 +11,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { isExpired } from "@/lib/utils";
 import { addDays } from "date-fns";
 import { sendSubmissionNotification } from "@/lib/email";
+import { NO_STORE_HEADERS } from "@/lib/http";
 
 export async function POST(
   req: NextRequest,
@@ -21,12 +21,12 @@ export async function POST(
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   const rateLimitKey = `submit:${params.token}:${ip}`;
-  const { allowed } = checkRateLimit(rateLimitKey);
+  const { allowed } = await checkRateLimit(rateLimitKey);
 
   if (!allowed) {
     return NextResponse.json(
       { error: "Too many attempts. Please wait 15 minutes." },
-      { status: 429 }
+      { status: 429, headers: NO_STORE_HEADERS }
     );
   }
 
@@ -37,13 +37,16 @@ export async function POST(
   });
 
   if (!link) {
-    return NextResponse.json({ error: "Link not found." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Link not found." },
+      { status: 404, headers: NO_STORE_HEADERS }
+    );
   }
 
   if (isExpired(link.expiresAt) || link.status === "EXPIRED") {
     return NextResponse.json(
       { error: "This link has expired." },
-      { status: 410 }
+      { status: 410, headers: NO_STORE_HEADERS }
     );
   }
 
@@ -54,7 +57,7 @@ export async function POST(
   if (existing) {
     return NextResponse.json(
       { error: "This link has already been submitted." },
-      { status: 409 }
+      { status: 409, headers: NO_STORE_HEADERS }
     );
   }
 
@@ -63,7 +66,10 @@ export async function POST(
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request body." },
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
   }
 
   let validated: Record<string, string | boolean>;
@@ -72,8 +78,6 @@ export async function POST(
       ? bankingInfoSchema
       : link.linkType === "SSN_ONLY"
       ? ssnOnlySchema
-      : link.linkType === "SSN_DOB"
-      ? ssnDobSchema
       : fullIntakeSchema;
 
   const parsed = schema.safeParse(body);
@@ -85,14 +89,19 @@ export async function POST(
     }
     return NextResponse.json(
       { error: "Please fix the errors below.", fieldErrors },
-      { status: 422 }
+      { status: 422, headers: NO_STORE_HEADERS }
     );
   }
 
   validated = parsed.data as unknown as Record<string, string | boolean>;
 
-  // Extract only string fields for encryption (exclude consent boolean)
-  const { consent: _consent, confirmSsn: _confirmSsn, ...stringFields } = validated;
+  // Strip confirmation fields and consent — never store these
+  const {
+    consent: _consent,
+    confirmSsn: _confirmSsn,
+    confirmAccountNumber: _confirmAccountNumber,
+    ...stringFields
+  } = validated as Record<string, string | boolean>;
   const toEncrypt: Record<string, string> = {};
   for (const [k, v] of Object.entries(stringFields)) {
     if (typeof v === "string" && v.trim() !== "") {
@@ -121,7 +130,7 @@ export async function POST(
   ]);
 
   await writeAuditLog({
-    event: link.linkType === "SSN_ONLY" ? "SSN_SUBMITTED" : "SUBMITTED",
+    event: "SUBMITTED",
     agentId: link.agentId,
     linkId: link.id,
     request: req,
@@ -143,5 +152,8 @@ export async function POST(
     });
   }
 
-  return NextResponse.json({ success: true }, { status: 201 });
+  return NextResponse.json(
+    { success: true },
+    { status: 201, headers: NO_STORE_HEADERS }
+  );
 }
