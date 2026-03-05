@@ -13,6 +13,7 @@ export default async function SettingsPage() {
     select: {
       displayName: true,
       agencyName: true,
+      company: true,
       phone: true,
       licenseNumber: true,
       licensedStates: true,
@@ -23,6 +24,8 @@ export default async function SettingsPage() {
       destinationLabel: true,
       carriersList: true,
       notificationEmail: true,
+      verificationStatus: true,
+      dataRetentionDays: true,
     },
   });
 

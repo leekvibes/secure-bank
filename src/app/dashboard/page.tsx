@@ -3,7 +3,7 @@ import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import { isTwilioConfigured } from "@/lib/sms";
 import Link from "next/link";
-import { Plus, ArrowRight } from "lucide-react";
+import { Plus, ArrowRight, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LinkRow } from "@/components/link-row";
 
@@ -21,7 +21,7 @@ export default async function DashboardPage() {
     data: { status: "EXPIRED" },
   });
 
-  const [links, idUploads, twilioEnabled] = await Promise.all([
+  const [links, idUploads, formCount, twilioEnabled] = await Promise.all([
     db.secureLink.findMany({
       where: { agentId: session.user.id, linkType: { not: "ID_UPLOAD" } },
       include: { submission: { select: { id: true, revealedAt: true } } },
@@ -34,6 +34,7 @@ export default async function DashboardPage() {
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
+    db.form.count({ where: { agentId: session.user.id, status: "ACTIVE" } }),
     Promise.resolve(isTwilioConfigured()),
   ]);
 
@@ -59,11 +60,12 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         {[
           { label: "Total links", value: links.length + idUploads.length },
           { label: "Pending", value: pending },
           { label: "Submitted", value: submitted },
+          { label: "Forms", value: formCount },
         ].map(({ label, value }) => (
           <div
             key={label}
@@ -74,6 +76,21 @@ export default async function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Forms quick link */}
+      {formCount > 0 && (
+        <div className="flex items-center justify-between py-2.5 px-4 bg-blue-50 border border-blue-100 rounded-xl">
+          <div className="flex items-center gap-2.5">
+            <FileText className="w-4 h-4 text-blue-600" />
+            <span className="text-sm font-medium text-blue-800">
+              {formCount} active custom form{formCount !== 1 ? "s" : ""}
+            </span>
+          </div>
+          <Link href="/dashboard/forms" className="text-xs text-blue-600 hover:underline font-medium">
+            View forms →
+          </Link>
+        </div>
+      )}
 
       {/* Links list */}
       <div>

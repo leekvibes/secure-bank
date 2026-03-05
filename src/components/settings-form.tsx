@@ -12,6 +12,7 @@ interface Props {
   user: {
     displayName: string;
     agencyName: string | null;
+    company: string | null;
     phone: string | null;
     licenseNumber: string | null;
     licensedStates: string | null;
@@ -22,6 +23,8 @@ interface Props {
     destinationLabel: string | null;
     carriersList: string | null;
     notificationEmail: string | null;
+    verificationStatus: string;
+    dataRetentionDays: number;
   };
 }
 
@@ -38,6 +41,7 @@ export function SettingsForm({ user }: Props) {
   const [form, setForm] = useState({
     displayName: user.displayName,
     agencyName: user.agencyName ?? "",
+    company: user.company ?? "",
     phone: user.phone ?? "",
     licenseNumber: user.licenseNumber ?? "",
     licensedStates: user.licensedStates ?? "",
@@ -45,6 +49,8 @@ export function SettingsForm({ user }: Props) {
     destinationLabel: user.destinationLabel ?? "",
     carriersList: user.carriersList ?? "",
     notificationEmail: user.notificationEmail ?? "",
+    verificationStatus: user.verificationStatus ?? "UNVERIFIED",
+    dataRetentionDays: user.dataRetentionDays ?? 30,
   });
 
   async function handleSubmit(e: React.FormEvent) {
@@ -153,6 +159,15 @@ export function SettingsForm({ user }: Props) {
                 value={form.agencyName}
                 onChange={(e) => setForm({ ...form, agencyName: e.target.value })}
                 placeholder="Rivera Financial Group"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="company">Company</Label>
+              <Input
+                id="company"
+                value={form.company}
+                onChange={(e) => setForm({ ...form, company: e.target.value })}
+                placeholder="Rivera Holdings LLC"
               />
             </div>
             <div className="space-y-1.5">
@@ -317,6 +332,75 @@ export function SettingsForm({ user }: Props) {
                 placeholder="alerts@youragency.com"
               />
               <p className="text-xs text-slate-400">Receives an email when a client submits. Defaults to your account email.</p>
+            </div>
+            <Button type="submit" disabled={loading}>
+              {loading ? "Saving..." : "Save changes"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Trust & Compliance */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Trust & compliance</CardTitle>
+          <CardDescription>
+            These settings control security indicators shown on your client forms.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setLoading(true);
+              setError(null);
+              setSuccess(false);
+              const res = await fetch("/api/profile", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(form),
+              });
+              const data = await res.json();
+              setLoading(false);
+              if (!res.ok) { setError(data.error ?? "Failed to save."); return; }
+              setSuccess(true);
+              router.refresh();
+            }}
+            className="space-y-4"
+          >
+            <div className="space-y-1.5">
+              <Label htmlFor="verificationStatus">Verification status</Label>
+              <select
+                id="verificationStatus"
+                value={form.verificationStatus}
+                onChange={(e) => setForm({ ...form, verificationStatus: e.target.value })}
+                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="UNVERIFIED">Unverified (no badge shown)</option>
+                <option value="LICENSED">Licensed Agent</option>
+                <option value="CERTIFIED">Certified Agent</option>
+                <option value="REGULATED">Regulated Professional</option>
+              </select>
+              <p className="text-xs text-slate-400">
+                Displays a badge on client forms. Only declare a status that is accurate.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="dataRetentionDays">Default data retention</Label>
+              <select
+                id="dataRetentionDays"
+                value={form.dataRetentionDays}
+                onChange={(e) => setForm({ ...form, dataRetentionDays: parseInt(e.target.value) })}
+                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value={30}>30 days</option>
+                <option value={60}>60 days</option>
+                <option value={90}>90 days</option>
+                <option value={-1}>Manual deletion</option>
+              </select>
+              <p className="text-xs text-slate-400">
+                How long submitted data is retained before automatic deletion.
+              </p>
             </div>
             <Button type="submit" disabled={loading}>
               {loading ? "Saving..." : "Save changes"}

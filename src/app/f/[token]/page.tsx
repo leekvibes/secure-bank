@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { isExpired } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import { DynamicFormClient } from "@/components/dynamic-form-client";
+import type { FormFieldType } from "@/lib/schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,7 @@ export default async function FormPage({ params }: Props) {
   const fields = link.form.fields.map((f) => ({
     id: f.id,
     label: f.label,
-    fieldType: f.fieldType,
+    fieldType: f.fieldType as FormFieldType,
     placeholder: f.placeholder,
     helpText: f.helpText,
     required: f.required,
