@@ -3,11 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Eye, EyeOff, Shield, Clock, AlertTriangle, Download, Trash2 } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Shield, Clock, AlertTriangle, Download, Trash2, Share2, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { LINK_TYPES, formatDate, type LinkType } from "@/lib/utils";
+import { shareLink } from "@/lib/share";
 
 interface SubmissionViewerProps {
   submission: {
@@ -19,9 +20,9 @@ interface SubmissionViewerProps {
     createdAt: Date;
     link: {
       id: string;
+      token: string;
       linkType: string;
       clientName: string | null;
-      viewOnce: boolean;
       status: string;
     };
   };
@@ -58,9 +59,10 @@ export function SubmissionViewer({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [shared, setShared] = useState(false);
 
   const alreadyRevealed = submission.revealedAt !== null;
-  const isViewOnce = submission.link.viewOnce;
+  const isViewOnce = true;
   const isBlocked = isViewOnce && alreadyRevealed;
 
   async function handleDelete() {
@@ -72,6 +74,27 @@ export function SubmissionViewer({
 
   function exportUrl(format: string) {
     return `/api/submissions/${submission.id}/export?format=${format}`;
+  }
+
+  const secureUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/secure/${submission.link.token}`
+      : `/secure/${submission.link.token}`;
+
+  async function handleShare() {
+    try {
+      const result = await shareLink({
+        title: "Secure Submission Link",
+        text: "Use this private encrypted link to submit your information securely.",
+        url: secureUrl,
+      });
+      if (result === "shared" || result === "copied") {
+        setShared(true);
+        setTimeout(() => setShared(false), 2000);
+      }
+    } catch {
+      // User cancelled share dialog or clipboard permission was denied.
+    }
   }
 
   async function revealData() {
@@ -105,6 +128,10 @@ export function SubmissionViewer({
           </Link>
         </Button>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleShare}>
+            {shared ? <CheckCheck className="w-3.5 h-3.5 text-green-600" /> : <Share2 className="w-3.5 h-3.5" />}
+            {shared ? "Shared" : "Share"}
+          </Button>
           <Button variant="outline" size="sm" asChild>
             <a href={exportUrl("json")} download>
               <Download className="w-3.5 h-3.5" />

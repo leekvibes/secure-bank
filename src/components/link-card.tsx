@@ -7,6 +7,7 @@ import {
   Clock,
   Copy,
   CheckCheck,
+  Share2,
   ChevronRight,
   User,
   Eye,
@@ -24,6 +25,7 @@ import {
   isExpired,
   type LinkType,
 } from "@/lib/utils";
+import { shareLink } from "@/lib/share";
 
 interface LinkCardProps {
   link: {
@@ -35,7 +37,6 @@ interface LinkCardProps {
     status: string;
     expiresAt: Date;
     createdAt: Date;
-    viewOnce: boolean;
     submission: { id: string; revealedAt: Date | null } | null;
   };
   twilioEnabled?: boolean;
@@ -44,6 +45,7 @@ interface LinkCardProps {
 export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
+  const [shared, setShared] = useState(false);
   const [showSms, setShowSms] = useState(false);
   const [smsTo, setSmsTo] = useState(link.clientPhone ?? "");
   const [smsSending, setSmsSending] = useState(false);
@@ -60,6 +62,25 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
     navigator.clipboard.writeText(secureUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleShare() {
+    try {
+      const result = await shareLink({
+        title: "Secure Submission Link",
+        text: "Use this private encrypted link to submit your information securely.",
+        url: secureUrl,
+      });
+      if (result === "shared") {
+        setShared(true);
+        setTimeout(() => setShared(false), 2000);
+      } else {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch {
+      // User cancelled share dialog or clipboard permission was denied.
+    }
   }
 
   async function sendSms() {
@@ -127,6 +148,12 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+          {canAct && (
+            <Button variant="outline" size="sm" onClick={handleShare} className="text-xs">
+              {shared ? <CheckCheck className="w-3.5 h-3.5 text-green-600" /> : <Share2 className="w-3.5 h-3.5" />}
+              {shared ? "Shared" : "Share"}
+            </Button>
+          )}
           {canAct && (
             <Button variant="outline" size="sm" onClick={copyLink} className="text-xs">
               {copied ? (
