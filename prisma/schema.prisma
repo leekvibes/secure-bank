@@ -13,6 +13,7 @@ model User {
   passwordHash      String
   displayName       String
   agencyName        String?
+  company           String?
   phone             String?
   licenseNumber     String?
   licensedStates    String?  // comma-separated
@@ -24,6 +25,9 @@ model User {
   destinationLabel  String?  // e.g. "EverQuote", "Carrier Application"
   carriersList      String?  // comma-separated display-only labels
   notificationEmail String?  // override email for submission alerts
+  // Compliance / trust
+  verificationStatus String  @default("UNVERIFIED") // UNVERIFIED | LICENSED | CERTIFIED | REGULATED
+  dataRetentionDays  Int     @default(30)            // 30 | 60 | 90 | -1 (manual)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -31,6 +35,7 @@ model User {
   auditLogs           AuditLog[]
   passwordResetTokens PasswordResetToken[]
   idUploads           IdUpload[]
+  forms               Form[]
 }
 
 model SecureLink {
@@ -94,6 +99,86 @@ model PasswordResetToken {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+// ── Custom Form Builder ───────────────────────────────────────────────────────
+
+model Form {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  status        String   @default("ACTIVE") // ACTIVE | ARCHIVED
+  retentionDays Int      @default(30)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  agentId     String
+  agent       User     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  fields      FormField[]
+  links       FormLink[]
+  submissions FormSubmission[]
+}
+
+model FormField {
+  id              String   @id @default(cuid())
+  formId          String
+  label           String
+  fieldType       String   // text|email|phone|address|date|dropdown|ssn|routing|bank_account|signature
+  placeholder     String?
+  helpText        String?
+  required        Boolean  @default(false)
+  encrypted       Boolean  @default(true)
+  maskInput       Boolean  @default(false)
+  confirmField    Boolean  @default(false)
+  dropdownOptions String?  // JSON: ["Option A","Option B"]
+  order           Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  form   Form                  @relation(fields: [formId], references: [id], onDelete: Cascade)
+  values FormSubmissionValue[]
+}
+
+model FormLink {
+  id          String   @id @default(cuid())
+  formId      String
+  token       String   @unique
+  clientName  String?
+  clientPhone String?
+  clientEmail String?
+  expiresAt   DateTime
+  status      String   @default("CREATED") // CREATED | OPENED | SUBMITTED | EXPIRED
+  createdAt   DateTime @default(now())
+
+  form       Form            @relation(fields: [formId], references: [id], onDelete: Cascade)
+  submission FormSubmission?
+}
+
+model FormSubmission {
+  id         String    @id @default(cuid())
+  formLinkId String    @unique
+  formId     String
+  deleteAt   DateTime
+  viewedAt   DateTime?
+  createdAt  DateTime  @default(now())
+
+  formLink FormLink              @relation(fields: [formLinkId], references: [id], onDelete: Cascade)
+  form     Form                  @relation(fields: [formId], references: [id])
+  values   FormSubmissionValue[]
+}
+
+model FormSubmissionValue {
+  id           String   @id @default(cuid())
+  submissionId String
+  fieldId      String
+  fieldLabel   String
+  value        String
+  isEncrypted  Boolean  @default(false)
+
+  submission FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  field      FormField      @relation(fields: [fieldId], references: [id])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 model AuditLog {
   id        String   @id @default(cuid())
