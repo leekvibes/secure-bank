@@ -25,6 +25,7 @@ export async function PATCH(req: NextRequest) {
       data: {
         displayName: d.displayName,
         agencyName: d.agencyName ?? null,
+        company: d.company ?? null,
         phone: d.phone ?? null,
         licenseNumber: d.licenseNumber ?? null,
         licensedStates: d.licensedStates ?? null,
@@ -32,6 +33,8 @@ export async function PATCH(req: NextRequest) {
         destinationLabel: d.destinationLabel ?? null,
         carriersList: d.carriersList ?? null,
         notificationEmail: d.notificationEmail || null,
+        verificationStatus: d.verificationStatus ?? undefined,
+        dataRetentionDays: d.dataRetentionDays ?? undefined,
       },
     });
 

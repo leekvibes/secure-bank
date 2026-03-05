@@ -1,0 +1,59 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth/options";
+import { db } from "@/lib/db";
+
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const form = await db.form.findFirst({
+    where: { id: params.id, agentId: session.user.id },
+    include: {
+      fields: { orderBy: { order: "asc" } },
+      links: {
+        orderBy: { createdAt: "desc" },
+        include: { submission: { select: { id: true, viewedAt: true } } },
+        take: 50,
+      },
+      _count: { select: { submissions: true } },
+    },
+  });
+
+  if (!form) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  return NextResponse.json({ form });
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const form = await db.form.findFirst({
+    where: { id: params.id, agentId: session.user.id },
+  });
+  if (!form) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const body = await req.json();
+  const allowed = ["title", "description", "status", "retentionDays"] as const;
+  const data: Record<string, unknown> = {};
+  for (const key of allowed) {
+    if (key in body) data[key] = body[key];
+  }
+
+  const updated = await db.form.update({ where: { id: params.id }, data });
+  return NextResponse.json({ form: updated });
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const form = await db.form.findFirst({
+    where: { id: params.id, agentId: session.user.id },
+  });
+  if (!form) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  await db.form.delete({ where: { id: params.id } });
+  return NextResponse.json({ success: true });
+}

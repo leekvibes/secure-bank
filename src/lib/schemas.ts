@@ -131,6 +131,7 @@ export type FullIntakeInput = z.infer<typeof fullIntakeSchema>;
 export const updateProfileSchema = z.object({
   displayName: z.string().min(2).max(80),
   agencyName: z.string().max(120).optional(),
+  company: z.string().max(120).optional(),
   phone: z.string().max(30).optional(),
   licenseNumber: z.string().max(60).optional(),
   licensedStates: z.string().max(200).optional(),
@@ -139,5 +140,49 @@ export const updateProfileSchema = z.object({
   destinationLabel: z.string().max(120).optional(),
   carriersList: z.string().max(400).optional(),
   notificationEmail: z.string().email().optional().or(z.literal("")),
+  // Compliance / trust
+  verificationStatus: z.enum(["UNVERIFIED", "LICENSED", "CERTIFIED", "REGULATED"]).optional(),
+  dataRetentionDays: z.number().int().refine((v) => [30, 60, 90, -1].includes(v)).optional(),
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+
+// ── Custom Form Builder ────────────────────────────────────────────────────────
+
+export const FIELD_TYPES = [
+  "text", "email", "phone", "address", "date",
+  "dropdown", "ssn", "routing", "bank_account", "signature",
+] as const;
+
+export type FormFieldType = (typeof FIELD_TYPES)[number];
+
+export const SENSITIVE_FIELD_TYPES: FormFieldType[] = ["ssn", "routing", "bank_account"];
+
+export const formFieldSchema = z.object({
+  label: z.string().min(1, "Label required").max(120),
+  fieldType: z.enum(FIELD_TYPES),
+  placeholder: z.string().max(200).optional(),
+  helpText: z.string().max(400).optional(),
+  required: z.boolean().default(false),
+  encrypted: z.boolean().default(true),
+  maskInput: z.boolean().default(false),
+  confirmField: z.boolean().default(false),
+  dropdownOptions: z.array(z.string().min(1).max(100)).max(30).optional(),
+  order: z.number().int().min(0).default(0),
+});
+export type FormFieldInput = z.infer<typeof formFieldSchema>;
+
+export const createFormSchema = z.object({
+  title: z.string().min(1, "Title required").max(120),
+  description: z.string().max(500).optional(),
+  retentionDays: z.number().int().refine((v) => [30, 60, 90, -1].includes(v)).default(30),
+  fields: z.array(formFieldSchema).min(1, "At least one field required"),
+});
+export type CreateFormInput = z.infer<typeof createFormSchema>;
+
+export const createFormLinkSchema = z.object({
+  clientName: z.string().max(120).optional(),
+  clientPhone: z.string().max(30).optional(),
+  clientEmail: z.string().email().optional().or(z.literal("")),
+  expirationHours: z.number().int().min(1).max(168).default(24),
+});
+export type CreateFormLinkInput = z.infer<typeof createFormLinkSchema>;
