@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/card";
 import { LINK_TYPES } from "@/lib/utils";
 
-type LinkType = "BANKING_INFO" | "SSN_DOB" | "FULL_INTAKE" | "SSN_ONLY";
+type LinkType = "BANKING_INFO" | "SSN_ONLY" | "FULL_INTAKE" | "ID_UPLOAD";
 
 interface CreatedLink {
   token: string;
@@ -39,7 +39,6 @@ export default function NewLinkPage() {
     clientPhone: "",
     clientEmail: "",
     expirationHours: 24,
-    viewOnce: true,
     retentionDays: 7,
   });
 
@@ -151,7 +150,6 @@ export default function NewLinkPage() {
                     clientPhone: "",
                     clientEmail: "",
                     expirationHours: 24,
-                    viewOnce: true,
                     retentionDays: 7,
                   });
                 }}
@@ -304,28 +302,6 @@ export default function NewLinkPage() {
                 <option value={72}>3 days</option>
                 <option value={168}>7 days</option>
               </select>
-            </div>
-
-            {/* Security options */}
-            <div className="space-y-3 pt-1">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.viewOnce}
-                  onChange={(e) =>
-                    setForm({ ...form, viewOnce: e.target.checked })
-                  }
-                  className="mt-0.5"
-                />
-                <div>
-                  <div className="text-sm font-medium text-slate-800">
-                    View-once mode
-                  </div>
-                  <div className="text-xs text-slate-500 mt-0.5">
-                    After you reveal the submission, sensitive fields will be masked permanently.
-                  </div>
-                </div>
-              </label>
             </div>
 
             <Button type="submit" className="w-full" size="lg" disabled={loading}>

@@ -23,17 +23,22 @@ export function AuthForm() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const form = new FormData(e.currentTarget);
-    const result = await signIn("credentials", {
-      email: form.get("email"),
-      password: form.get("password"),
-      redirect: false,
-    });
-    setLoading(false);
-    if (result?.error) {
-      setError("Invalid email or password.");
-    } else {
-      router.push("/dashboard");
+    try {
+      const form = new FormData(e.currentTarget);
+      const result = await signIn("credentials", {
+        email: form.get("email"),
+        password: form.get("password"),
+        redirect: false,
+      });
+      if (result?.error) {
+        setError("Invalid email or password.");
+      } else {
+        router.push("/dashboard");
+      }
+    } catch {
+      setError("Sign-in failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -41,34 +46,43 @@ export function AuthForm() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const form = new FormData(e.currentTarget);
-    const body = {
-      email: form.get("email"),
-      password: form.get("password"),
-      displayName: form.get("displayName"),
-      agencyName: form.get("agencyName"),
-    };
+    try {
+      const form = new FormData(e.currentTarget);
+      const body = {
+        email: form.get("email"),
+        password: form.get("password"),
+        displayName: form.get("displayName"),
+        agencyName: form.get("agencyName"),
+      };
 
-    const res = await fetch("/api/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
 
-    const data = await res.json();
-    if (!res.ok) {
+      const data = await res.json().catch(() => ({} as { error?: string }));
+      if (!res.ok) {
+        setError(data.error ?? "Registration failed. Please try again.");
+        return;
+      }
+
+      // Auto sign-in after registration
+      const signInResult = await signIn("credentials", {
+        email: body.email,
+        password: body.password,
+        redirect: false,
+      });
+      if (signInResult?.error) {
+        setError("Account created, but sign-in failed. Please sign in manually.");
+        return;
+      }
+      router.push("/dashboard");
+    } catch {
+      setError("Registration failed. Please try again.");
+    } finally {
       setLoading(false);
-      setError(data.error ?? "Registration failed. Please try again.");
-      return;
     }
-
-    // Auto sign-in after registration
-    await signIn("credentials", {
-      email: body.email,
-      password: body.password,
-      redirect: false,
-    });
-    router.push("/dashboard");
   }
 
   return (

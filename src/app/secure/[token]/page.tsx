@@ -14,33 +14,40 @@ export const dynamic = "force-dynamic";
 export default async function SecurePage({ params }: Props) {
   const link = await db.secureLink.findUnique({
     where: { token: params.token },
-    include: { agent: { select: { displayName: true, agencyName: true } } },
+    include: {
+      agent: {
+        select: {
+          displayName: true,
+          agencyName: true,
+          logoUrl: true,
+          destinationLabel: true,
+        },
+      },
+    },
   });
 
   if (!link) notFound();
 
-  // Check expiry
   if (isExpired(link.expiresAt) || link.status === "EXPIRED") {
     return <ExpiredPage />;
   }
 
-  // Already submitted
-  const existing = await db.submission.findUnique({
-    where: { linkId: link.id },
-  });
-  if (existing) {
+  // Check for existing submission / upload
+  const [existingSubmission, existingUpload] = await Promise.all([
+    db.submission.findUnique({ where: { linkId: link.id } }),
+    db.idUpload.findUnique({ where: { linkId: link.id } }),
+  ]);
+
+  if (existingSubmission || existingUpload) {
     return <AlreadySubmittedPage />;
   }
 
   // Mark as OPENED if first visit
   if (link.status === "CREATED") {
-    await db.secureLink.update({
-      where: { id: link.id },
-      data: { status: "OPENED" },
-    });
+    await db.secureLink.update({ where: { id: link.id }, data: { status: "OPENED" } });
     const headersList = headers();
     await writeAuditLog({
-      event: link.linkType === "SSN_ONLY" ? "SSN_OPENED" : "LINK_OPENED",
+      event: "LINK_OPENED",
       agentId: link.agentId,
       linkId: link.id,
       metadata: { linkType: link.linkType },
@@ -59,6 +66,8 @@ export default async function SecurePage({ params }: Props) {
       linkType={link.linkType}
       agentName={link.agent.displayName}
       agencyName={link.agent.agencyName}
+      logoUrl={link.agent.logoUrl}
+      destinationLabel={link.agent.destinationLabel}
       clientName={link.clientName}
       expiresAt={link.expiresAt.toISOString()}
     />
@@ -75,10 +84,7 @@ function ExpiredPage() {
           </svg>
         </div>
         <h1 className="text-xl font-bold text-slate-900 mb-2">This link has expired</h1>
-        <p className="text-slate-500 text-sm">
-          This secure link is no longer active. Please contact your agent to
-          request a new link.
-        </p>
+        <p className="text-slate-500 text-sm">Contact your agent to request a new secure link.</p>
       </div>
     </main>
   );
@@ -88,16 +94,13 @@ function AlreadySubmittedPage() {
   return (
     <main className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center">
-        <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-          <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <svg className="w-8 h-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
         <h1 className="text-xl font-bold text-slate-900 mb-2">Already submitted</h1>
-        <p className="text-slate-500 text-sm">
-          Your information has already been submitted through this link. You
-          don&apos;t need to do anything else.
-        </p>
+        <p className="text-slate-500 text-sm">Your information has already been received. You&apos;re all done.</p>
       </div>
     </main>
   );

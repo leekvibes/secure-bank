@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Upload, X, Loader2 } from "lucide-react";
 
 interface Props {
   user: {
@@ -17,20 +17,34 @@ interface Props {
     licensedStates: string | null;
     agentSlug: string;
     email: string;
+    logoUrl: string | null;
+    industry: string | null;
+    destinationLabel: string | null;
+    carriersList: string | null;
+    notificationEmail: string | null;
   };
 }
 
 export function SettingsForm({ user }: Props) {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const [currentLogoUrl, setCurrentLogoUrl] = useState<string | null>(user.logoUrl);
+
   const [form, setForm] = useState({
     displayName: user.displayName,
     agencyName: user.agencyName ?? "",
     phone: user.phone ?? "",
     licenseNumber: user.licenseNumber ?? "",
     licensedStates: user.licensedStates ?? "",
+    industry: user.industry ?? "",
+    destinationLabel: user.destinationLabel ?? "",
+    carriersList: user.carriersList ?? "",
+    notificationEmail: user.notificationEmail ?? "",
   });
 
   async function handleSubmit(e: React.FormEvent) {
@@ -57,6 +71,41 @@ export function SettingsForm({ user }: Props) {
     router.refresh();
   }
 
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 512 * 1024) {
+      setLogoError("Logo must be under 512 KB.");
+      return;
+    }
+
+    setLogoUploading(true);
+    setLogoError(null);
+
+    const fd = new FormData();
+    fd.append("logo", file);
+
+    const res = await fetch("/api/agent/logo", { method: "POST", body: fd });
+    const data = await res.json();
+    setLogoUploading(false);
+
+    if (!res.ok) {
+      setLogoError(data.error ?? "Upload failed.");
+      return;
+    }
+
+    setCurrentLogoUrl(data.logoUrl);
+    router.refresh();
+  }
+
+  async function handleLogoDelete() {
+    setLogoUploading(true);
+    await fetch("/api/agent/logo", { method: "DELETE" });
+    setCurrentLogoUrl(null);
+    setLogoUploading(false);
+    router.refresh();
+  }
+
   const verifyUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/verify/${user.agentSlug}`
@@ -64,6 +113,7 @@ export function SettingsForm({ user }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* Profile */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Profile</CardTitle>
@@ -106,6 +156,15 @@ export function SettingsForm({ user }: Props) {
               />
             </div>
             <div className="space-y-1.5">
+              <Label htmlFor="industry">Industry</Label>
+              <Input
+                id="industry"
+                value={form.industry}
+                onChange={(e) => setForm({ ...form, industry: e.target.value })}
+                placeholder="Life Insurance, Health Insurance, Medicare..."
+              />
+            </div>
+            <div className="space-y-1.5">
               <Label htmlFor="phone">Phone</Label>
               <Input
                 id="phone"
@@ -142,6 +201,131 @@ export function SettingsForm({ user }: Props) {
         </CardContent>
       </Card>
 
+      {/* Branding */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Branding</CardTitle>
+          <CardDescription>
+            Your logo appears at the top of secure client pages.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {logoError && (
+            <p className="text-sm text-red-600">{logoError}</p>
+          )}
+          {currentLogoUrl ? (
+            <div className="flex items-center gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={currentLogoUrl}
+                alt="Agency logo"
+                className="h-14 max-w-[180px] object-contain rounded-lg border border-slate-200 bg-slate-50 p-2"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogoDelete}
+                disabled={logoUploading}
+                className="text-red-600 hover:bg-red-50 hover:border-red-300"
+              >
+                {logoUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                Remove
+              </Button>
+            </div>
+          ) : (
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                className="hidden"
+                onChange={handleLogoUpload}
+              />
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={logoUploading}
+              >
+                {logoUploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4" />
+                )}
+                {logoUploading ? "Uploading..." : "Upload logo"}
+              </Button>
+              <p className="text-xs text-slate-400 mt-1.5">PNG, JPG, WebP or SVG · Max 512 KB</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Client experience */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Client experience</CardTitle>
+          <CardDescription>
+            Customize how your secure form pages appear to clients.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setLoading(true);
+              setError(null);
+              setSuccess(false);
+              const res = await fetch("/api/profile", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(form),
+              });
+              const data = await res.json();
+              setLoading(false);
+              if (!res.ok) { setError(data.error ?? "Failed to save."); return; }
+              setSuccess(true);
+              router.refresh();
+            }}
+            className="space-y-4"
+          >
+            <div className="space-y-1.5">
+              <Label htmlFor="destinationLabel">Destination label</Label>
+              <Input
+                id="destinationLabel"
+                value={form.destinationLabel}
+                onChange={(e) => setForm({ ...form, destinationLabel: e.target.value })}
+                placeholder="e.g. Aetna · Blue Shield · Nationwide"
+              />
+              <p className="text-xs text-slate-400">Shown on the secure form so clients know where their info is going.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="carriersList">Carriers (display only)</Label>
+              <Input
+                id="carriersList"
+                value={form.carriersList}
+                onChange={(e) => setForm({ ...form, carriersList: e.target.value })}
+                placeholder="Aetna, Humana, Cigna, UnitedHealth"
+              />
+              <p className="text-xs text-slate-400">Comma-separated list for your reference or verification page.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="notificationEmail">Notification email</Label>
+              <Input
+                id="notificationEmail"
+                type="email"
+                value={form.notificationEmail}
+                onChange={(e) => setForm({ ...form, notificationEmail: e.target.value })}
+                placeholder="alerts@youragency.com"
+              />
+              <p className="text-xs text-slate-400">Receives an email when a client submits. Defaults to your account email.</p>
+            </div>
+            <Button type="submit" disabled={loading}>
+              {loading ? "Saving..." : "Save changes"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Verification page */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Verification page</CardTitle>

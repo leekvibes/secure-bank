@@ -5,13 +5,13 @@ import {
   ssnOnlySchema,
   fullIntakeSchema,
 } from "@/lib/schemas";
-import { encryptFields } from "@/lib/crypto";
 import { writeAuditLog } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isExpired } from "@/lib/utils";
 import { addDays } from "date-fns";
 import { sendSubmissionNotification } from "@/lib/email";
 import { NO_STORE_HEADERS } from "@/lib/http";
+import { buildEncryptedSubmissionData } from "@/lib/submission-storage";
 
 export async function POST(
   req: NextRequest,
@@ -95,23 +95,7 @@ export async function POST(
 
   validated = parsed.data as unknown as Record<string, string | boolean>;
 
-  // Strip confirmation fields and consent — never store these
-  const {
-    consent: _consent,
-    confirmSsn: _confirmSsn,
-    confirmAccountNumber: _confirmAccountNumber,
-    ...stringFields
-  } = validated as Record<string, string | boolean>;
-  const toEncrypt: Record<string, string> = {};
-  for (const [k, v] of Object.entries(stringFields)) {
-    if (typeof v === "string" && v.trim() !== "") {
-      toEncrypt[k] = v;
-    }
-  }
-
-  // Encrypt all sensitive fields
-  const encryptedFields = encryptFields(toEncrypt);
-  const encryptedData = JSON.stringify(encryptedFields);
+  const encryptedData = buildEncryptedSubmissionData(validated);
   const deleteAt = addDays(new Date(), link.retentionDays);
 
   // Store submission + update link status atomically

@@ -18,6 +18,11 @@ export default async function SettingsPage() {
       licensedStates: true,
       agentSlug: true,
       email: true,
+      logoUrl: true,
+      industry: true,
+      destinationLabel: true,
+      carriersList: true,
+      notificationEmail: true,
     },
   });
 

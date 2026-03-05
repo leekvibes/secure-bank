@@ -1,7 +1,11 @@
 const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
-const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png"]);
-const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png"]);
+const ALLOWED_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "application/pdf",
+]);
+const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "pdf"]);
 
 export interface UploadValidationResult {
   ok: boolean;
@@ -22,7 +26,7 @@ export function validateUploadFile(file: File): UploadValidationResult {
   const extAllowed = ALLOWED_EXTENSIONS.has(extension);
 
   if (!mimeAllowed || !extAllowed) {
-    return { ok: false, error: "Only JPG and PNG files are allowed." };
+    return { ok: false, error: "Only JPG, PNG, and PDF files are allowed." };
   }
 
   return { ok: true };
@@ -41,4 +45,3 @@ export const UPLOAD_SECURITY = {
   ALLOWED_MIME_TYPES: Array.from(ALLOWED_MIME_TYPES),
   ALLOWED_EXTENSIONS: Array.from(ALLOWED_EXTENSIONS),
 } as const;
-

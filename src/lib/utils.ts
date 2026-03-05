@@ -21,9 +21,9 @@ export function isExpired(expiresAt: Date | string): boolean {
 
 export const LINK_TYPES = {
   BANKING_INFO: "Banking Information",
-  SSN_DOB: "SSN / Date of Birth",
-  SSN_ONLY: "SSN (Secure)",
+  SSN_ONLY: "Social Security Number",
   FULL_INTAKE: "Full Intake Form",
+  ID_UPLOAD: "Photo ID Upload",
 } as const;
 
 export type LinkType = keyof typeof LINK_TYPES;
@@ -36,8 +36,8 @@ export const LINK_STATUS_LABELS: Record<string, string> = {
 };
 
 export const LINK_STATUS_COLORS: Record<string, string> = {
-  CREATED: "bg-blue-50 text-blue-700 border-blue-200",
-  OPENED: "bg-yellow-50 text-yellow-700 border-yellow-200",
-  SUBMITTED: "bg-green-50 text-green-700 border-green-200",
-  EXPIRED: "bg-gray-100 text-gray-500 border-gray-200",
+  CREATED: "bg-blue-50 text-blue-700 ring-blue-200/60",
+  OPENED: "bg-amber-50 text-amber-700 ring-amber-200/60",
+  SUBMITTED: "bg-emerald-50 text-emerald-700 ring-emerald-200/60",
+  EXPIRED: "bg-slate-100 text-slate-500 ring-slate-200/60",
 };

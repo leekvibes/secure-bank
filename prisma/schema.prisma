@@ -8,79 +8,103 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  displayName  String
-  agencyName   String?
-  phone        String?
-  licenseNumber String?
-  licensedStates String? // comma-separated
-  agentSlug    String   @unique // for /verify/[agentSlug]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                String   @id @default(cuid())
+  email             String   @unique
+  passwordHash      String
+  displayName       String
+  agencyName        String?
+  phone             String?
+  licenseNumber     String?
+  licensedStates    String?  // comma-separated
+  agentSlug         String   @unique
+  // Branding
+  logoUrl           String?  // base64 data URI
+  // Onboarding / context
+  industry          String?
+  destinationLabel  String?  // e.g. "EverQuote", "Carrier Application"
+  carriersList      String?  // comma-separated display-only labels
+  notificationEmail String?  // override email for submission alerts
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  links        SecureLink[]
-  auditLogs    AuditLog[]
+  links               SecureLink[]
+  auditLogs           AuditLog[]
   passwordResetTokens PasswordResetToken[]
+  idUploads           IdUpload[]
 }
 
 model SecureLink {
-  id           String     @id @default(cuid())
-  token        String     @unique // unguessable nanoid token
-  linkType     String     // BANKING_INFO | SSN_DOB | FULL_INTAKE
-  clientName   String?
-  clientPhone  String?
-  clientEmail  String?
-  expiresAt    DateTime
-  viewOnce     Boolean    @default(true)
-  retentionDays Int       @default(7)
-  status       String     @default("CREATED") // CREATED | OPENED | SUBMITTED | EXPIRED
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id            String     @id @default(cuid())
+  token         String     @unique
+  // BANKING_INFO | SSN_ONLY | FULL_INTAKE | ID_UPLOAD
+  linkType      String
+  clientName    String?
+  clientPhone   String?
+  clientEmail   String?
+  expiresAt     DateTime
+  retentionDays Int        @default(7)
+  status        String     @default("CREATED") // CREATED | OPENED | SUBMITTED | EXPIRED
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
-  agentId      String
-  agent        User       @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agentId   String
+  agent     User       @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
-  submission   Submission?
-  auditLogs    AuditLog[]
+  submission Submission?
+  idUpload   IdUpload?
+  auditLogs  AuditLog[]
 }
 
 model Submission {
-  id           String     @id @default(cuid())
-  // All sensitive fields are stored as ciphertext (base64-encoded AES-256-GCM)
-  // Format per field: iv:authTag:ciphertext (colon-separated, base64)
-  encryptedData String    // JSON blob of { fieldName: encryptedValue }
-  revealedAt   DateTime?  // null = not yet revealed
-  revealCount  Int        @default(0)
-  deleteAt     DateTime   // scheduled deletion
-  createdAt    DateTime   @default(now())
+  id            String     @id @default(cuid())
+  // All fields stored as ciphertext: base64(iv):base64(authTag):base64(ciphertext)
+  encryptedData String
+  revealedAt    DateTime?
+  revealCount   Int        @default(0)
+  deleteAt      DateTime
+  createdAt     DateTime   @default(now())
 
-  linkId       String     @unique
-  link         SecureLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  linkId String     @unique
+  link   SecureLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+}
+
+model IdUpload {
+  id             String     @id @default(cuid())
+  // Paths to AES-256-GCM encrypted files on disk
+  frontFilePath  String
+  backFilePath   String?
+  viewedAt       DateTime?
+  viewCount      Int        @default(0)
+  deleteAt       DateTime
+  createdAt      DateTime   @default(now())
+
+  linkId  String     @unique
+  link    SecureLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  agentId String
+  agent   User       @relation(fields: [agentId], references: [id], onDelete: Cascade)
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
-  token     String   @unique
+  id        String    @id @default(cuid())
+  token     String    @unique
   userId    String
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AuditLog {
-  id           String   @id @default(cuid())
-  event        String   // LINK_CREATED | LINK_OPENED | SUBMITTED | REVEALED | SSN_OPENED | SSN_SUBMITTED | SSN_REVEALED | EXPORTED | DELETED | EXPIRED
-  ipAddress    String?
-  userAgent    String?
-  metadata     String?  // JSON blob for extra context (no sensitive data)
-  createdAt    DateTime @default(now())
+  id        String   @id @default(cuid())
+  event     String
+  ipAddress String?
+  userAgent String?
+  metadata  String?
+  createdAt DateTime @default(now())
 
-  agentId      String?
-  agent        User?    @relation(fields: [agentId], references: [id], onDelete: SetNull)
-  linkId       String?
-  link         SecureLink? @relation(fields: [linkId], references: [id], onDelete: SetNull)
+  agentId String?
+  agent   User?       @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  linkId  String?
+  link    SecureLink? @relation(fields: [linkId], references: [id], onDelete: SetNull)
 }
