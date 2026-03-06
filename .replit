@@ -1,0 +1,12 @@
+modules = ["nodejs-20", "web"]
+[agent]
+expertMode = true
+
+[nix]
+channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+NEXTAUTH_URL = "https://e1a9a0ed-3ef0-4632-b20c-cf23efe9addc-00-mcl9bwxsxr1f.spock.replit.dev"
+AUDIT_STORE_IP = "false"
