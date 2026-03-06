@@ -120,13 +120,13 @@ export default function NewLinkPage() {
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [clientEmail, setClientEmail] = useState("");
-  const [destination, setDestination] = useState("Internal processing");
-  const [customDest, setCustomDest] = useState("");
+  const [destination, setDestination] = useState("");
   const [expirationHours, setExpirationHours] = useState(24);
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [message, setMessage] = useState("");
 
   const [idBothSides, setIdBothSides] = useState(false);
+  const [idDocumentType, setIdDocumentType] = useState("DRIVERS_LICENSE");
 
   const [templates, setTemplates] = useState<ApiTemplate[]>([]);
   const [activeTemplateId, setActiveTemplateId] = useState("");
@@ -149,7 +149,7 @@ export default function NewLinkPage() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendSuccess, setSendSuccess] = useState(false);
 
-  const effectiveDest = destination === "Custom" ? customDest : destination;
+  const effectiveDest = destination.trim();
 
   const regenerateMessage = useCallback(() => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -180,7 +180,10 @@ export default function NewLinkPage() {
     if (!newTemplateName.trim()) return;
     setSavingTemplate(true);
     const options: Record<string, unknown> = {};
-    if (linkType === "ID_UPLOAD") options.requireBack = idBothSides;
+    if (linkType === "ID_UPLOAD") {
+      options.requireBack = idBothSides;
+      options.documentType = idDocumentType;
+    }
 
     const res = await fetch("/api/link-templates", {
       method: "POST",
@@ -236,7 +239,10 @@ export default function NewLinkPage() {
     setError(null);
 
     const options: Record<string, unknown> = {};
-    if (linkType === "ID_UPLOAD") options.requireBack = idBothSides;
+    if (linkType === "ID_UPLOAD") {
+      options.requireBack = idBothSides;
+      options.documentType = idDocumentType;
+    }
 
     const res = await fetch("/api/links", {
       method: "POST",
@@ -664,23 +670,51 @@ export default function NewLinkPage() {
                   <p className="font-medium text-[13px] text-foreground mb-0.5">{meta.title}</p>
                   <p className="text-xs text-muted-foreground">{meta.infoText}</p>
                   {linkType === "ID_UPLOAD" && (
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/30">
-                      <span className="text-xs font-medium text-foreground">Require both sides</span>
-                      <button
-                        type="button"
-                        onClick={() => setIdBothSides((v) => !v)}
-                        className={cn(
-                          "relative inline-flex h-6 w-10 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none",
-                          idBothSides ? "bg-amber-500" : "bg-border"
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform",
-                            idBothSides ? "translate-x-4" : "translate-x-0"
-                          )}
-                        />
-                      </button>
+                    <div className="mt-3 pt-3 border-t border-border/30 space-y-3">
+                      <div>
+                        <p className="text-xs font-medium text-foreground mb-1.5">Document type your client must submit</p>
+                        <div className="relative">
+                          <select
+                            value={idDocumentType}
+                            onChange={(e) => {
+                              setIdDocumentType(e.target.value);
+                              // Passports and cards only have one side
+                              const onePageDocs = ["PASSPORT", "PASSPORT_CARD", "SOCIAL_SECURITY", "BIRTH_CERTIFICATE"];
+                              if (onePageDocs.includes(e.target.value)) setIdBothSides(false);
+                            }}
+                            className="flex h-9 w-full appearance-none rounded-lg border border-input bg-card px-3 pr-8 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 transition-colors"
+                          >
+                            <option value="DRIVERS_LICENSE">Driver&apos;s License / State ID</option>
+                            <option value="PASSPORT">Passport</option>
+                            <option value="PASSPORT_CARD">Passport Card</option>
+                            <option value="GREEN_CARD">Green Card / Permanent Resident Card</option>
+                            <option value="MILITARY_ID">Military ID</option>
+                            <option value="SOCIAL_SECURITY">Social Security Card</option>
+                            <option value="BIRTH_CERTIFICATE">Birth Certificate</option>
+                          </select>
+                          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                        </div>
+                      </div>
+                      {!["PASSPORT", "PASSPORT_CARD", "SOCIAL_SECURITY", "BIRTH_CERTIFICATE"].includes(idDocumentType) && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-foreground">Require both sides</span>
+                          <button
+                            type="button"
+                            onClick={() => setIdBothSides((v) => !v)}
+                            className={cn(
+                              "relative inline-flex h-6 w-10 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none",
+                              idBothSides ? "bg-amber-500" : "bg-border"
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "pointer-events-none inline-block h-5 w-5 rounded-full bg-slate-50 shadow-sm transition-transform",
+                                idBothSides ? "translate-x-4" : "translate-x-0"
+                              )}
+                            />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -745,30 +779,17 @@ export default function NewLinkPage() {
               </p>
               <div>
                 <Label className="text-foreground text-sm">
-                  Where will this be submitted?
+                  Where would you like your client to know their information is being submitted?
                 </Label>
-                <div className="relative mt-1.5">
-                  <select
-                    value={destination}
-                    onChange={(e) => setDestination(e.target.value)}
-                    className="flex h-11 w-full appearance-none rounded-lg border border-input bg-card px-3 pr-9 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 transition-colors"
-                  >
-                    {DESTINATIONS.map((d) => (
-                      <option key={d}>{d}</option>
-                    ))}
-                    <option value="Custom">Custom...</option>
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                </div>
-                {destination === "Custom" && (
-                  <Input
-                    value={customDest}
-                    onChange={(e) => setCustomDest(e.target.value)}
-                    placeholder="Enter destination name"
-                    className="mt-2"
-                    required
-                  />
-                )}
+                <Input
+                  value={destination}
+                  onChange={(e) => setDestination(e.target.value)}
+                  placeholder="e.g. Mutual of Omaha, Aetna, Internal processing…"
+                  className="mt-1.5"
+                />
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  This is shown to your client so they understand who is receiving their information.
+                </p>
               </div>
             </div>
 

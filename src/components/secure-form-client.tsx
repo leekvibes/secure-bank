@@ -69,7 +69,6 @@ export function SecureFormClient({
     email: "",
     beneficiaryName: "",
     beneficiaryRelationship: "",
-    consent: false,
   });
 
   const [frontFile, setFrontFile] = useState<File | null>(null);
@@ -134,7 +133,7 @@ export function SecureFormClient({
       return;
     }
 
-    const body: Record<string, string | boolean> = { consent: fields.consent };
+    const body: Record<string, string | boolean> = {};
 
     if (linkType === "BANKING_INFO") {
       Object.assign(body, {
@@ -198,13 +197,6 @@ export function SecureFormClient({
       submitLockRef.current = false;
       return;
     }
-    if (!fields.consent) {
-      setFieldErrors({ consent: "You must consent to submit." });
-      setLoading(false);
-      submitLockRef.current = false;
-      return;
-    }
-
     const formData = new FormData();
     formData.append("front", frontFile);
     if (backFile) formData.append("back", backFile);
@@ -251,11 +243,11 @@ export function SecureFormClient({
           <p className="text-gray-500 leading-relaxed mb-8">
             Your information has been encrypted and securely delivered to {agent.displayName}. You may now close this page.
           </p>
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 text-sm text-gray-600 text-left space-y-3">
+          <div className="bg-slate-50 rounded-2xl border border-gray-200 shadow-sm p-5 text-sm text-gray-600 text-left space-y-3">
             {[
               "Encrypted with AES-256 before storage",
               "Delivered only to your authorized agent",
-              "Automatically deleted after the retention period",
+              "Securely stored and accessible only to your agent",
             ].map((line) => (
               <div key={line} className="flex items-center gap-2.5">
                 <div className="w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
@@ -264,6 +256,14 @@ export function SecureFormClient({
                 <span>{line}</span>
               </div>
             ))}
+          </div>
+
+          <div className="bg-red-50 rounded-2xl border border-red-200 p-4 text-left">
+            <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-1">Fraud warning</p>
+            <p className="text-sm text-red-600 leading-relaxed">
+              If you believe someone tried to scam you using this link or the information you submitted, call us immediately at{" "}
+              <a href="tel:2023024129" className="font-bold underline">202-302-4129</a>.
+            </p>
           </div>
         </div>
       </main>
@@ -283,7 +283,7 @@ export function SecureFormClient({
             <TrustIndicator icon={ShieldCheck} label="Private & Secure" />
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
+          <div className="bg-slate-50 rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
             <div className="flex items-center gap-3 mb-5">
               <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
                 <Shield className="w-5 h-5 text-blue-500" />
@@ -534,12 +534,13 @@ export function SecureFormClient({
               {linkType === "ID_UPLOAD" && (
                 <>
                   <div className="space-y-3">
-                    <p className="text-sm font-medium text-gray-700">
-                      Upload a photo of your government-issued ID
-                    </p>
+                    <IdUploadInstructions documentType={String(linkOptions?.documentType ?? "DRIVERS_LICENSE")} requireBack={Boolean(linkOptions?.requireBack)} />
 
                     <div>
-                      <p className="text-xs text-gray-500 mb-1.5">Front of ID <span className="text-red-500">*</span></p>
+                      <p className="text-xs text-gray-500 mb-1.5">
+                        {(ID_DOC_CONFIG[String(linkOptions?.documentType ?? "DRIVERS_LICENSE")] ?? ID_DOC_CONFIG.DRIVERS_LICENSE).frontLabel}{" "}
+                        <span className="text-red-500">*</span>
+                      </p>
                       {frontFile ? (
                         <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
                           <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -598,7 +599,12 @@ export function SecureFormClient({
                     </div>
 
                     <div>
-                      <p className="text-xs text-gray-500 mb-1.5">Back of ID <span className="text-gray-400">(optional)</span></p>
+                      <p className="text-xs text-gray-500 mb-1.5">
+                        Back of ID{" "}
+                        {linkOptions?.requireBack
+                          ? <span className="text-red-500">*</span>
+                          : <span className="text-gray-400">(optional)</span>}
+                      </p>
                       {backFile ? (
                         <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
                           <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -658,28 +664,10 @@ export function SecureFormClient({
                 </>
               )}
 
-              <div className="pt-1">
-                <label className="flex items-start gap-3 cursor-pointer p-4 bg-gray-50 rounded-xl border border-gray-200 hover:bg-blue-50/30 hover:border-blue-200 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={fields.consent}
-                    onChange={(e) => set("consent", e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-blue-500"
-                  />
-                  <span className="text-sm text-gray-600 leading-relaxed">
-                    I authorize {agent.displayName}
-                    {agent.agencyName ? ` at ${agent.agencyName}` : ""} to receive this information for the purpose of processing my application. I understand my data will be encrypted in transit and at rest, retained only for the specified period, and permanently deleted thereafter.
-                  </span>
-                </label>
-                {fieldErrors.consent && (
-                  <p className="text-xs text-red-500 mt-1.5">{fieldErrors.consent}</p>
-                )}
-              </div>
-
               <Button
                 type="submit"
                 className="w-full h-12 text-base font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-md"
-                disabled={loading || !fields.consent || ssnMismatch || accountMismatch}
+                disabled={loading || ssnMismatch || accountMismatch}
               >
                 {loading ? (
                   <span className="inline-flex items-center gap-2">
@@ -692,7 +680,7 @@ export function SecureFormClient({
               </Button>
 
               <p className="text-xs text-gray-400 text-center leading-relaxed">
-                This is a single-use secure link that expires after submission. Your information is encrypted end-to-end and will not be shared with third parties.
+                This is a single-use secure link. Your information is encrypted end-to-end and delivered only to your authorized agent.
               </p>
             </form>
           </div>
@@ -721,6 +709,31 @@ function TrustIndicator({ icon: Icon, label }: { icon: React.ComponentType<{ cla
         <Icon className="w-3.5 h-3.5 text-blue-500" />
       </div>
       <span className="font-medium">{label}</span>
+    </div>
+  );
+}
+
+const ID_DOC_CONFIG: Record<string, { label: string; frontLabel: string; backLabel: string; instructions: string; hasBack: boolean }> = {
+  DRIVERS_LICENSE:   { label: "Driver's License / State ID",       frontLabel: "Front of ID",   backLabel: "Back of ID",   instructions: "Please upload a clear, well-lit photo of both sides of your driver's license or state ID.",   hasBack: true },
+  PASSPORT:          { label: "Passport",                           frontLabel: "Photo page",    backLabel: "Back cover",   instructions: "Please upload a clear photo of the main photo/data page of your passport (the page with your picture).", hasBack: false },
+  PASSPORT_CARD:     { label: "Passport Card",                      frontLabel: "Front",         backLabel: "Back",         instructions: "Please upload a clear photo of the front of your U.S. Passport Card.",                              hasBack: false },
+  GREEN_CARD:        { label: "Green Card / Permanent Resident Card", frontLabel: "Front of card", backLabel: "Back of card", instructions: "Please upload clear photos of both sides of your Permanent Resident Card (Form I-551).",          hasBack: true },
+  MILITARY_ID:       { label: "Military ID",                        frontLabel: "Front of card", backLabel: "Back of card", instructions: "Please upload clear photos of both sides of your military ID card.",                               hasBack: true },
+  SOCIAL_SECURITY:   { label: "Social Security Card",               frontLabel: "Front of card", backLabel: "Back of card", instructions: "Please upload a clear photo of your Social Security card.",                                       hasBack: false },
+  BIRTH_CERTIFICATE: { label: "Birth Certificate",                  frontLabel: "Document",      backLabel: "Back",         instructions: "Please upload a clear, complete photo or scan of your birth certificate.",                         hasBack: false },
+};
+
+function IdUploadInstructions({ documentType, requireBack }: { documentType: string; requireBack: boolean }) {
+  const cfg = ID_DOC_CONFIG[documentType] ?? ID_DOC_CONFIG.DRIVERS_LICENSE;
+  return (
+    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+      <p className="text-sm font-semibold text-blue-800 mb-1">
+        Upload: {cfg.label}
+      </p>
+      <p className="text-sm text-blue-700 leading-relaxed">{cfg.instructions}</p>
+      {requireBack && cfg.hasBack && (
+        <p className="text-xs text-blue-600 mt-2 font-medium">Both sides are required for this document.</p>
+      )}
     </div>
   );
 }

@@ -7,7 +7,6 @@ import {
 } from "@/lib/schemas";
 import { writeAuditLog } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { addDays } from "date-fns";
 import { sendSubmissionNotification } from "@/lib/email";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { buildEncryptedSubmissionData } from "@/lib/submission-storage";
@@ -225,7 +224,8 @@ export async function POST(
   }
 
   const encryptedData = buildEncryptedSubmissionData(validated);
-  const deleteAt = addDays(new Date(), link.retentionDays);
+  // Submissions are never auto-deleted — only the agent can delete them manually
+  const deleteAt = new Date("9999-12-31T23:59:59.999Z");
 
   // Store submission + update link status atomically
   await db.$transaction([

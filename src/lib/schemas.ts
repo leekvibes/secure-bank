@@ -80,7 +80,6 @@ export const bankingInfoSchema = z
       .max(34)
       .regex(/^\d+$/, "Must contain only digits"),
     preferredDraftDate: z.string().min(1, "Preferred draft date required").max(30),
-    consent: z.boolean().refine((v) => v === true, "You must consent to submit"),
   })
   .superRefine((data, ctx) => {
     if (!fieldsMatch(data.accountNumber, data.confirmAccountNumber)) {
@@ -102,7 +101,6 @@ export const ssnOnlySchema = z
     confirmSsn: z
       .string()
       .refine(isValidSsnFormat, "Confirm SSN must be in format XXX-XX-XXXX"),
-    consent: z.boolean().refine((v) => v === true, "You must consent to submit"),
   })
   .superRefine((data, ctx) => {
     if (!fieldsMatch(data.ssn, data.confirmSsn, true)) {
@@ -151,7 +149,6 @@ export const fullIntakeSchema = z
       .max(34)
       .regex(/^\d+$/, "Must contain only digits"),
     preferredDraftDate: z.string().min(1, "Preferred draft date required").max(30),
-    consent: z.boolean().refine((v) => v === true, "You must consent to submit"),
   })
   .superRefine((data, ctx) => {
     if (!fieldsMatch(data.accountNumber, data.confirmAccountNumber)) {

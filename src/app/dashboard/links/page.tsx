@@ -6,15 +6,34 @@ import { isTwilioConfigured } from "@/lib/sms";
 import Link from "next/link";
 import { Plus, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { RequestsTable } from "@/components/requests-table";
 
 export const metadata: Metadata = {
   title: "Requests",
 };
 
-export default async function LinksPage() {
+export default async function LinksPage({
+  searchParams,
+}: {
+  searchParams?: { q?: string };
+}) {
   const session = await getServerSession(authOptions);
   if (!session) return null;
+  const q = (searchParams?.q ?? "").trim();
+  const qFilter =
+    q.length > 0
+      ? {
+          OR: [
+            { clientName: { contains: q } },
+            { clientEmail: { contains: q } },
+            { clientPhone: { contains: q } },
+            { destination: { contains: q } },
+            { destinationLabel: { contains: q } },
+            { token: { contains: q } },
+          ],
+        }
+      : {};
 
   await db.secureLink.updateMany({
     where: {
@@ -30,7 +49,7 @@ export default async function LinksPage() {
   let links: any[] = [];
   try {
     links = await db.secureLink.findMany({
-      where: { agentId: session.user.id },
+      where: { agentId: session.user.id, ...qFilter },
       include: {
         submission: { select: { id: true, revealedAt: true } },
         idUpload: { select: { id: true, viewedAt: true } },
@@ -46,7 +65,7 @@ export default async function LinksPage() {
     });
   } catch {
     links = await db.secureLink.findMany({
-      where: { agentId: session.user.id },
+      where: { agentId: session.user.id, ...qFilter },
       include: {
         submission: { select: { id: true, revealedAt: true } },
         idUpload: { select: { id: true, viewedAt: true } },
@@ -73,6 +92,15 @@ export default async function LinksPage() {
           </Link>
         </Button>
       </div>
+
+      <form method="get" className="max-w-md">
+        <Input
+          name="q"
+          defaultValue={q}
+          placeholder="Search client, destination, token, email, phone"
+          className="h-10"
+        />
+      </form>
 
       {links.length === 0 ? (
         <div className="glass-card rounded-xl border-dashed p-14 text-center">

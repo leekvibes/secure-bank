@@ -137,7 +137,7 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
           <p className="text-gray-500 leading-relaxed mb-8">
             Your information has been encrypted and delivered to {agent.displayName}. You can close this page.
           </p>
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 text-sm text-gray-600 text-left space-y-3">
+          <div className="bg-slate-50 rounded-2xl border border-gray-200 shadow-sm p-5 text-sm text-gray-600 text-left space-y-3">
             {[
               "Encrypted with AES-256 before storage",
               "Delivered only to your agent",
@@ -172,7 +172,7 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
             ))}
           </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <div className="bg-slate-50 rounded-2xl border border-gray-200 shadow-sm p-6">
           <h2 className="text-base font-semibold text-gray-900 mb-1">{form.title}</h2>
           {form.description && (
             <p className="text-sm text-gray-500 mb-4 leading-relaxed">{form.description}</p>
@@ -207,7 +207,7 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
                   type="checkbox"
                   checked={consent}
                   onChange={(e) => setConsent(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-gray-300 bg-white accent-blue-500"
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 bg-slate-50 accent-blue-500"
                 />
                 <span className="text-sm text-gray-600 leading-relaxed">
                   I consent to share this information with {agent.displayName}
@@ -279,7 +279,7 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
             required={field.required}
             aria-invalid={Boolean(error)}
             className={cn(
-              "flex h-11 w-full appearance-none rounded-lg border bg-white px-3 py-2 pr-9 text-sm text-gray-900",
+              "flex h-11 w-full appearance-none rounded-lg border bg-slate-50 px-3 py-2 pr-9 text-sm text-gray-900",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 focus-visible:border-blue-400",
               error ? "border-red-300 focus-visible:ring-red-500/30" : "border-gray-300",
               !value && "text-gray-400"

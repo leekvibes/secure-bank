@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import Link from "next/link";
 import { Inbox, Eye, ChevronRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { formatDate } from "@/lib/utils";
 import { buildSubmissionsIndex } from "@/lib/submissions-index";
 
@@ -11,19 +12,40 @@ export const metadata: Metadata = {
   title: "Submissions",
 };
 
-export default async function SubmissionsPage() {
+export default async function SubmissionsPage({
+  searchParams,
+}: {
+  searchParams?: { q?: string };
+}) {
   const session = await getServerSession(authOptions);
   if (!session) return null;
+  const q = (searchParams?.q ?? "").trim();
+  const hasQuery = q.length > 0;
 
   const [legacySubmissions, formSubmissions, idUploads] = await Promise.all([
     db.submission.findMany({
-      where: { link: { agentId: session.user.id } },
+      where: {
+        link: {
+          agentId: session.user.id,
+          ...(hasQuery ? { clientName: { contains: q } } : {}),
+        },
+      },
       include: { link: { select: { clientName: true, linkType: true, id: true } } },
       orderBy: { createdAt: "desc" },
       take: 100,
     }),
     db.formSubmission.findMany({
-      where: { form: { agentId: session.user.id } },
+      where: {
+        form: { agentId: session.user.id },
+        ...(hasQuery
+          ? {
+              OR: [
+                { formLink: { clientName: { contains: q } } },
+                { form: { title: { contains: q } } },
+              ],
+            }
+          : {}),
+      },
       include: {
         form: { select: { title: true } },
         formLink: { select: { clientName: true } },
@@ -32,7 +54,10 @@ export default async function SubmissionsPage() {
       take: 100,
     }),
     db.idUpload.findMany({
-      where: { agentId: session.user.id },
+      where: {
+        agentId: session.user.id,
+        ...(hasQuery ? { link: { clientName: { contains: q } } } : {}),
+      },
       include: { link: { select: { clientName: true, id: true } } },
       orderBy: { createdAt: "desc" },
       take: 100,
@@ -54,6 +79,15 @@ export default async function SubmissionsPage() {
           Encrypted data submitted by clients via your secure links.
         </p>
       </div>
+
+      <form method="get" className="max-w-md">
+        <Input
+          name="q"
+          defaultValue={q}
+          placeholder="Search client or form title"
+          className="h-10"
+        />
+      </form>
 
       {submissions.length === 0 ? (
         <div className="glass-card rounded-xl border-dashed p-14 text-center">

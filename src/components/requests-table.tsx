@@ -105,7 +105,7 @@ export function RequestsTable({
             <span
               className={cn(
                 "inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-xs font-semibold px-1",
-                filter === key ? "bg-white/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+                filter === key ? "bg-slate-50/20 text-primary-foreground" : "bg-muted text-muted-foreground"
               )}
             >
               {counts[key]}

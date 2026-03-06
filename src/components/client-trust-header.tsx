@@ -53,7 +53,7 @@ export function ClientTrustHeader({ logoUrls, agent, expiresAt, isViewOnce }: Pr
     .join(" · ");
 
   return (
-    <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-sm">
+    <header className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-xl border-b border-gray-200 shadow-sm">
 
       <div className="hidden sm:block">
         <div className="max-w-screen-md mx-auto px-4">
@@ -91,7 +91,7 @@ export function ClientTrustHeader({ logoUrls, agent, expiresAt, isViewOnce }: Pr
       </div>
 
       {agentOpen && (
-        <div className="sm:hidden border-t border-gray-200 bg-white/95 backdrop-blur-xl px-4 py-4 shadow-lg">
+        <div className="sm:hidden border-t border-gray-200 bg-slate-50/95 backdrop-blur-xl px-4 py-4 shadow-lg">
           <AgentCardDrawer
             agent={agent}
             initials={initials}
