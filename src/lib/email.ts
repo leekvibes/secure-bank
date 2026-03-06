@@ -11,7 +11,7 @@ function getClient(): Resend | null {
 }
 
 const FROM =
-  process.env.RESEND_FROM_EMAIL ?? "Secure Link <noreply@securelink.app>";
+  process.env.RESEND_FROM_EMAIL ?? "Secure Link <noreply@mysecurelink.co>";
 
 interface SubmissionNotificationArgs {
   agentEmail: string;
