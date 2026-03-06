@@ -49,7 +49,7 @@ export function DashboardSidebar({ user }: Props) {
             <Lock className="w-4 h-4 text-white" />
           </div>
           <span className="ml-2.5 font-semibold text-foreground tracking-tight text-sm">
-            SecureLink
+            Secure Link
           </span>
         </div>
 
@@ -114,7 +114,7 @@ export function DashboardSidebar({ user }: Props) {
         <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-primary shrink-0">
           <Lock className="w-3.5 h-3.5 text-white" />
         </div>
-        <span className="font-semibold text-foreground text-sm flex-1">SecureLink</span>
+        <span className="font-semibold text-foreground text-sm flex-1">Secure Link</span>
 
         <button
           onClick={() => signOut({ callbackUrl: "/" })}

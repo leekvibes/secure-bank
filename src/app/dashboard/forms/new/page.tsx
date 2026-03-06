@@ -461,7 +461,7 @@ function FormPreviewPane({
           </div>
 
           <div className="h-10 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-primary-foreground text-sm font-semibold">Submit securely</span>
+            <span className="text-primary-foreground text-sm font-semibold">Submit Securely</span>
           </div>
         </div>
       </div>

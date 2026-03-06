@@ -13,6 +13,7 @@ export default async function VerifyPage({ params }: Props) {
       displayName: true,
       agencyName: true,
       phone: true,
+      photoUrl: true,
       licenseNumber: true,
       licensedStates: true,
     },
@@ -24,14 +25,36 @@ export default async function VerifyPage({ params }: Props) {
     ? agent.licensedStates.split(",").map((s) => s.trim()).filter(Boolean)
     : [];
 
+  const initials = agent.displayName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-[hsl(210,25%,97%)] to-[hsl(210,20%,93%)] px-4 py-12">
       <div className="max-w-md mx-auto animate-fade-in">
+
+        <div className="text-center mb-6">
+          <p className="text-xs font-semibold tracking-widest uppercase text-blue-600">Secure Link</p>
+          <p className="text-xs text-muted-foreground mt-1">Agent Verification</p>
+        </div>
+
         <div className="bg-card rounded-2xl border border-border shadow-sm p-6 mb-6">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-sm">
-              {agent.displayName.charAt(0).toUpperCase()}
-            </div>
+            {agent.photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={agent.photoUrl}
+                alt={agent.displayName}
+                className="w-14 h-14 rounded-xl object-cover shadow-sm ring-2 ring-blue-100"
+              />
+            ) : (
+              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-bold text-xl shadow-sm ring-2 ring-blue-100">
+                {initials}
+              </div>
+            )}
             <div>
               <h1 className="text-xl font-bold text-foreground">
                 {agent.displayName}
@@ -44,10 +67,10 @@ export default async function VerifyPage({ params }: Props) {
 
           <div className="space-y-2 text-sm">
             {agent.phone && (
-              <div className="flex items-center gap-2 text-foreground">
+              <a href={`tel:${agent.phone}`} className="flex items-center gap-2 text-foreground hover:text-blue-600 transition-colors">
                 <Phone className="w-4 h-4 text-muted-foreground" />
                 {agent.phone}
-              </div>
+              </a>
             )}
             {agent.licenseNumber && (
               <div className="flex items-center gap-2 text-foreground">
@@ -66,44 +89,44 @@ export default async function VerifyPage({ params }: Props) {
 
         <div className="bg-card rounded-2xl border border-border shadow-sm p-6 mb-6">
           <h2 className="font-bold text-foreground mb-3">
-            What is a Secure Link?
+            What Is a Secure Link?
           </h2>
           <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-            A secure link is a private, encrypted form that your agent sends to
-            you during your application process. Instead of reading sensitive
-            information aloud on a phone call -- such as your Social Security
-            Number or banking details -- you type it directly into this secure
-            form on your device.
+            A Secure Link is a private, encrypted form that your agent sends to
+            you during your application process. Instead of sharing sensitive
+            information over the phone &mdash; such as your Social Security
+            Number or banking details &mdash; you enter it directly into a secure
+            form on your own device.
           </p>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Your information goes directly to your agent, encrypted, and is
-            never seen by anyone else.
+            Your information is delivered directly to your agent, encrypted, and
+            is never visible to anyone else.
           </p>
         </div>
 
         <div className="bg-card rounded-2xl border border-border shadow-sm p-6 mb-6">
-          <h2 className="font-bold text-foreground mb-4">How it&apos;s protected</h2>
+          <h2 className="font-bold text-foreground mb-4">How Your Information Is Protected</h2>
           <div className="space-y-4">
             {[
               {
                 icon: Lock,
                 title: "AES-256 Encryption",
-                desc: "Your data is encrypted individually for each field before it ever reaches our servers.",
+                desc: "Each field is individually encrypted before it reaches our servers, ensuring your data is protected at every step.",
               },
               {
                 icon: Clock,
-                title: "Links expire automatically",
-                desc: "Each link is valid for a limited time only. Once it expires, it cannot be used again.",
+                title: "Automatic Expiration",
+                desc: "Every link is valid for a limited time only. Once it expires, it can no longer be accessed or used.",
               },
               {
                 icon: Eye,
-                title: "One-time reveal",
-                desc: "By default, your agent can only reveal your data once. After that, fields are permanently masked.",
+                title: "One-Time Reveal",
+                desc: "By default, your agent can only view your information once. After that, the data is permanently masked.",
               },
               {
                 icon: Shield,
-                title: "Limited retention",
-                desc: "Your data is automatically deleted after a short period. We keep it only as long as needed.",
+                title: "Limited Retention",
+                desc: "Your data is automatically and permanently deleted after a short retention period. Nothing is kept longer than necessary.",
               },
             ].map(({ icon: Icon, title, desc }) => (
               <div key={title} className="flex gap-3">
@@ -120,7 +143,7 @@ export default async function VerifyPage({ params }: Props) {
         </div>
 
         <p className="text-xs text-muted-foreground/60 text-center leading-relaxed px-2">
-          This page is for verification purposes only. Agent Secure Links does
+          This page is for verification purposes only. Secure Link does
           not make legal compliance claims. If you have concerns about sharing
           your information, please discuss them directly with your agent.
         </p>

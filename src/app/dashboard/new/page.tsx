@@ -1041,7 +1041,7 @@ function LivePreview({
           </div>
 
           <div className="h-9 bg-foreground rounded-lg flex items-center justify-center">
-            <span className="text-[11px] text-background font-medium">Submit securely</span>
+            <span className="text-[11px] text-background font-medium">Submit Securely</span>
           </div>
         </div>
 

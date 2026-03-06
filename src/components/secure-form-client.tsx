@@ -235,10 +235,10 @@ export function SecureFormClient({
   }
 
   const sectionTitle =
-    linkType === "BANKING_INFO" ? "Enter Your Banking Details" :
-    linkType === "SSN_ONLY" ? "Enter Your Personal Details" :
-    linkType === "ID_UPLOAD" ? "Upload Your Identification" :
-    "Complete Your Information";
+    linkType === "BANKING_INFO" ? "Secure Banking Information" :
+    linkType === "SSN_ONLY" ? "Secure Identity Verification" :
+    linkType === "ID_UPLOAD" ? "Secure ID Upload" :
+    "Secure Client Intake";
 
   if (submitted) {
     return (
@@ -249,12 +249,12 @@ export function SecureFormClient({
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-3">Submitted Securely</h1>
           <p className="text-gray-500 leading-relaxed mb-8">
-            Your information has been encrypted and delivered to {agent.displayName}. You can close this page.
+            Your information has been encrypted and securely delivered to {agent.displayName}. You may now close this page.
           </p>
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 text-sm text-gray-600 text-left space-y-3">
             {[
               "Encrypted with AES-256 before storage",
-              "Delivered only to your agent",
+              "Delivered only to your authorized agent",
               "Automatically deleted after the retention period",
             ].map((line) => (
               <div key={line} className="flex items-center gap-2.5">
@@ -304,14 +304,14 @@ export function SecureFormClient({
               {linkType === "SSN_ONLY" && (
                 <>
                   <div className="grid grid-cols-2 gap-3">
-                    <Field label="First name" error={fieldErrors.firstName} required>
+                    <Field label="First Name" error={fieldErrors.firstName} required>
                       <Input value={fields.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="First" autoComplete="given-name" />
                     </Field>
-                    <Field label="Last name" error={fieldErrors.lastName} required>
+                    <Field label="Last Name" error={fieldErrors.lastName} required>
                       <Input value={fields.lastName} onChange={(e) => set("lastName", e.target.value)} placeholder="Last" autoComplete="family-name" />
                     </Field>
                   </div>
-                  <Field label="Social Security Number" error={fieldErrors.ssn} required hint="Auto-formats as XXX-XX-XXXX">
+                  <Field label="Social Security Number" error={fieldErrors.ssn} required hint="Formats automatically as XXX-XX-XXXX">
                     <Input
                       type={showSsn ? "text" : "password"}
                       inputMode="numeric"
@@ -357,11 +357,11 @@ export function SecureFormClient({
 
               {linkType === "BANKING_INFO" && (
                 <>
-                  <Field label="Full name" error={fieldErrors.fullName} required>
+                  <Field label="Full Name" error={fieldErrors.fullName} required>
                     <Input value={fields.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Your full legal name" autoComplete="name" />
                   </Field>
                   {middleInitialEnabled && (
-                    <Field label="Middle initial" error={fieldErrors.middleInitial} required hint="Single letter (A-Z)">
+                    <Field label="Middle Initial" error={fieldErrors.middleInitial} required hint="Single letter (A–Z)">
                       <Input
                         value={fields.middleInitial}
                         onChange={(e) =>
@@ -377,10 +377,10 @@ export function SecureFormClient({
                     </Field>
                   )}
                   <Field
-                    label="Routing number"
+                    label="Routing Number"
                     error={fieldErrors.routingNumber}
                     required
-                    hint={checkingRouting ? "Looking up bank..." : routingInfo ? `Bank: ${routingInfo}` : "9-digit number from your check"}
+                    hint={checkingRouting ? "Looking up bank..." : routingInfo ? `Bank: ${routingInfo}` : "9-digit number found on your check"}
                   >
                     <Input
                       type="text"
@@ -396,10 +396,10 @@ export function SecureFormClient({
                       autoComplete="off"
                     />
                   </Field>
-                  <Field label="Bank name" error={fieldErrors.bankName}>
+                  <Field label="Bank Name" error={fieldErrors.bankName}>
                     <Input value={fields.bankName} onChange={(e) => set("bankName", e.target.value)} placeholder="Auto-filled from routing number" autoComplete="off" />
                   </Field>
-                  <Field label="Account number" error={fieldErrors.accountNumber} required>
+                  <Field label="Account Number" error={fieldErrors.accountNumber} required>
                     <Input
                       type={showAccount ? "text" : "password"}
                       inputMode="numeric"
@@ -417,7 +417,7 @@ export function SecureFormClient({
                     </button>
                   </Field>
                   <Field
-                    label="Confirm account number"
+                    label="Confirm Account Number"
                     error={fieldErrors.confirmAccountNumber ?? (accountMismatch ? "Account numbers do not match." : undefined)}
                     required
                   >
@@ -438,7 +438,7 @@ export function SecureFormClient({
                       {showConfirmAccount ? "Hide account number" : "Show account number"}
                     </button>
                   </Field>
-                  <Field label="Preferred draft date" error={fieldErrors.preferredDraftDate} required hint="Day of month for automatic payments (e.g. 1st, 15th)">
+                  <Field label="Preferred Draft Date" error={fieldErrors.preferredDraftDate} required hint="Day of month for automatic payments (e.g. 1st, 15th)">
                     <Input value={fields.preferredDraftDate} onChange={(e) => set("preferredDraftDate", e.target.value)} placeholder="e.g. 1st, 15th, or any day" />
                   </Field>
                 </>
@@ -446,68 +446,88 @@ export function SecureFormClient({
 
               {linkType === "FULL_INTAKE" && (
                 <>
-                  <Field label="Full name" error={fieldErrors.fullName} required>
-                    <Input value={fields.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Your full legal name" autoComplete="name" />
-                  </Field>
-                  <Field label="Date of birth" error={fieldErrors.dateOfBirth} required>
-                    <Input type="date" value={fields.dateOfBirth} onChange={(e) => set("dateOfBirth", e.target.value)} max={new Date().toISOString().split("T")[0]} />
-                  </Field>
-                  <Field label="Social Security Number" error={fieldErrors.ssn} required hint="Auto-formats as XXX-XX-XXXX">
-                    <Input type={showSsn ? "text" : "password"} inputMode="numeric" value={fields.ssn} onChange={(e) => set("ssn", fmtSsn(e.target.value))} placeholder="XXX-XX-XXXX" maxLength={11} autoComplete="off" />
-                    <button
-                      type="button"
-                      onClick={() => setShowSsn((v) => !v)}
-                      className="text-xs text-gray-400 hover:text-blue-500 mt-1 transition-colors"
-                    >
-                      {showSsn ? "Hide SSN" : "Show SSN"}
-                    </button>
-                  </Field>
-                  <Field label="Address" error={fieldErrors.address} required>
-                    <Input value={fields.address} onChange={(e) => set("address", e.target.value)} placeholder="123 Main St, City, State 00000" autoComplete="street-address" />
-                  </Field>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Phone" error={fieldErrors.phone} required>
-                      <Input type="tel" value={fields.phone} onChange={(e) => set("phone", fmtPhone(e.target.value))} placeholder="(555) 000-0000" autoComplete="tel" />
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 pt-1">
+                      <span className="text-sm font-semibold text-gray-700">Personal Information</span>
+                      <div className="flex-1 h-px bg-gray-200" />
+                    </div>
+                    <Field label="Full Name" error={fieldErrors.fullName} required>
+                      <Input value={fields.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Your full legal name" autoComplete="name" />
                     </Field>
-                    <Field label="Email" error={fieldErrors.email} required>
-                      <Input type="email" value={fields.email} onChange={(e) => set("email", e.target.value)} placeholder="you@email.com" autoComplete="email" />
+                    <Field label="Date of Birth" error={fieldErrors.dateOfBirth} required>
+                      <Input type="date" value={fields.dateOfBirth} onChange={(e) => set("dateOfBirth", e.target.value)} max={new Date().toISOString().split("T")[0]} />
+                    </Field>
+                    <Field label="Social Security Number" error={fieldErrors.ssn} required hint="Formats automatically as XXX-XX-XXXX">
+                      <Input type={showSsn ? "text" : "password"} inputMode="numeric" value={fields.ssn} onChange={(e) => set("ssn", fmtSsn(e.target.value))} placeholder="XXX-XX-XXXX" maxLength={11} autoComplete="off" />
+                      <button
+                        type="button"
+                        onClick={() => setShowSsn((v) => !v)}
+                        className="text-xs text-gray-400 hover:text-blue-500 mt-1 transition-colors"
+                      >
+                        {showSsn ? "Hide SSN" : "Show SSN"}
+                      </button>
+                    </Field>
+                    <Field label="Address" error={fieldErrors.address} required>
+                      <Input value={fields.address} onChange={(e) => set("address", e.target.value)} placeholder="123 Main St, City, State 00000" autoComplete="street-address" />
+                    </Field>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Phone" error={fieldErrors.phone} required>
+                        <Input type="tel" value={fields.phone} onChange={(e) => set("phone", fmtPhone(e.target.value))} placeholder="(555) 000-0000" autoComplete="tel" />
+                      </Field>
+                      <Field label="Email" error={fieldErrors.email} required>
+                        <Input type="email" value={fields.email} onChange={(e) => set("email", e.target.value)} placeholder="you@email.com" autoComplete="email" />
+                      </Field>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 pt-2">
+                      <span className="text-sm font-semibold text-gray-700">Beneficiary Details</span>
+                      <div className="flex-1 h-px bg-gray-200" />
+                    </div>
+                    <Field label="Beneficiary Name" error={fieldErrors.beneficiaryName}>
+                      <Input value={fields.beneficiaryName} onChange={(e) => set("beneficiaryName", e.target.value)} placeholder="Full name (optional)" />
+                    </Field>
+                    <Field label="Beneficiary Relationship" error={fieldErrors.beneficiaryRelationship}>
+                      <Input value={fields.beneficiaryRelationship} onChange={(e) => set("beneficiaryRelationship", e.target.value)} placeholder="e.g. Spouse, Child (optional)" />
                     </Field>
                   </div>
-                  <Field label="Beneficiary name" error={fieldErrors.beneficiaryName}>
-                    <Input value={fields.beneficiaryName} onChange={(e) => set("beneficiaryName", e.target.value)} placeholder="Full name (optional)" />
-                  </Field>
-                  <Field label="Beneficiary relationship" error={fieldErrors.beneficiaryRelationship}>
-                    <Input value={fields.beneficiaryRelationship} onChange={(e) => set("beneficiaryRelationship", e.target.value)} placeholder="e.g. Spouse, Child (optional)" />
-                  </Field>
-                  <Field label="Routing number" error={fieldErrors.routingNumber} required hint={checkingRouting ? "Looking up..." : routingInfo ? `Bank: ${routingInfo}` : "9-digit number"}>
-                    <Input type="text" inputMode="numeric" value={fields.routingNumber} onChange={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 9); set("routingNumber", v); lookupRouting(v); }} placeholder="021000021" maxLength={9} autoComplete="off" />
-                  </Field>
-                  <Field label="Bank name" error={fieldErrors.bankName}>
-                    <Input value={fields.bankName} onChange={(e) => set("bankName", e.target.value)} placeholder="Auto-filled from routing number" autoComplete="off" />
-                  </Field>
-                  <Field label="Account number" error={fieldErrors.accountNumber} required>
-                    <Input type={showAccount ? "text" : "password"} inputMode="numeric" value={fields.accountNumber} onChange={(e) => set("accountNumber", e.target.value.replace(/\D/g, ""))} placeholder="Your account number" autoComplete="off" />
-                    <button
-                      type="button"
-                      onClick={() => setShowAccount((v) => !v)}
-                      className="text-xs text-gray-400 hover:text-blue-500 mt-1 transition-colors"
-                    >
-                      {showAccount ? "Hide account number" : "Show account number"}
-                    </button>
-                  </Field>
-                  <Field label="Confirm account number" error={fieldErrors.confirmAccountNumber ?? (accountMismatch ? "Account numbers do not match." : undefined)} required>
-                    <Input type={showConfirmAccount ? "text" : "password"} inputMode="numeric" value={fields.confirmAccountNumber} onChange={(e) => set("confirmAccountNumber", e.target.value.replace(/\D/g, ""))} placeholder="Re-enter account number" autoComplete="off" className={accountMismatch ? "border-red-300 focus-visible:ring-red-300" : ""} />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmAccount((v) => !v)}
-                      className="text-xs text-gray-400 hover:text-blue-500 mt-1 transition-colors"
-                    >
-                      {showConfirmAccount ? "Hide account number" : "Show account number"}
-                    </button>
-                  </Field>
-                  <Field label="Preferred draft date" error={fieldErrors.preferredDraftDate} required>
-                    <Input value={fields.preferredDraftDate} onChange={(e) => set("preferredDraftDate", e.target.value)} placeholder="e.g. 1st, 15th" />
-                  </Field>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 pt-2">
+                      <span className="text-sm font-semibold text-gray-700">Banking Information</span>
+                      <div className="flex-1 h-px bg-gray-200" />
+                    </div>
+                    <Field label="Routing Number" error={fieldErrors.routingNumber} required hint={checkingRouting ? "Looking up bank..." : routingInfo ? `Bank: ${routingInfo}` : "9-digit number found on your check"}>
+                      <Input type="text" inputMode="numeric" value={fields.routingNumber} onChange={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 9); set("routingNumber", v); lookupRouting(v); }} placeholder="021000021" maxLength={9} autoComplete="off" />
+                    </Field>
+                    <Field label="Bank Name" error={fieldErrors.bankName}>
+                      <Input value={fields.bankName} onChange={(e) => set("bankName", e.target.value)} placeholder="Auto-filled from routing number" autoComplete="off" />
+                    </Field>
+                    <Field label="Account Number" error={fieldErrors.accountNumber} required>
+                      <Input type={showAccount ? "text" : "password"} inputMode="numeric" value={fields.accountNumber} onChange={(e) => set("accountNumber", e.target.value.replace(/\D/g, ""))} placeholder="Your account number" autoComplete="off" />
+                      <button
+                        type="button"
+                        onClick={() => setShowAccount((v) => !v)}
+                        className="text-xs text-gray-400 hover:text-blue-500 mt-1 transition-colors"
+                      >
+                        {showAccount ? "Hide account number" : "Show account number"}
+                      </button>
+                    </Field>
+                    <Field label="Confirm Account Number" error={fieldErrors.confirmAccountNumber ?? (accountMismatch ? "Account numbers do not match." : undefined)} required>
+                      <Input type={showConfirmAccount ? "text" : "password"} inputMode="numeric" value={fields.confirmAccountNumber} onChange={(e) => set("confirmAccountNumber", e.target.value.replace(/\D/g, ""))} placeholder="Re-enter account number" autoComplete="off" className={accountMismatch ? "border-red-300 focus-visible:ring-red-300" : ""} />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmAccount((v) => !v)}
+                        className="text-xs text-gray-400 hover:text-blue-500 mt-1 transition-colors"
+                      >
+                        {showConfirmAccount ? "Hide account number" : "Show account number"}
+                      </button>
+                    </Field>
+                    <Field label="Preferred Draft Date" error={fieldErrors.preferredDraftDate} required>
+                      <Input value={fields.preferredDraftDate} onChange={(e) => set("preferredDraftDate", e.target.value)} placeholder="e.g. 1st, 15th" />
+                    </Field>
+                  </div>
                 </>
               )}
 
@@ -647,8 +667,8 @@ export function SecureFormClient({
                     className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-blue-500"
                   />
                   <span className="text-sm text-gray-600 leading-relaxed">
-                    I consent to share this information with {agent.displayName}
-                    {agent.agencyName ? ` (${agent.agencyName})` : ""} for the purpose of completing my application. I understand it will be encrypted, retained for a limited period, and deleted afterward.
+                    I authorize {agent.displayName}
+                    {agent.agencyName ? ` at ${agent.agencyName}` : ""} to receive this information for the purpose of processing my application. I understand my data will be encrypted in transit and at rest, retained only for the specified period, and permanently deleted thereafter.
                   </span>
                 </label>
                 {fieldErrors.consent && (
@@ -672,7 +692,7 @@ export function SecureFormClient({
               </Button>
 
               <p className="text-xs text-gray-400 text-center leading-relaxed">
-                This link is single-use and expires after submission. Your information is encrypted and not shared with third parties.
+                This is a single-use secure link that expires after submission. Your information is encrypted end-to-end and will not be shared with third parties.
               </p>
             </form>
           </div>
@@ -680,10 +700,10 @@ export function SecureFormClient({
           {agent.phone && (
             <div className="text-center py-4">
               <p className="text-sm text-gray-500">
-                Need help?{" "}
+                Questions about this request?{" "}
                 <a href={`tel:${agent.phone}`} className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium transition-colors">
                   <Phone className="w-3.5 h-3.5" />
-                  Call {agent.phone}
+                  Contact {agent.displayName} at {agent.phone}
                 </a>
               </p>
             </div>

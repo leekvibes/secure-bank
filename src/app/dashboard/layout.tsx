@@ -6,8 +6,8 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar";
 
 export const metadata: Metadata = {
   title: {
-    default: "Dashboard | Agent Secure Links",
-    template: "%s | Agent Secure Links",
+    default: "Dashboard | Secure Link",
+    template: "%s | Secure Link",
   },
 };
 

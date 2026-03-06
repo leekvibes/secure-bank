@@ -103,7 +103,7 @@ export function ClientTrustHeader({ logoUrls, agent, expiresAt, isViewOnce }: Pr
       )}
 
       <div className="border-t border-gray-100 bg-gray-50/80">
-        <div className="max-w-screen-md mx-auto px-4 h-7 flex items-center gap-4 overflow-x-auto scrollbar-none">
+        <div className="max-w-screen-md mx-auto px-4 h-7 flex items-center justify-center gap-4 overflow-x-auto scrollbar-none">
           <TrustPill icon={Lock} label="AES-256" />
           <Divider />
           <TrustPill icon={Shield} label="Private" />
@@ -134,9 +134,9 @@ function LogoStrip({ logoUrls }: { logoUrls: string[] }) {
   if (logoUrls.length === 0) {
     return (
       <div className="flex items-center justify-center">
-        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm shrink-0">
-          <Lock className="w-4 h-4 text-white" />
-        </div>
+        <span className="text-base font-bold tracking-tight text-gray-900 whitespace-nowrap">
+          <span className="text-blue-600">Secure</span> Link
+        </span>
       </div>
     );
   }

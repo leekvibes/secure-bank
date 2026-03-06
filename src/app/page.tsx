@@ -17,7 +17,7 @@ export default async function HomePage() {
             <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-md">
               <Lock className="w-4.5 h-4.5 text-white" />
             </div>
-            <span className="font-semibold text-lg tracking-tight text-foreground">Agent Secure Links</span>
+            <span className="font-semibold text-lg tracking-tight text-foreground">Secure Link</span>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-foreground">
@@ -105,10 +105,10 @@ export default async function HomePage() {
           <div className="border-t border-border pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <Lock className="w-3.5 h-3.5 text-muted-foreground/50" />
-              <span className="text-sm text-muted-foreground/60 font-medium">Agent Secure Links</span>
+              <span className="text-sm text-muted-foreground/60 font-medium">Secure Link</span>
             </div>
             <p className="text-xs text-muted-foreground/50 text-center sm:text-right max-w-lg leading-relaxed">
-              Agent Secure Links does not store data longer than your configured retention period.
+              Secure Link does not store data longer than your configured retention period.
               This tool assists with secure data collection; it is not a legal compliance product.
               Consult your compliance officer regarding applicable regulations.
             </p>

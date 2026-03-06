@@ -69,7 +69,7 @@ export function ResetForm() {
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-md">
             <Shield className="w-5 h-5 text-white" />
           </div>
-          <span className="text-lg font-semibold text-foreground tracking-tight">Agent Secure Links</span>
+          <span className="text-lg font-semibold text-foreground tracking-tight">Secure Link</span>
         </Link>
 
         <Card className="shadow-lg border-border">

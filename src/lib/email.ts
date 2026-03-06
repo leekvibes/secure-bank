@@ -95,7 +95,7 @@ export async function sendPasswordResetEmail(
     await resend.emails.send({
       from: FROM,
       to: toEmail,
-      subject: "Reset your Agent Secure Links password",
+      subject: "Reset your Secure Link password",
       html: `
         <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; color: #1e293b;">
           <h2 style="margin: 0 0 8px; font-size: 20px; font-weight: 700;">Reset your password</h2>

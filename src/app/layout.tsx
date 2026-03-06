@@ -7,7 +7,7 @@ import { Providers } from "./providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Agent Secure Links",
+  title: "Secure Link",
   description:
     "Send clients a secure link to privately submit sensitive information — no reading it aloud.",
   robots: "noindex, nofollow", // keep this tool off search engines

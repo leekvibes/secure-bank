@@ -122,13 +122,14 @@ function ExpiredPage() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-[hsl(210,25%,97%)] to-[hsl(210,20%,93%)] flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center animate-fade-in">
+        <p className="text-xs font-semibold tracking-widest text-slate-400 uppercase mb-8">Secure Link</p>
         <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-1 ring-amber-200">
           <svg className="w-8 h-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
           </svg>
         </div>
-        <h1 className="text-xl font-bold text-foreground mb-2">This link has expired</h1>
-        <p className="text-muted-foreground text-sm">Contact your agent to request a new secure link.</p>
+        <h1 className="text-xl font-bold text-foreground mb-2">This Link Has Expired</h1>
+        <p className="text-muted-foreground text-sm">For your security, this link is no longer active. Please contact your agent to request a new secure link.</p>
       </div>
     </main>
   );
@@ -138,13 +139,14 @@ function AlreadySubmittedPage() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-[hsl(210,25%,97%)] to-[hsl(210,20%,93%)] flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center animate-fade-in">
+        <p className="text-xs font-semibold tracking-widest text-slate-400 uppercase mb-8">Secure Link</p>
         <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-1 ring-emerald-200">
           <svg className="w-8 h-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <h1 className="text-xl font-bold text-foreground mb-2">Already submitted</h1>
-        <p className="text-muted-foreground text-sm">Your information has already been received. You&apos;re all done.</p>
+        <h1 className="text-xl font-bold text-foreground mb-2">Already Submitted</h1>
+        <p className="text-muted-foreground text-sm">Your information has been securely received. No further action is needed.</p>
       </div>
     </main>
   );

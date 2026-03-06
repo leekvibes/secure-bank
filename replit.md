@@ -1,6 +1,6 @@
-# Agent Secure Links
+# Secure Link
 
-A Next.js 14 application that lets agents generate secure, expiring links so clients can privately submit sensitive information (banking info, SSNs, ID uploads, etc.). All submitted data is AES-256 encrypted before storage.
+A Next.js 14 application that lets agents generate secure, expiring links so clients can privately submit sensitive information (banking info, SSNs, ID uploads, etc.). All submitted data is AES-256 encrypted before storage. Company name: **Secure Link** (two words, always capitalized).
 
 ## Architecture
 
@@ -62,6 +62,22 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 - Custom animation keyframes: fade-in, slide-up, scale-in
 - Sidebar: white background with `--sidebar-*` CSS variables
 - Client-facing forms: clean white cards, trust indicators row, professional section headers, agent photo display
+
+## Branding
+
+- Company name: "Secure Link" (two words)
+- All user-facing references use "Secure Link" — never "Agent Secure Links" or "SecureLink"
+- Client-facing header shows "Secure Link" text branding when no custom logo is uploaded
+- Page titles: "Secure Link", dashboard titles: "Dashboard | Secure Link"
+
+## Client-Facing Form Standards
+
+- All button text uses Title Case: "Submit Securely", not "Submit securely"
+- Field labels use Title Case: "First Name", "Routing Number", etc.
+- Consent text uses formal authorization language
+- Success state: "Submitted Securely" with encryption confirmation
+- Full Intake form organized with section dividers (Personal Information, Beneficiary Details, Banking Information)
+- Trust indicators centered: "Bank-Level Security", "256-Bit Encryption", "Private & Secure"
 
 ## Agent Profile Photo
 

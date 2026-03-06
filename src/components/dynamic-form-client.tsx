@@ -133,7 +133,7 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
           <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-1 ring-emerald-200">
             <CheckCircle2 className="w-8 h-8 text-emerald-500" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-3">Submitted securely</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">Submitted Securely</h1>
           <p className="text-gray-500 leading-relaxed mb-8">
             Your information has been encrypted and delivered to {agent.displayName}. You can close this page.
           </p>
@@ -178,7 +178,7 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
             <p className="text-sm text-gray-500 mb-4 leading-relaxed">{form.description}</p>
           )}
           <p className="text-sm text-gray-500 mb-5 leading-relaxed">
-            Enter your information below to securely submit your personal information. This form is end-to-end encrypted.
+            Please complete the fields below. Your information is end-to-end encrypted and delivered only to your agent.
           </p>
 
           {error && (
@@ -222,7 +222,7 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
               className="w-full h-12 text-base font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
               disabled={loading || !consent}
             >
-              {loading ? "Submitting..." : "Submit securely"}
+              {loading ? "Submitting..." : "Submit Securely"}
             </Button>
 
             <p className="text-xs text-gray-400 text-center leading-relaxed">
