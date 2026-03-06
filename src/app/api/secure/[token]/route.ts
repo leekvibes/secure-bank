@@ -110,6 +110,9 @@ export async function GET(
       link: {
         token: params.token,
         linkType: link.linkType,
+        destinationLabel: link.destinationLabel ?? link.destination,
+        messageTemplate: link.messageTemplate,
+        options: link.optionsJson ? JSON.parse(link.optionsJson) : {},
         clientName: link.clientName,
         expiresAt: link.expiresAt.toISOString(),
       },

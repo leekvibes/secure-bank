@@ -8,6 +8,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { assertAssetOwnership } from "@/lib/asset-library";
 import { addHours } from "date-fns";
 import { buildTrustMessage } from "@/lib/link-message";
+import { applyTemplateDefaults } from "@/lib/link-templates";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -25,16 +26,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: first }, { status: 400 });
     }
 
+    let payload = parsed.data;
+    if (payload.templateId) {
+      const template = await db.linkTemplate.findFirst({
+        where: { id: payload.templateId, userId: session.user.id },
+        include: { assets: { orderBy: { order: "asc" }, select: { assetId: true, order: true } } },
+      });
+      if (!template) {
+        return NextResponse.json({ error: "Template not found." }, { status: 404 });
+      }
+      payload = applyTemplateDefaults(template, {
+        ...payload,
+        assetIds: Array.isArray(body?.assetIds) ? payload.assetIds : undefined,
+      });
+    }
+
     const {
       linkType,
       destination,
+      destinationLabel,
+      message,
+      options,
       clientName,
       clientPhone,
       clientEmail,
       expirationHours,
       retentionDays,
       assetIds,
-    } = parsed.data;
+    } = payload;
+    if (!linkType) {
+      return NextResponse.json({ error: "Link type is required." }, { status: 400 });
+    }
 
     // Validate asset ownership
     const uniqueAssetIds = Array.from(new Set(assetIds ?? []));
@@ -62,7 +84,12 @@ export async function POST(req: NextRequest) {
       data: {
         token,
         linkType,
-        destination: destination?.trim() || "Internal processing",
+        destination:
+          destinationLabel?.trim() || destination?.trim() || "Internal processing",
+        destinationLabel:
+          destinationLabel?.trim() || destination?.trim() || "Internal processing",
+        messageTemplate: message?.trim() || null,
+        optionsJson: options ? JSON.stringify(options) : null,
         clientName: clientName || null,
         clientPhone: clientPhone || null,
         clientEmail: clientEmail || null,
@@ -100,7 +127,8 @@ export async function POST(req: NextRequest) {
     const smsText = `${clientPart}I need to securely collect your ${typePart} for your application. Instead of reading it aloud, please tap this private link and enter it directly — it's encrypted and expires soon:\n\n${url}\n\nLet me know once you've submitted it.`;
     const trustMessage = buildTrustMessage({
       clientName: clientName || null,
-      destination: destination || "Internal processing",
+      destination:
+        destinationLabel?.trim() || destination?.trim() || "Internal processing",
       linkType,
       url,
     });
@@ -113,6 +141,9 @@ export async function POST(req: NextRequest) {
         smsText,
         trustMessage,
         destination: link.destination,
+        destinationLabel: link.destinationLabel,
+        message: link.messageTemplate,
+        options: link.optionsJson ? JSON.parse(link.optionsJson) : {},
         expiresAt: expiresAt.toISOString(),
       },
       { status: 201 }
