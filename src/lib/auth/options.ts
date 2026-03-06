@@ -8,35 +8,24 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 8 * 60 * 60,
   },
-  cookies: {
-    sessionToken: {
-      name: "next-auth.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "none" as const,
-        path: "/",
-        secure: true,
-      },
-    },
-    callbackUrl: {
-      name: "next-auth.callback-url",
-      options: {
-        httpOnly: true,
-        sameSite: "none" as const,
-        path: "/",
-        secure: true,
-      },
-    },
-    csrfToken: {
-      name: "next-auth.csrf-token",
-      options: {
-        httpOnly: true,
-        sameSite: "none" as const,
-        path: "/",
-        secure: true,
-      },
-    },
-  },
+  ...(process.env.NODE_ENV === "production"
+    ? {
+        cookies: {
+          sessionToken: {
+            name: "__Secure-next-auth.session-token",
+            options: { httpOnly: true, sameSite: "none" as const, path: "/", secure: true },
+          },
+          callbackUrl: {
+            name: "__Secure-next-auth.callback-url",
+            options: { httpOnly: true, sameSite: "none" as const, path: "/", secure: true },
+          },
+          csrfToken: {
+            name: "__Host-next-auth.csrf-token",
+            options: { httpOnly: true, sameSite: "none" as const, path: "/", secure: true },
+          },
+        },
+      }
+    : {}),
   pages: {
     signIn: "/auth",
     error: "/auth",
