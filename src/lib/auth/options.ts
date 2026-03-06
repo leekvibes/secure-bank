@@ -3,21 +3,37 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 
-const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith("https://") ?? false;
-
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
-    maxAge: 8 * 60 * 60, // 8 hours
+    maxAge: 8 * 60 * 60,
   },
   cookies: {
     sessionToken: {
-      name: useSecureCookies ? "__Secure-next-auth.session-token" : "next-auth.session-token",
+      name: "next-auth.session-token",
       options: {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: "none" as const,
         path: "/",
-        secure: useSecureCookies,
+        secure: true,
+      },
+    },
+    callbackUrl: {
+      name: "next-auth.callback-url",
+      options: {
+        httpOnly: true,
+        sameSite: "none" as const,
+        path: "/",
+        secure: true,
+      },
+    },
+    csrfToken: {
+      name: "next-auth.csrf-token",
+      options: {
+        httpOnly: true,
+        sameSite: "none" as const,
+        path: "/",
+        secure: true,
       },
     },
   },

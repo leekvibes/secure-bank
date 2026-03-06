@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,6 @@ export function AuthForm() {
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
 
   async function handleSignIn(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -25,15 +23,20 @@ export function AuthForm() {
     setError(null);
     try {
       const form = new FormData(e.currentTarget);
-      const result = await signIn("credentials", {
-        email: form.get("email"),
-        password: form.get("password"),
-        redirect: false,
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          email: form.get("email"),
+          password: form.get("password"),
+        }),
       });
-      if (result?.error) {
-        setError("Invalid email or password.");
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Invalid email or password.");
       } else {
-        router.push("/dashboard");
+        window.location.href = "/dashboard";
       }
     } catch {
       setError("Sign-in failed. Please try again.");
@@ -67,17 +70,21 @@ export function AuthForm() {
         return;
       }
 
-      // Auto sign-in after registration
-      const signInResult = await signIn("credentials", {
-        email: body.email,
-        password: body.password,
-        redirect: false,
+      const loginRes = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          email: body.email,
+          password: body.password,
+        }),
       });
-      if (signInResult?.error) {
-        setError("Account created, but sign-in failed. Please sign in manually.");
+      const loginData = await loginRes.json();
+      if (!loginRes.ok) {
+        setError(loginData.error ?? "Account created, but sign-in failed. Please sign in manually.");
         return;
       }
-      router.push("/dashboard");
+      window.location.href = "/dashboard";
     } catch {
       setError("Registration failed. Please try again.");
     } finally {
