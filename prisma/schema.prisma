@@ -32,6 +32,7 @@ model User {
   updatedAt         DateTime @updatedAt
 
   links               SecureLink[]
+  linkTemplates       LinkTemplate[]
   auditLogs           AuditLog[]
   passwordResetTokens PasswordResetToken[]
   idUploads           IdUpload[]
@@ -45,6 +46,9 @@ model SecureLink {
   // BANKING_INFO | SSN_ONLY | FULL_INTAKE | ID_UPLOAD
   linkType      String
   destination   String?
+  destinationLabel String?
+  messageTemplate String?
+  optionsJson   String?
   clientName    String?
   clientPhone   String?
   clientEmail   String?
@@ -146,6 +150,7 @@ model FormLink {
   id          String   @id @default(cuid())
   formId      String
   token       String   @unique
+  destination String?
   clientName  String?
   clientPhone String?
   clientEmail String?
@@ -169,6 +174,36 @@ model LinkDispatch {
   link SecureLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
 
   @@index([linkId, createdAt])
+}
+
+model LinkTemplate {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  linkType        String
+  destinationLabel String?
+  expiresIn       Int      @default(24)
+  messageTemplate String?
+  optionsJson     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user   User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assets LinkTemplateAsset[]
+}
+
+model LinkTemplateAsset {
+  id         String   @id @default(cuid())
+  templateId String
+  assetId    String
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  template LinkTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  asset    AgentAsset   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, assetId])
+  @@index([templateId, order])
 }
 
 model FormSubmission {
@@ -210,6 +245,7 @@ model AgentAsset {
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   secureLinkRefs  SecureLinkAsset[]
   formLinkRefs    FormLinkAsset[]
+  templateRefs    LinkTemplateAsset[]
 }
 
 model SecureLinkAsset {

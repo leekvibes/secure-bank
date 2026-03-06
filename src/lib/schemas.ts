@@ -20,8 +20,12 @@ export type SignUpInput = z.infer<typeof signUpSchema>;
 // ── Link creation ─────────────────────────────────────────────────────────────
 
 export const createLinkSchema = z.object({
-  linkType: z.enum(["BANKING_INFO", "SSN_ONLY", "FULL_INTAKE", "ID_UPLOAD"]),
+  templateId: z.string().min(1).optional(),
+  linkType: z.enum(["BANKING_INFO", "SSN_ONLY", "FULL_INTAKE", "ID_UPLOAD"]).optional(),
   destination: z.string().min(2, "Destination is required").max(120).optional(),
+  destinationLabel: z.string().min(2, "Destination is required").max(120).optional(),
+  message: z.string().max(4000).optional(),
+  options: z.record(z.string(), z.unknown()).optional(),
   clientName: z.string().max(120).optional(),
   clientPhone: z.string().max(30).optional().refine((v) => isValidPhoneNumber(v ?? ""), "Invalid phone number"),
   clientEmail: z.string().optional().or(z.literal("")).refine((v) => isValidEmailAddress(v ?? ""), "Invalid email address"),
@@ -30,6 +34,20 @@ export const createLinkSchema = z.object({
   assetIds: z.array(z.string().min(1)).max(10).optional().default([]),
 });
 export type CreateLinkInput = z.infer<typeof createLinkSchema>;
+
+export const linkTemplateSchema = z.object({
+  name: z.string().min(1, "Template name is required").max(120),
+  linkType: z.enum(["BANKING_INFO", "SSN_ONLY", "FULL_INTAKE", "ID_UPLOAD"]),
+  destinationLabel: z.string().max(120).optional(),
+  expiresIn: z.number().int().min(1).max(168).default(24),
+  messageTemplate: z.string().max(4000).optional(),
+  options: z.record(z.string(), z.unknown()).optional(),
+  assetIds: z.array(z.string().min(1)).max(10).optional().default([]),
+});
+export type LinkTemplateInput = z.infer<typeof linkTemplateSchema>;
+
+export const updateLinkTemplateSchema = linkTemplateSchema.partial();
+export type UpdateLinkTemplateInput = z.infer<typeof updateLinkTemplateSchema>;
 
 // ── Secure form submissions ───────────────────────────────────────────────────
 
@@ -184,6 +202,7 @@ export const createFormSchema = z.object({
 export type CreateFormInput = z.infer<typeof createFormSchema>;
 
 export const createFormLinkSchema = z.object({
+  destination: z.string().max(120).optional(),
   clientName: z.string().max(120).optional(),
   clientPhone: z.string().max(30).optional().refine((v) => isValidPhoneNumber(v ?? ""), "Invalid phone number"),
   clientEmail: z.string().optional().or(z.literal("")).refine((v) => isValidEmailAddress(v ?? ""), "Invalid email address"),
