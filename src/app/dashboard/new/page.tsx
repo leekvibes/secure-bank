@@ -16,8 +16,6 @@ import { buildTrustMessage } from "@/lib/link-message";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 
-// ── Types ──────────────────────────────────────────────────────────────────────
-
 type LinkType = "BANKING_INFO" | "SSN_ONLY" | "FULL_INTAKE" | "ID_UPLOAD";
 
 interface ApiTemplate {
@@ -40,8 +38,6 @@ interface CreatedLink {
   expiresAt: string;
 }
 
-// ── Static config ──────────────────────────────────────────────────────────────
-
 const DESTINATIONS = [
   "Mutual of Omaha",
   "Americo",
@@ -56,73 +52,70 @@ const TYPE_META: Record<
   LinkType,
   {
     icon: React.ComponentType<{ className?: string }>;
-    iconBg: string;
+    gradient: string;
     iconColor: string;
     borderActive: string;
     title: string;
     subtitle: string;
     defaultExpiry: number;
     previewFields: string[];
-    infoColor: string;
     infoText: string;
+    accentHsl: string;
   }
 > = {
   BANKING_INFO: {
     icon: CreditCard,
-    iconBg: "bg-blue-50",
-    iconColor: "text-blue-600",
-    borderActive: "border-blue-500 ring-1 ring-blue-500/20 bg-blue-50/40",
+    gradient: "from-blue-500/20 to-blue-600/10",
+    iconColor: "text-blue-400",
+    borderActive: "border-blue-500/50 ring-1 ring-blue-500/20 bg-blue-500/5",
     title: "Banking Information",
     subtitle: "Routing, account number, draft date",
     defaultExpiry: 24,
     previewFields: ["Full name", "Routing number", "Bank name", "Account number (+ confirm)", "Draft date"],
-    infoColor: "bg-blue-50 border-blue-100 text-blue-700",
     infoText: "Account number confirmation is always required for fraud prevention.",
+    accentHsl: "210 100% 60%",
   },
   SSN_ONLY: {
     icon: Shield,
-    iconBg: "bg-purple-50",
-    iconColor: "text-purple-600",
-    borderActive: "border-purple-500 ring-1 ring-purple-500/20 bg-purple-50/40",
+    gradient: "from-violet-500/20 to-violet-600/10",
+    iconColor: "text-violet-400",
+    borderActive: "border-violet-500/50 ring-1 ring-violet-500/20 bg-violet-500/5",
     title: "Social Security Number",
     subtitle: "SSN with masked entry and confirmation",
     defaultExpiry: 168,
     previewFields: ["First name", "Last name", "SSN (masked + confirm)"],
-    infoColor: "bg-purple-50 border-purple-100 text-purple-700",
     infoText: "SSN links default to 7-day expiration for compliance.",
+    accentHsl: "260 80% 60%",
   },
   FULL_INTAKE: {
     icon: ClipboardList,
-    iconBg: "bg-emerald-50",
-    iconColor: "text-emerald-600",
-    borderActive: "border-emerald-500 ring-1 ring-emerald-500/20 bg-emerald-50/40",
+    gradient: "from-emerald-500/20 to-emerald-600/10",
+    iconColor: "text-emerald-400",
+    borderActive: "border-emerald-500/50 ring-1 ring-emerald-500/20 bg-emerald-500/5",
     title: "Full Intake Form",
     subtitle: "SSN, banking, address, and beneficiary",
     defaultExpiry: 48,
     previewFields: ["Full name", "Date of birth", "SSN", "Address", "Phone + email", "Beneficiary", "Banking info"],
-    infoColor: "bg-emerald-50 border-emerald-100 text-emerald-700",
-    infoText: "Most comprehensive intake — use for new policy applications.",
+    infoText: "Most comprehensive intake -- use for new policy applications.",
+    accentHsl: "155 70% 45%",
   },
   ID_UPLOAD: {
     icon: Camera,
-    iconBg: "bg-amber-50",
-    iconColor: "text-amber-600",
-    borderActive: "border-amber-500 ring-1 ring-amber-500/20 bg-amber-50/40",
+    gradient: "from-amber-500/20 to-amber-600/10",
+    iconColor: "text-amber-400",
+    borderActive: "border-amber-500/50 ring-1 ring-amber-500/20 bg-amber-500/5",
     title: "Photo ID Upload",
     subtitle: "Government-issued ID photo submission",
     defaultExpiry: 24,
     previewFields: ["Front of ID (required)", "Back of ID (optional)"],
-    infoColor: "bg-amber-50 border-amber-100 text-amber-700",
-    infoText: "Accepted: JPG, PNG, WebP, HEIC — max 10 MB per file.",
+    infoText: "Accepted: JPG, PNG, WebP, HEIC -- max 10 MB per file.",
+    accentHsl: "35 90% 55%",
   },
 };
-
-// ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function NewLinkPage() {
   const router = useRouter();
 
-  // Core form state
   const [linkType, setLinkType] = useState<LinkType>("BANKING_INFO");
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
@@ -133,10 +126,8 @@ export default function NewLinkPage() {
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [message, setMessage] = useState("");
 
-  // Type-specific options
   const [idBothSides, setIdBothSides] = useState(false);
 
-  // Template state
   const [templates, setTemplates] = useState<ApiTemplate[]>([]);
   const [activeTemplateId, setActiveTemplateId] = useState("");
   const [showSaveName, setShowSaveName] = useState(false);
@@ -144,12 +135,10 @@ export default function NewLinkPage() {
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  // Submission
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedLink | null>(null);
 
-  // Post-generate send
   const [copied, setCopied] = useState(false);
   const [copiedSms, setCopiedSms] = useState(false);
   const [sendMethod, setSendMethod] = useState<"SMS" | "EMAIL" | "COPY">("SMS");
@@ -162,7 +151,6 @@ export default function NewLinkPage() {
 
   const effectiveDest = destination === "Custom" ? customDest : destination;
 
-  // Auto-generate message when type / destination / client name changes
   const regenerateMessage = useCallback(() => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const url = `${origin}/secure/…`;
@@ -171,7 +159,6 @@ export default function NewLinkPage() {
 
   useEffect(() => { regenerateMessage(); }, [regenerateMessage]);
 
-  // Load saved templates
   useEffect(() => {
     fetch("/api/link-templates")
       .then((r) => r.json())
@@ -215,7 +202,6 @@ export default function NewLinkPage() {
       return;
     }
     const data = await res.json();
-    // Refetch
     const r2 = await fetch("/api/link-templates");
     const d2 = await r2.json();
     if (d2.templates) setTemplates(d2.templates);
@@ -383,28 +369,25 @@ export default function NewLinkPage() {
     setCopiedSms(false);
   }
 
-  // ── Post-generate view ───────────────────────────────────────────────────────
-
   if (created) {
     return (
-      <div className="max-w-lg">
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-6 text-slate-500">
+      <div className="max-w-lg animate-fade-in">
+        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-6 text-muted-foreground hover:text-foreground">
           <Link href="/dashboard">
             <ArrowLeft className="w-4 h-4" />
             Dashboard
           </Link>
         </Button>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          {/* Success header */}
-          <div className="px-6 pt-6 pb-5 border-b border-slate-100">
+        <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
+          <div className="px-6 pt-6 pb-5 border-b border-border/40">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center ring-1 ring-emerald-100 shrink-0">
-                <Shield className="w-5 h-5 text-emerald-600" />
+              <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center ring-1 ring-emerald-500/20 shrink-0">
+                <Shield className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-slate-900">Link created</h2>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <h2 className="text-base font-semibold text-foreground">Link created</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Expires {new Date(created.expiresAt).toLocaleString()}
                 </p>
               </div>
@@ -412,37 +395,34 @@ export default function NewLinkPage() {
           </div>
 
           <div className="px-6 py-5 space-y-5">
-            {/* URL row */}
             <div>
-              <Label className="text-xs text-slate-500 mb-1.5 block">Secure URL</Label>
+              <Label className="text-xs text-muted-foreground mb-1.5 block">Secure URL</Label>
               <div className="flex gap-2">
                 <input
                   readOnly
                   value={created.url}
-                  className="flex-1 h-10 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg font-mono text-slate-700 focus:outline-none"
+                  className="flex-1 h-10 px-3 text-sm bg-surface-2 border border-border/50 rounded-lg font-mono text-foreground focus:outline-none"
                 />
                 <Button onClick={copyLink} variant="outline" size="sm" className="shrink-0 gap-1.5">
-                  {copied ? <CheckCheck className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                  {copied ? <CheckCheck className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                   {copied ? "Copied" : "Copy"}
                 </Button>
               </div>
             </div>
 
-            {/* Send panel */}
             <div className="space-y-3">
-              <Label className="text-xs text-slate-500 block">Send to client</Label>
-              {/* Method tabs */}
-              <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-lg">
+              <Label className="text-xs text-muted-foreground block">Send to client</Label>
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-surface-2 rounded-lg">
                 {(["SMS", "EMAIL", "COPY"] as const).map((m) => (
                   <button
                     key={m}
                     type="button"
                     onClick={() => setSendMethod(m)}
                     className={cn(
-                      "py-1.5 text-xs font-medium rounded-md transition-colors",
+                      "py-1.5 text-xs font-medium rounded-md transition-all duration-200",
                       sendMethod === m
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700"
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
                     )}
                   >
                     {m === "SMS" ? "SMS" : m === "EMAIL" ? "Email" : "Copy text"}
@@ -471,7 +451,7 @@ export default function NewLinkPage() {
                 value={sendMsg}
                 onChange={(e) => setSendMsg(e.target.value)}
                 rows={5}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                className="w-full rounded-xl border border-border/50 bg-surface-2 px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 resize-none transition-colors"
               />
 
               <div className="flex gap-2">
@@ -496,16 +476,15 @@ export default function NewLinkPage() {
                   {sendSuccess ? "Sent!" : "Send now"}
                 </Button>
                 <Button variant="outline" onClick={copySmsText} className="gap-1.5 shrink-0">
-                  {copiedSms ? <CheckCheck className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                  {copiedSms ? <CheckCheck className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                   Copy
                 </Button>
               </div>
 
-              {sendError && <p className="text-xs text-red-600">{sendError}</p>}
+              {sendError && <p className="text-xs text-destructive">{sendError}</p>}
             </div>
 
-            {/* Footer actions */}
-            <div className="flex gap-2 pt-1 border-t border-slate-100">
+            <div className="flex gap-2 pt-1 border-t border-border/40">
               <Button onClick={createAnother} variant="outline" className="flex-1">
                 Create another
               </Button>
@@ -518,8 +497,6 @@ export default function NewLinkPage() {
       </div>
     );
   }
-
-  // ── Builder ────────────────────────────────────────────────────────────────
 
   const meta = TYPE_META[linkType];
   const previewFields =
@@ -539,19 +516,17 @@ export default function NewLinkPage() {
       : `${expirationHours}h`;
 
   return (
-    <div className="max-w-[1100px]">
-      {/* Page header */}
+    <div className="max-w-[1100px] animate-fade-in">
       <div className="flex items-start justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-semibold text-foreground tracking-tight">
             Create secure link
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Generate an encrypted, one-time link for your client.
           </p>
         </div>
 
-        {/* Template picker */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="relative">
             <select
@@ -561,14 +536,14 @@ export default function NewLinkPage() {
                 if (t) applyTemplate(t);
               }}
               className={cn(
-                "h-9 pl-3 pr-8 text-sm border rounded-lg bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-ring",
+                "h-9 pl-3 pr-8 text-sm border rounded-lg bg-card appearance-none focus:outline-none focus:ring-2 focus:ring-ring/30 transition-colors",
                 activeTemplateId
-                  ? "border-blue-300 text-blue-700"
-                  : "border-slate-200 text-slate-600"
+                  ? "border-primary/40 text-primary"
+                  : "border-border/50 text-muted-foreground"
               )}
             >
               <option value="">
-                {templates.length === 0 ? "No templates yet" : "Apply template…"}
+                {templates.length === 0 ? "No templates yet" : "Apply template..."}
               </option>
               {templates.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -576,10 +551,9 @@ export default function NewLinkPage() {
                 </option>
               ))}
             </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
           </div>
 
-          {/* Save as template */}
           {showSaveName ? (
             <div className="flex items-center gap-1.5">
               <Input
@@ -627,17 +601,15 @@ export default function NewLinkPage() {
 
       <form onSubmit={handleSubmit}>
         <div className="grid lg:grid-cols-[1fr_360px] gap-8 items-start">
-          {/* ── Left column ── */}
           <div className="space-y-5">
             {error && (
-              <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+              <div className="p-3.5 bg-destructive/10 border border-destructive/20 rounded-xl text-sm text-destructive">
                 {error}
               </div>
             )}
 
-            {/* 1. Type cards */}
             <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                 Link type
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -654,25 +626,25 @@ export default function NewLinkPage() {
                           setExpirationHours(c.defaultExpiry);
                         }}
                         className={cn(
-                          "flex flex-col items-start gap-3 p-4 rounded-xl border-2 text-left transition-all",
+                          "flex flex-col items-start gap-3 p-4 rounded-xl border-2 text-left transition-all duration-200",
                           active
                             ? c.borderActive
-                            : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                            : "border-border/40 bg-card hover:border-border hover:bg-card/80"
                         )}
                       >
                         <div
                           className={cn(
-                            "w-8 h-8 rounded-lg flex items-center justify-center",
-                            c.iconBg
+                            "w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br",
+                            c.gradient
                           )}
                         >
                           <Icon className={cn("w-4 h-4", c.iconColor)} />
                         </div>
                         <div>
-                          <p className="text-xs font-semibold text-slate-800 leading-tight">
+                          <p className="text-xs font-semibold text-foreground leading-tight">
                             {c.title}
                           </p>
-                          <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
                             {c.subtitle}
                           </p>
                         </div>
@@ -683,27 +655,23 @@ export default function NewLinkPage() {
               </div>
             </div>
 
-            {/* 2. Type-specific options panel */}
             <div
-              className={cn(
-                "rounded-xl border p-4 text-sm transition-all",
-                meta.infoColor
-              )}
+              className="rounded-xl border border-border/40 bg-card p-4 text-sm transition-all"
             >
               <div className="flex items-start gap-2.5">
                 <meta.icon className={cn("w-4 h-4 shrink-0 mt-0.5", meta.iconColor)} />
                 <div className="flex-1">
-                  <p className="font-medium text-[13px] mb-0.5">{meta.title}</p>
-                  <p className="text-xs opacity-80">{meta.infoText}</p>
+                  <p className="font-medium text-[13px] text-foreground mb-0.5">{meta.title}</p>
+                  <p className="text-xs text-muted-foreground">{meta.infoText}</p>
                   {linkType === "ID_UPLOAD" && (
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-current/20">
-                      <span className="text-xs font-medium">Require both sides</span>
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/30">
+                      <span className="text-xs font-medium text-foreground">Require both sides</span>
                       <button
                         type="button"
                         onClick={() => setIdBothSides((v) => !v)}
                         className={cn(
                           "relative inline-flex h-6 w-10 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none",
-                          idBothSides ? "bg-amber-500" : "bg-amber-200/60"
+                          idBothSides ? "bg-amber-500" : "bg-border"
                         )}
                       >
                         <span
@@ -719,18 +687,17 @@ export default function NewLinkPage() {
               </div>
             </div>
 
-            {/* 3. Client information */}
-            <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+            <div className="rounded-xl border border-border/40 bg-card p-5 space-y-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Client information
               </p>
               <div>
-                <Label htmlFor="clientName" className="text-slate-700 text-sm">
+                <Label htmlFor="clientName" className="text-foreground text-sm">
                   Client name
                   {linkType === "SSN_ONLY" ? (
-                    <span className="text-red-500 ml-1 text-xs">required</span>
+                    <span className="text-destructive ml-1 text-xs">required</span>
                   ) : (
-                    <span className="text-slate-400 font-normal text-xs ml-1">(optional)</span>
+                    <span className="text-muted-foreground font-normal text-xs ml-1">(optional)</span>
                   )}
                 </Label>
                 <Input
@@ -744,7 +711,7 @@ export default function NewLinkPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="clientPhone" className="text-slate-700 text-sm">
+                  <Label htmlFor="clientPhone" className="text-foreground text-sm">
                     Phone
                   </Label>
                   <Input
@@ -757,7 +724,7 @@ export default function NewLinkPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="clientEmail" className="text-slate-700 text-sm">
+                  <Label htmlFor="clientEmail" className="text-foreground text-sm">
                     Email
                   </Label>
                   <Input
@@ -772,27 +739,26 @@ export default function NewLinkPage() {
               </div>
             </div>
 
-            {/* 4. Destination */}
-            <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-3">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+            <div className="rounded-xl border border-border/40 bg-card p-5 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Submission destination
               </p>
               <div>
-                <Label className="text-slate-700 text-sm">
+                <Label className="text-foreground text-sm">
                   Where will this be submitted?
                 </Label>
                 <div className="relative mt-1.5">
                   <select
                     value={destination}
                     onChange={(e) => setDestination(e.target.value)}
-                    className="flex h-11 w-full appearance-none rounded-lg border border-input bg-background px-3 pr-9 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex h-11 w-full appearance-none rounded-lg border border-input bg-card px-3 pr-9 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 transition-colors"
                   >
                     {DESTINATIONS.map((d) => (
                       <option key={d}>{d}</option>
                     ))}
-                    <option value="Custom">Custom…</option>
+                    <option value="Custom">Custom...</option>
                   </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                 </div>
                 {destination === "Custom" && (
                   <Input
@@ -806,16 +772,15 @@ export default function NewLinkPage() {
               </div>
             </div>
 
-            {/* 5. Message editor */}
-            <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-3">
+            <div className="rounded-xl border border-border/40 bg-card p-5 space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Client message
                 </p>
                 <button
                   type="button"
                   onClick={regenerateMessage}
-                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                  className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
                 >
                   <RotateCcw className="w-3 h-3" />
                   Regenerate
@@ -826,17 +791,17 @@ export default function NewLinkPage() {
                 onChange={(e) => setMessage(e.target.value.slice(0, MESSAGE_MAX_CHARS))}
                 rows={5}
                 maxLength={MESSAGE_MAX_CHARS}
-                placeholder="Auto-generated message will appear here…"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                placeholder="Auto-generated message will appear here..."
+                className="w-full rounded-xl border border-border/50 bg-surface-2 px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 resize-none transition-colors"
               />
               <div className="flex items-center justify-between">
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-muted-foreground">
                 Edit freely. This message is sent alongside the link.
                 </p>
                 <p
                   className={cn(
                     "text-xs tabular-nums",
-                    message.length >= MESSAGE_WARN_CHARS ? "text-amber-600" : "text-slate-400"
+                    message.length >= MESSAGE_WARN_CHARS ? "text-amber-500" : "text-muted-foreground"
                   )}
                 >
                   {message.length}/{MESSAGE_MAX_CHARS}
@@ -844,18 +809,17 @@ export default function NewLinkPage() {
               </div>
             </div>
 
-            {/* 6. Link settings */}
-            <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+            <div className="rounded-xl border border-border/40 bg-card p-5 space-y-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Link settings
               </p>
               <div>
-                <Label className="text-slate-700 text-sm">Expires after</Label>
+                <Label className="text-foreground text-sm">Expires after</Label>
                 <div className="relative mt-1.5">
                   <select
                     value={expirationHours}
                     onChange={(e) => setExpirationHours(parseInt(e.target.value))}
-                    className="flex h-11 w-full appearance-none rounded-lg border border-input bg-background px-3 pr-9 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex h-11 w-full appearance-none rounded-lg border border-input bg-card px-3 pr-9 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 transition-colors"
                   >
                     <option value={1}>1 hour</option>
                     <option value={4}>4 hours</option>
@@ -865,13 +829,13 @@ export default function NewLinkPage() {
                     <option value={72}>3 days</option>
                     <option value={168}>7 days</option>
                   </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                 </div>
               </div>
               <div>
-                <Label className="text-slate-700 text-sm">
+                <Label className="text-foreground text-sm">
                   Branding{" "}
-                  <span className="text-slate-400 font-normal text-xs">(optional)</span>
+                  <span className="text-muted-foreground font-normal text-xs">(optional)</span>
                 </Label>
                 <div className="mt-1.5">
                   <BrandingSelector
@@ -882,10 +846,9 @@ export default function NewLinkPage() {
               </div>
             </div>
 
-            {/* 7. Saved templates management */}
             {templates.length > 0 && (
-              <div className="bg-white rounded-xl border border-slate-200 p-5">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+              <div className="rounded-xl border border-border/40 bg-card p-5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                   Saved templates
                 </p>
                 <div className="space-y-2">
@@ -893,10 +856,10 @@ export default function NewLinkPage() {
                     <div
                       key={t.id}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors",
+                        "flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all duration-200",
                         activeTemplateId === t.id
-                          ? "border-blue-300 bg-blue-50"
-                          : "border-slate-100 hover:border-slate-200"
+                          ? "border-primary/30 bg-primary/5"
+                          : "border-border/30 hover:border-border/60"
                       )}
                     >
                       <button
@@ -904,10 +867,10 @@ export default function NewLinkPage() {
                         onClick={() => applyTemplate(t)}
                         className="flex-1 flex items-center gap-2.5 text-left min-w-0"
                       >
-                        <span className="text-sm font-medium text-slate-700 truncate">
+                        <span className="text-sm font-medium text-foreground truncate">
                           {t.name}
                         </span>
-                        <span className="text-xs text-slate-400 shrink-0">
+                        <span className="text-xs text-muted-foreground shrink-0">
                           {TYPE_META[t.linkType as LinkType]?.title ?? t.linkType}
                         </span>
                       </button>
@@ -916,14 +879,14 @@ export default function NewLinkPage() {
                           <button
                             type="button"
                             onClick={() => deleteTemplate(t.id)}
-                            className="text-xs text-red-600 font-medium"
+                            className="text-xs text-destructive font-medium"
                           >
                             Delete
                           </button>
                           <button
                             type="button"
                             onClick={() => setDeleteConfirmId(null)}
-                            className="text-xs text-slate-400"
+                            className="text-xs text-muted-foreground"
                           >
                             Cancel
                           </button>
@@ -932,7 +895,7 @@ export default function NewLinkPage() {
                         <button
                           type="button"
                           onClick={() => setDeleteConfirmId(t.id)}
-                          className="text-slate-300 hover:text-red-400 transition-colors shrink-0"
+                          className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -943,7 +906,6 @@ export default function NewLinkPage() {
               </div>
             )}
 
-            {/* Submit */}
             <Button
               type="submit"
               size="lg"
@@ -955,11 +917,10 @@ export default function NewLinkPage() {
               ) : (
                 <Lock className="w-4 h-4" />
               )}
-              {loading ? "Creating…" : "Generate secure link"}
+              {loading ? "Creating..." : "Generate secure link"}
             </Button>
           </div>
 
-          {/* ── Right column: live preview ── */}
           <div className="lg:sticky lg:top-6">
             <LivePreview
               linkType={linkType}
@@ -975,8 +936,6 @@ export default function NewLinkPage() {
     </div>
   );
 }
-
-// ── Live preview panel ─────────────────────────────────────────────────────────
 
 function LivePreview({
   linkType,
@@ -1008,103 +967,92 @@ function LivePreview({
       : `${expirationHours}h`;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden shadow-sm">
-      {/* Browser chrome */}
-      <div className="px-4 py-2.5 border-b border-slate-200 bg-white flex items-center gap-2.5">
+    <div className="rounded-2xl border border-border/50 bg-surface-2 overflow-hidden shadow-sm">
+      <div className="px-4 py-2.5 border-b border-border/40 bg-card flex items-center gap-2.5">
         <div className="flex gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-red-300" />
-          <div className="w-2.5 h-2.5 rounded-full bg-amber-300" />
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-300" />
+          <div className="w-2.5 h-2.5 rounded-full bg-red-400/60" />
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-400/60" />
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400/60" />
         </div>
-        <div className="flex-1 bg-slate-100 rounded-md px-2.5 py-1 flex items-center gap-1.5">
+        <div className="flex-1 bg-surface-2 rounded-md px-2.5 py-1 flex items-center gap-1.5">
           <Lock className="w-3 h-3 text-emerald-500 shrink-0" />
-          <span className="text-[11px] text-slate-400 font-mono">
-            agentsecurelinks.com/secure/…
+          <span className="text-[11px] text-muted-foreground font-mono">
+            agentsecurelinks.com/secure/...
           </span>
         </div>
       </div>
 
-      {/* Simulated client form */}
       <div className="p-3.5 space-y-3">
-        {/* Simulated trust header */}
-        <div className="bg-white border border-slate-200 rounded-xl px-3 py-2 flex items-center justify-between">
-          <div className="flex items-center gap-1 text-[10px] text-slate-400">
+        <div className="bg-card border border-border/40 rounded-xl px-3 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
             <Lock className="w-2.5 h-2.5" />
             Secure
           </div>
-          <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
-            <Lock className="w-2.5 h-2.5 text-white" />
+          <div className="w-5 h-5 bg-primary rounded flex items-center justify-center">
+            <Lock className="w-2.5 h-2.5 text-primary-foreground" />
           </div>
-          <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-1.5 py-0.5">
-            <div className="w-3.5 h-3.5 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-[7px] font-bold">
+          <div className="flex items-center gap-1 bg-surface-2 border border-border/40 rounded-lg px-1.5 py-0.5">
+            <div className="w-3.5 h-3.5 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[7px] font-bold">
               A
             </div>
-            <span className="text-[10px] text-slate-600">Agent</span>
+            <span className="text-[10px] text-muted-foreground">Agent</span>
           </div>
         </div>
 
-        {/* Form card */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-3">
-          {/* Type badge */}
+        <div className="bg-card rounded-xl border border-border/40 shadow-sm p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <div className={cn("w-5 h-5 rounded-md flex items-center justify-center", meta.iconBg)}>
+            <div className={cn("w-5 h-5 rounded-md flex items-center justify-center bg-gradient-to-br", meta.gradient)}>
               <Icon className={cn("w-3 h-3", meta.iconColor)} />
             </div>
-            <span className="text-[11px] font-medium text-slate-600">{meta.title}</span>
+            <span className="text-[11px] font-medium text-muted-foreground">{meta.title}</span>
           </div>
 
-          {/* Greeting — updates live as client name is typed */}
           {clientName && (
-            <p className="text-[12px] font-semibold text-slate-800">
+            <p className="text-[12px] font-semibold text-foreground">
               Hi {clientName.split(" ")[0]},
             </p>
           )}
 
-          {/* Message preview */}
           {message && (
-            <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100">
-              <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-4 whitespace-pre-line">
+            <div className="p-2.5 bg-surface-2 rounded-lg border border-border/30">
+              <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-4 whitespace-pre-line">
                 {message}
               </p>
             </div>
           )}
 
-          {/* Field stubs */}
           <div className="space-y-2">
             {previewFields.map((f) => (
               <div key={f} className="space-y-1">
                 <div className="flex items-center gap-1.5">
-                  <div className="h-2 rounded bg-slate-200" style={{ width: `${Math.min(60, 30 + f.length * 2)}%` }} />
+                  <div className="h-2 rounded bg-border/60" style={{ width: `${Math.min(60, 30 + f.length * 2)}%` }} />
                 </div>
-                <div className="h-8 bg-slate-50 border border-slate-200 rounded-lg" />
+                <div className="h-8 bg-surface-2 border border-border/40 rounded-lg" />
               </div>
             ))}
           </div>
 
-          {/* Consent stub */}
-          <div className="flex items-start gap-2 p-2.5 bg-slate-50 rounded-lg">
-            <div className="w-3.5 h-3.5 rounded border border-slate-300 bg-white mt-0.5 shrink-0" />
+          <div className="flex items-start gap-2 p-2.5 bg-surface-2 rounded-lg">
+            <div className="w-3.5 h-3.5 rounded border border-border bg-card mt-0.5 shrink-0" />
             <div className="space-y-1 flex-1">
-              <div className="h-1.5 bg-slate-200 rounded w-full" />
-              <div className="h-1.5 bg-slate-200 rounded w-4/5" />
+              <div className="h-1.5 bg-border/60 rounded w-full" />
+              <div className="h-1.5 bg-border/60 rounded w-4/5" />
             </div>
           </div>
 
-          {/* Submit button stub */}
-          <div className="h-9 bg-slate-900 rounded-lg flex items-center justify-center">
-            <span className="text-[11px] text-white font-medium">Submit securely</span>
+          <div className="h-9 bg-foreground rounded-lg flex items-center justify-center">
+            <span className="text-[11px] text-background font-medium">Submit securely</span>
           </div>
         </div>
 
-        {/* Meta strip */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400 px-0.5">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground px-0.5">
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
             Expires in {expiryLabel}
           </span>
           {destination && (
             <>
-              <span className="text-slate-200">·</span>
+              <span className="text-border">·</span>
               <span className="flex items-center gap-1">
                 <Building2 className="w-3 h-3" />
                 {destination}
@@ -1113,7 +1061,7 @@ function LivePreview({
           )}
           {clientName && (
             <>
-              <span className="text-slate-200">·</span>
+              <span className="text-border">·</span>
               <span className="flex items-center gap-1">
                 <Users className="w-3 h-3" />
                 {clientName}

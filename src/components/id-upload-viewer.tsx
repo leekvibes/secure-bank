@@ -69,7 +69,7 @@ export function IdUploadViewer({ upload, auditLogs }: Props) {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl animate-fade-in">
       <div className="mb-6 flex items-center justify-between">
         <Button variant="ghost" size="sm" asChild className="-ml-2">
           <Link href="/dashboard">
@@ -82,7 +82,7 @@ export function IdUploadViewer({ upload, auditLogs }: Props) {
           size="sm"
           onClick={handleDelete}
           disabled={deleting}
-          className="text-red-600 hover:bg-red-50 hover:border-red-300"
+          className="text-red-400 hover:bg-red-500/10 hover:border-red-500/30"
         >
           {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
           Delete
@@ -90,9 +90,9 @@ export function IdUploadViewer({ upload, auditLogs }: Props) {
       </div>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Photo ID Upload</h1>
+        <h1 className="ui-page-title">Photo ID Upload</h1>
         {upload.clientName && (
-          <p className="text-sm text-slate-500 mt-1">{upload.clientName}</p>
+          <p className="text-sm text-muted-foreground mt-1">{upload.clientName}</p>
         )}
       </div>
 
@@ -100,7 +100,7 @@ export function IdUploadViewer({ upload, auditLogs }: Props) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">ID Images</CardTitle>
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-muted-foreground">
               Deletes {formatDate(upload.deleteAt)}
             </span>
           </div>
@@ -111,12 +111,11 @@ export function IdUploadViewer({ upload, auditLogs }: Props) {
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
-            <p className="text-sm text-red-600">{error}</p>
+            <p className="text-sm text-red-400">{error}</p>
           )}
 
-          {/* Front ID */}
           <div className="space-y-2">
-            <p className="text-sm font-medium text-slate-700">Front of ID</p>
+            <p className="text-sm font-medium text-foreground">Front of ID</p>
             <Button variant="outline" size="sm" asChild>
               <a href={`/api/id-uploads/${upload.id}?side=front&download=1`}>
                 <Download className="w-4 h-4" />
@@ -124,9 +123,9 @@ export function IdUploadViewer({ upload, auditLogs }: Props) {
               </a>
             </Button>
             {frontUrl ? (
-              <div className="rounded-xl overflow-hidden border border-slate-200">
+              <div className="rounded-xl overflow-hidden border border-border/40">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={frontUrl} alt="ID front" className="w-full object-contain max-h-80 bg-slate-50" />
+                <img src={frontUrl} alt="ID front" className="w-full object-contain max-h-80 bg-surface-2" />
               </div>
             ) : (
               <Button
@@ -145,10 +144,9 @@ export function IdUploadViewer({ upload, auditLogs }: Props) {
             )}
           </div>
 
-          {/* Back ID */}
           {upload.hasBack && (
             <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-700">Back of ID</p>
+              <p className="text-sm font-medium text-foreground">Back of ID</p>
               <Button variant="outline" size="sm" asChild>
                 <a href={`/api/id-uploads/${upload.id}?side=back&download=1`}>
                   <Download className="w-4 h-4" />
@@ -156,9 +154,9 @@ export function IdUploadViewer({ upload, auditLogs }: Props) {
                 </a>
               </Button>
               {backUrl ? (
-                <div className="rounded-xl overflow-hidden border border-slate-200">
+                <div className="rounded-xl overflow-hidden border border-border/40">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={backUrl} alt="ID back" className="w-full object-contain max-h-80 bg-slate-50" />
+                  <img src={backUrl} alt="ID back" className="w-full object-contain max-h-80 bg-surface-2" />
                 </div>
               ) : (
                 <Button
@@ -189,16 +187,16 @@ export function IdUploadViewer({ upload, auditLogs }: Props) {
         </CardHeader>
         <CardContent>
           {auditLogs.length === 0 ? (
-            <p className="text-sm text-slate-400">No activity recorded.</p>
+            <p className="text-sm text-muted-foreground">No activity recorded.</p>
           ) : (
             <div>
               {auditLogs.map((log, i) => (
                 <div key={log.id}>
                   <div className="flex items-center justify-between py-2.5">
-                    <span className="text-sm text-slate-700">
+                    <span className="text-sm text-foreground">
                       {EVENT_LABELS[log.event] ?? log.event}
                     </span>
-                    <span className="text-xs text-slate-400">{formatDate(log.createdAt)}</span>
+                    <span className="text-xs text-muted-foreground">{formatDate(log.createdAt)}</span>
                   </div>
                   {i < auditLogs.length - 1 && <Separator />}
                 </div>

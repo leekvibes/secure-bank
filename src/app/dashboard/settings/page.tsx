@@ -37,10 +37,10 @@ export default async function SettingsPage() {
   if (!user) redirect("/auth");
 
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="max-w-2xl space-y-8 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Settings</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <h1 className="ui-page-title">Settings</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Manage your agent profile, branding, and compliance settings.
         </p>
       </div>

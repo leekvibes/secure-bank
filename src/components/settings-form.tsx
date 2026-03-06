@@ -119,7 +119,6 @@ export function SettingsForm({ user }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Profile */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Profile</CardTitle>
@@ -129,12 +128,12 @@ export function SettingsForm({ user }: Props) {
         </CardHeader>
         <CardContent>
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">
               {error}
             </div>
           )}
           {success && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+            <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-sm text-emerald-400">
               Settings saved.
             </div>
           )}
@@ -216,7 +215,6 @@ export function SettingsForm({ user }: Props) {
         </CardContent>
       </Card>
 
-      {/* Branding */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Branding</CardTitle>
@@ -226,7 +224,7 @@ export function SettingsForm({ user }: Props) {
         </CardHeader>
         <CardContent className="space-y-4">
           {logoError && (
-            <p className="text-sm text-red-600">{logoError}</p>
+            <p className="text-sm text-red-400">{logoError}</p>
           )}
           {currentLogoUrl ? (
             <div className="flex items-center gap-4">
@@ -234,14 +232,14 @@ export function SettingsForm({ user }: Props) {
               <img
                 src={currentLogoUrl}
                 alt="Agency logo"
-                className="h-14 max-w-[180px] object-contain rounded-lg border border-slate-200 bg-slate-50 p-2"
+                className="h-14 max-w-[180px] object-contain rounded-lg border border-border/40 bg-surface-2 p-2"
               />
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleLogoDelete}
                 disabled={logoUploading}
-                className="text-red-600 hover:bg-red-50 hover:border-red-300"
+                className="text-red-400 hover:bg-red-500/10 hover:border-red-500/30"
               >
                 {logoUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
                 Remove
@@ -268,13 +266,12 @@ export function SettingsForm({ user }: Props) {
                 )}
                 {logoUploading ? "Uploading..." : "Upload logo"}
               </Button>
-              <p className="text-xs text-slate-400 mt-1.5">PNG, JPG, WebP or SVG · Max 512 KB</p>
+              <p className="text-xs text-muted-foreground mt-1.5">PNG, JPG, WebP or SVG · Max 512 KB</p>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Client experience */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Client experience</CardTitle>
@@ -310,7 +307,7 @@ export function SettingsForm({ user }: Props) {
                 onChange={(e) => setForm({ ...form, destinationLabel: e.target.value })}
                 placeholder="e.g. Aetna · Blue Shield · Nationwide"
               />
-              <p className="text-xs text-slate-400">Shown on the secure form so clients know where their info is going.</p>
+              <p className="text-xs text-muted-foreground">Shown on the secure form so clients know where their info is going.</p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="carriersList">Carriers (display only)</Label>
@@ -320,7 +317,7 @@ export function SettingsForm({ user }: Props) {
                 onChange={(e) => setForm({ ...form, carriersList: e.target.value })}
                 placeholder="Aetna, Humana, Cigna, UnitedHealth"
               />
-              <p className="text-xs text-slate-400">Comma-separated list for your reference or verification page.</p>
+              <p className="text-xs text-muted-foreground">Comma-separated list for your reference or verification page.</p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="notificationEmail">Notification email</Label>
@@ -331,7 +328,7 @@ export function SettingsForm({ user }: Props) {
                 onChange={(e) => setForm({ ...form, notificationEmail: e.target.value })}
                 placeholder="alerts@youragency.com"
               />
-              <p className="text-xs text-slate-400">Receives an email when a client submits. Defaults to your account email.</p>
+              <p className="text-xs text-muted-foreground">Receives an email when a client submits. Defaults to your account email.</p>
             </div>
             <Button type="submit" disabled={loading}>
               {loading ? "Saving..." : "Save changes"}
@@ -340,7 +337,6 @@ export function SettingsForm({ user }: Props) {
         </CardContent>
       </Card>
 
-      {/* Trust & Compliance */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Trust & compliance</CardTitle>
@@ -374,14 +370,14 @@ export function SettingsForm({ user }: Props) {
                 id="verificationStatus"
                 value={form.verificationStatus}
                 onChange={(e) => setForm({ ...form, verificationStatus: e.target.value })}
-                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex h-11 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:border-primary/50"
               >
                 <option value="UNVERIFIED">Unverified (no badge shown)</option>
                 <option value="LICENSED">Licensed Agent</option>
                 <option value="CERTIFIED">Certified Agent</option>
                 <option value="REGULATED">Regulated Professional</option>
               </select>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-muted-foreground">
                 Displays a badge on client forms. Only declare a status that is accurate.
               </p>
             </div>
@@ -391,14 +387,14 @@ export function SettingsForm({ user }: Props) {
                 id="dataRetentionDays"
                 value={form.dataRetentionDays}
                 onChange={(e) => setForm({ ...form, dataRetentionDays: parseInt(e.target.value) })}
-                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex h-11 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:border-primary/50"
               >
                 <option value={30}>30 days</option>
                 <option value={60}>60 days</option>
                 <option value={90}>90 days</option>
                 <option value={-1}>Manual deletion</option>
               </select>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-muted-foreground">
                 How long submitted data is retained before automatic deletion.
               </p>
             </div>
@@ -409,7 +405,6 @@ export function SettingsForm({ user }: Props) {
         </CardContent>
       </Card>
 
-      {/* Verification page */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Verification page</CardTitle>
@@ -423,7 +418,7 @@ export function SettingsForm({ user }: Props) {
             <input
               readOnly
               value={verifyUrl}
-              className="flex-1 h-10 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg font-mono text-slate-600"
+              className="flex-1 h-11 px-3 text-sm bg-surface-2 border border-border/40 rounded-lg font-mono text-muted-foreground"
             />
             <Button asChild variant="outline" size="sm">
               <a href={verifyUrl} target="_blank" rel="noopener noreferrer">

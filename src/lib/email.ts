@@ -49,7 +49,7 @@ export async function sendSubmissionNotification(
       html: `
         <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; color: #1e293b;">
           <div style="background: #2563eb; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px;">
-            <span style="color: white; font-size: 18px;">🔒</span>
+            <span style="color: white; font-size: 18px;">&#128274;</span>
           </div>
           <h2 style="margin: 0 0 8px; font-size: 20px; font-weight: 700;">New submission received</h2>
           <p style="margin: 0 0 24px; color: #64748b; font-size: 15px;">

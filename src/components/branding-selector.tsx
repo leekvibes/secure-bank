@@ -16,7 +16,6 @@ interface Asset {
 interface Props {
   selectedIds: string[];
   onChange: (ids: string[]) => void;
-  /** Label shown on the preview header mockup */
   agentName?: string;
 }
 
@@ -76,18 +75,17 @@ export function BrandingSelector({ selectedIds, onChange, agentName }: Props) {
   return (
     <div className="space-y-3">
       {loading ? (
-        <div className="h-16 bg-slate-50 rounded-xl border border-slate-200 animate-pulse" />
+        <div className="h-16 bg-surface-2 rounded-xl border border-border/40 animate-pulse" />
       ) : (
         <>
-          {/* Asset grid */}
           {assets.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 p-4 border-2 border-dashed border-slate-200 rounded-xl text-center">
-              <ImageIcon className="w-6 h-6 text-slate-300" />
-              <p className="text-sm text-slate-500">No logos uploaded yet.</p>
+            <div className="flex flex-col items-center gap-2 p-4 border-2 border-dashed border-border/40 rounded-xl text-center">
+              <ImageIcon className="w-6 h-6 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">No logos uploaded yet.</p>
               <Link
                 href="/dashboard/settings"
                 target="_blank"
-                className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                className="text-xs text-primary hover:underline flex items-center gap-1"
               >
                 Go to Settings to upload a logo
                 <ExternalLink className="w-3 h-3" />
@@ -103,10 +101,10 @@ export function BrandingSelector({ selectedIds, onChange, agentName }: Props) {
                     type="button"
                     onClick={() => toggle(asset.id)}
                     title={asset.name ?? "Logo"}
-                    className={`relative w-20 h-14 rounded-xl border-2 flex items-center justify-center overflow-hidden transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                    className={`relative w-20 h-14 rounded-xl border-2 flex items-center justify-center overflow-hidden transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                       selected
-                        ? "border-blue-500 bg-blue-50 shadow-sm shadow-blue-100"
-                        : "border-slate-200 bg-white hover:border-slate-300"
+                        ? "border-primary bg-primary/10 shadow-sm shadow-primary/10"
+                        : "border-border/40 bg-card hover:border-border"
                     }`}
                   >
                     {asset.url ? (
@@ -117,25 +115,24 @@ export function BrandingSelector({ selectedIds, onChange, agentName }: Props) {
                         className="max-h-10 max-w-[68px] object-contain"
                       />
                     ) : (
-                      <ImageIcon className="w-5 h-5 text-slate-300" />
+                      <ImageIcon className="w-5 h-5 text-muted-foreground/40" />
                     )}
                     {selected && (
-                      <div className="absolute top-1 right-1 w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center shadow">
-                        <Check className="w-2.5 h-2.5 text-white" />
+                      <div className="absolute top-1 right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center shadow">
+                        <Check className="w-2.5 h-2.5 text-primary-foreground" />
                       </div>
                     )}
                   </button>
                 );
               })}
 
-              {/* Upload new */}
-              <label className="relative w-20 h-14 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-blue-400 hover:bg-blue-50/40 transition-colors">
+              <label className="relative w-20 h-14 rounded-xl border-2 border-dashed border-border/40 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-colors">
                 {uploading ? (
-                  <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />
+                  <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
                 ) : (
                   <>
-                    <Upload className="w-4 h-4 text-slate-400" />
-                    <span className="text-xs text-slate-400">Add</span>
+                    <Upload className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Add</span>
                   </>
                 )}
                 <input
@@ -150,22 +147,20 @@ export function BrandingSelector({ selectedIds, onChange, agentName }: Props) {
           )}
 
           {uploadError && (
-            <p className="text-xs text-red-600">{uploadError}</p>
+            <p className="text-xs text-red-400">{uploadError}</p>
           )}
 
-          {/* Mini header preview */}
           {assets.length > 0 && (
-            <div className="border border-slate-200 rounded-xl overflow-hidden">
-              <div className="bg-slate-100 px-3 py-1.5 flex items-center justify-between border-b border-slate-200">
-                <span className="text-xs text-slate-400 font-medium">Header preview</span>
+            <div className="border border-border/40 rounded-xl overflow-hidden">
+              <div className="bg-surface-2 px-3 py-1.5 flex items-center justify-between border-b border-border/40">
+                <span className="text-xs text-muted-foreground font-medium">Header preview</span>
                 {selectedIds.length === 0 && (
-                  <span className="text-xs text-slate-400 italic">No logos selected → default</span>
+                  <span className="text-xs text-muted-foreground italic">No logos selected — default</span>
                 )}
               </div>
-              <div className="bg-white px-4 py-3">
-                {/* 3-zone mini mockup */}
+              <div className="bg-card px-4 py-3">
                 <div className="grid grid-cols-[auto_1fr_auto] items-center gap-4">
-                  <div className="flex items-center gap-1 text-xs text-slate-400">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Lock className="w-3 h-3" />
                     <span>Secure</span>
                   </div>
@@ -178,16 +173,16 @@ export function BrandingSelector({ selectedIds, onChange, agentName }: Props) {
                         ) : null
                       )
                     ) : (
-                      <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
-                        <Lock className="w-2.5 h-2.5 text-white" />
+                      <div className="w-5 h-5 bg-primary rounded flex items-center justify-center">
+                        <Lock className="w-2.5 h-2.5 text-primary-foreground" />
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
-                    <div className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-[8px] font-bold shrink-0">
+                  <div className="flex items-center gap-1.5 bg-surface-2 border border-border/40 rounded-lg px-2 py-1">
+                    <div className="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[8px] font-bold shrink-0">
                       {(agentName ?? "A")[0]}
                     </div>
-                    <span className="text-xs text-slate-600 truncate max-w-[80px]">
+                    <span className="text-xs text-foreground truncate max-w-[80px]">
                       {agentName ?? "Agent Name"}
                     </span>
                   </div>

@@ -9,8 +9,6 @@ import { ClientTrustHeader } from "@/components/client-trust-header";
 import { cn } from "@/lib/utils";
 import { getErrorMessage, getFieldErrors } from "@/lib/error-message";
 
-// ── Formatters ────────────────────────────────────────────────────────────────
-
 function fmtSsn(raw: string): string {
   const d = raw.replace(/\D/g, "").slice(0, 9);
   if (d.length <= 3) return d;
@@ -88,7 +86,6 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
     setError(null);
     setFieldErrors({});
 
-    // Build body: field id -> value, confirm_fieldId -> confirm value
     const body: Record<string, string> = {};
     for (const field of fields) {
       if (values[field.id]) body[field.id] = values[field.id];
@@ -129,24 +126,24 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
 
   if (submitted) {
     return (
-      <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center px-4 py-12">
-        <div className="max-w-sm w-full text-center">
-          <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-1 ring-emerald-100">
-            <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+      <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center px-4 py-12">
+        <div className="max-w-sm w-full text-center animate-fade-in">
+          <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-1 ring-emerald-500/20">
+            <CheckCircle2 className="w-8 h-8 text-emerald-400" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-3">Submitted securely</h1>
-          <p className="text-slate-500 leading-relaxed mb-8">
+          <h1 className="text-2xl font-bold text-white mb-3">Submitted securely</h1>
+          <p className="text-slate-400 leading-relaxed mb-8">
             Your information has been encrypted and delivered to {agent.displayName}. You can close this page.
           </p>
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 text-sm text-slate-500 text-left space-y-3">
+          <div className="bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm p-5 text-sm text-slate-400 text-left space-y-3">
             {[
               "Encrypted with AES-256 before storage",
               "Delivered only to your agent",
               "Automatically deleted after the retention period",
             ].map((line) => (
               <div key={line} className="flex items-center gap-2.5">
-                <div className="w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                 </div>
                 <span>{line}</span>
               </div>
@@ -158,25 +155,23 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex flex-col">
       <ClientTrustHeader logoUrls={logoUrls} agent={agentProfile} expiresAt={link.expiresAt} />
 
       <main className="flex-1 px-4 py-10">
-        <div className="max-w-md mx-auto">
+        <div className="max-w-md mx-auto animate-fade-in">
 
-        {/* Form */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          {/* Form title */}
-          <h2 className="text-base font-semibold text-slate-900 mb-1">{form.title}</h2>
+        <div className="bg-white/[0.04] backdrop-blur-sm rounded-2xl border border-white/10 shadow-xl shadow-black/20 p-6">
+          <h2 className="text-base font-semibold text-white mb-1">{form.title}</h2>
           {form.description && (
-            <p className="text-sm text-slate-500 mb-4 leading-relaxed">{form.description}</p>
+            <p className="text-sm text-slate-400 mb-4 leading-relaxed">{form.description}</p>
           )}
-          <p className="text-sm text-slate-500 mb-5 leading-relaxed">
+          <p className="text-sm text-slate-400 mb-5 leading-relaxed">
             Enter your information below to securely submit your personal information. This form is end-to-end encrypted.
           </p>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400">
               {error}
             </div>
           )}
@@ -195,16 +190,15 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
               />
             ))}
 
-            {/* Consent */}
             <div className="pt-1">
-              <label className="flex items-start gap-3 cursor-pointer p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <label className="flex items-start gap-3 cursor-pointer p-4 bg-white/[0.03] rounded-xl border border-white/10 hover:bg-white/[0.05] transition-colors">
                 <input
                   type="checkbox"
                   checked={consent}
                   onChange={(e) => setConsent(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                  className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-800 accent-blue-500"
                 />
-                <span className="text-sm text-slate-600 leading-relaxed">
+                <span className="text-sm text-slate-400 leading-relaxed">
                   I consent to share this information with {agent.displayName}
                   {agent.agencyName ? ` (${agent.agencyName})` : ""} for the purpose of completing my application.
                   I understand it will be encrypted, retained for a limited period, and deleted afterward.
@@ -214,13 +208,13 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
 
             <Button
               type="submit"
-              className="w-full h-12 text-base font-semibold"
+              className="w-full h-12 text-base font-semibold bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-lg shadow-blue-500/20"
               disabled={loading || !consent}
             >
               {loading ? "Submitting..." : "Submit securely"}
             </Button>
 
-            <p className="text-xs text-slate-400 text-center leading-relaxed">
+            <p className="text-xs text-slate-600 text-center leading-relaxed">
               This link is single-use and expires after submission. Your information is encrypted and not shared with third parties.
             </p>
           </form>
@@ -245,7 +239,6 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
   const [showVal, setShowVal] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  // ── Signature ──────────────────────────────────────────────────────────────
   if (field.fieldType === "signature") {
     return (
       <FieldWrapper label={field.label} required={field.required} error={error} hint={field.helpText ?? undefined}>
@@ -254,7 +247,6 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
     );
   }
 
-  // ── Dropdown ───────────────────────────────────────────────────────────────
   if (field.fieldType === "dropdown" && field.dropdownOptions) {
     return (
       <FieldWrapper label={field.label} required={field.required} error={error} hint={field.helpText ?? undefined}>
@@ -265,10 +257,10 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
             required={field.required}
             aria-invalid={Boolean(error)}
             className={cn(
-              "flex h-11 w-full appearance-none rounded-lg border bg-background px-3 py-2 pr-9 text-sm",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              error ? "border-red-400 focus-visible:ring-red-400" : "border-input",
-              !value && "text-slate-400"
+              "flex h-11 w-full appearance-none rounded-lg border bg-slate-800/50 px-3 py-2 pr-9 text-sm text-slate-200",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 focus-visible:border-blue-500/50",
+              error ? "border-red-500/50 focus-visible:ring-red-500/30" : "border-white/10",
+              !value && "text-slate-500"
             )}
           >
             <option value="">{field.placeholder ?? "Select an option"}</option>
@@ -276,7 +268,7 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
               <option key={opt} value={opt}>{opt}</option>
             ))}
           </select>
-          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </div>
         </div>
@@ -284,7 +276,6 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
     );
   }
 
-  // ── SSN ───────────────────────────────────────────────────────────────────
   if (field.fieldType === "ssn") {
     return (
       <>
@@ -320,7 +311,6 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
     );
   }
 
-  // ── Routing number ────────────────────────────────────────────────────────
   if (field.fieldType === "routing") {
     return (
       <FieldWrapper label={field.label} required={field.required} error={error} hint={field.helpText ?? "9-digit number printed on your check"}>
@@ -333,13 +323,12 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
           autoComplete="off"
           maxLength={9}
           required={field.required}
-          className={error ? "border-red-400 focus-visible:ring-red-400" : ""}
+          className={error ? "border-red-500/50 focus-visible:ring-red-500/30" : ""}
         />
       </FieldWrapper>
     );
   }
 
-  // ── Bank account ──────────────────────────────────────────────────────────
   if (field.fieldType === "bank_account") {
     return (
       <>
@@ -373,7 +362,6 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
     );
   }
 
-  // ── Phone ─────────────────────────────────────────────────────────────────
   if (field.fieldType === "phone") {
     return (
       <FieldWrapper label={field.label} required={field.required} error={error} hint={field.helpText ?? undefined}>
@@ -384,13 +372,12 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
           placeholder={field.placeholder ?? "(555) 000-0000"}
           autoComplete="tel"
           required={field.required}
-          className={error ? "border-red-400 focus-visible:ring-red-400" : ""}
+          className={error ? "border-red-500/50 focus-visible:ring-red-500/30" : ""}
         />
       </FieldWrapper>
     );
   }
 
-  // ── Date ──────────────────────────────────────────────────────────────────
   if (field.fieldType === "date") {
     return (
       <FieldWrapper label={field.label} required={field.required} error={error} hint={field.helpText ?? undefined}>
@@ -403,14 +390,13 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
           onClick={(e) => e.currentTarget.showPicker?.()}
           className={cn(
             "cursor-pointer",
-            error ? "border-red-400 focus-visible:ring-red-400" : ""
+            error ? "border-red-500/50 focus-visible:ring-red-500/30" : ""
           )}
         />
       </FieldWrapper>
     );
   }
 
-  // ── Email ─────────────────────────────────────────────────────────────────
   if (field.fieldType === "email") {
     return (
       <FieldWrapper label={field.label} required={field.required} error={error} hint={field.helpText ?? undefined}>
@@ -421,13 +407,12 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
           placeholder={field.placeholder ?? "you@email.com"}
           autoComplete="email"
           required={field.required}
-          className={error ? "border-red-400 focus-visible:ring-red-400" : ""}
+          className={error ? "border-red-500/50 focus-visible:ring-red-500/30" : ""}
         />
       </FieldWrapper>
     );
   }
 
-  // ── Default (text / address) ───────────────────────────────────────────────
   const autoComplete = field.fieldType === "address" ? "street-address" : undefined;
   return (
     <>
@@ -439,7 +424,7 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
           placeholder={field.placeholder ?? undefined}
           autoComplete={autoComplete}
           required={field.required}
-          className={error ? "border-red-400 focus-visible:ring-red-400" : ""}
+          className={error ? "border-red-500/50 focus-visible:ring-red-500/30" : ""}
         />
       </FieldWrapper>
       {field.confirmField && (
@@ -451,15 +436,13 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
             placeholder={`Re-enter ${field.label.toLowerCase()}`}
             autoComplete="off"
             required={field.required}
-            className={confirmError ? "border-red-400 focus-visible:ring-red-400" : ""}
+            className={confirmError ? "border-red-500/50 focus-visible:ring-red-500/30" : ""}
           />
         </FieldWrapper>
       )}
     </>
   );
 }
-
-// ── Masked input with show/hide toggle ────────────────────────────────────────
 
 function MaskedInput({
   value, onChange, masked, onToggle, showMaskToggle,
@@ -487,14 +470,14 @@ function MaskedInput({
         maxLength={maxLength}
         className={cn(
           showMaskToggle && "pr-10",
-          hasError ? "border-red-400 focus-visible:ring-red-400" : ""
+          hasError ? "border-red-500/50 focus-visible:ring-red-500/30" : ""
         )}
       />
       {showMaskToggle && (
         <button
           type="button"
           onClick={onToggle}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
           aria-label={masked ? "Show" : "Hide"}
         >
           {masked ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
@@ -519,18 +502,16 @@ function FieldWrapper({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-slate-700">
+      <Label className="text-slate-300">
         {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
+        {required && <span className="text-red-400 ml-0.5">*</span>}
       </Label>
       {children}
-      {hint && !error && <p className="text-xs text-slate-400">{hint}</p>}
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {hint && !error && <p className="text-xs text-slate-500">{hint}</p>}
+      {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );
 }
-
-// ── Signature Pad ─────────────────────────────────────────────────────────────
 
 function SignaturePad({
   value,
@@ -611,7 +592,7 @@ function SignaturePad({
       ctx.beginPath();
       ctx.moveTo(lastPos.current.x, lastPos.current.y);
       ctx.lineTo(pos.x, pos.y);
-      ctx.strokeStyle = "#1e293b";
+      ctx.strokeStyle = "#e2e8f0";
       ctx.lineWidth = 2.2;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -648,8 +629,8 @@ function SignaturePad({
       <div
         ref={canvasWrapRef}
         className={cn(
-        "relative border-2 rounded-xl overflow-hidden bg-white select-none",
-        error ? "border-red-400" : hasDrawn ? "border-slate-400" : "border-dashed border-slate-200"
+        "relative border-2 rounded-xl overflow-hidden bg-slate-800/50 select-none",
+        error ? "border-red-500/50" : hasDrawn ? "border-slate-500" : "border-dashed border-white/10"
       )}
       >
         <canvas
@@ -667,15 +648,15 @@ function SignaturePad({
         />
         {!hasDrawn && !value && (
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-1.5">
-            <p className="text-sm text-slate-400">Draw your signature here</p>
-            <p className="text-xs text-slate-300">Use mouse or finger</p>
+            <p className="text-sm text-slate-500">Draw your signature here</p>
+            <p className="text-xs text-slate-600">Use mouse or finger</p>
           </div>
         )}
         {hasDrawn && (
           <button
             type="button"
             onClick={clear}
-            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors"
             title="Clear signature"
           >
             <X className="w-3.5 h-3.5" />
@@ -683,7 +664,7 @@ function SignaturePad({
         )}
       </div>
       {hasDrawn && (
-        <p className="text-xs text-emerald-600 flex items-center gap-1">
+        <p className="text-xs text-emerald-400 flex items-center gap-1">
           <CheckCircle2 className="w-3.5 h-3.5" />
           Signature captured
         </p>

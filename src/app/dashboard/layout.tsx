@@ -20,9 +20,8 @@ export default async function DashboardLayout({
   if (!session) redirect("/auth");
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-background">
       <DashboardSidebar user={session.user} />
-      {/* Offset for sidebar on desktop, top bar on mobile */}
       <div className="lg:pl-60">
         <main className="min-h-screen pt-14 lg:pt-0">
           <div className="max-w-[1200px] mx-auto px-5 py-8 lg:px-10">

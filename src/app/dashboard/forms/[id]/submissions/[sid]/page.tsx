@@ -35,7 +35,6 @@ export default async function FormSubmissionPage({
   });
   if (!submission) notFound();
 
-  // Mark as viewed
   if (!submission.viewedAt) {
     await db.formSubmission.update({ where: { id: submission.id }, data: { viewedAt: new Date() } });
   }
@@ -48,13 +47,13 @@ export default async function FormSubmissionPage({
       return "****" + digits.slice(-4);
     }
     if (fieldType === "routing") {
-      return value; // Show full routing (not sensitive to display)
+      return value;
     }
     return value;
   }
 
   return (
-    <div className="max-w-xl space-y-6">
+    <div className="max-w-xl space-y-6 animate-fade-in">
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-4">
           <Link href={`/dashboard/forms/${params.id}`}>
@@ -63,10 +62,9 @@ export default async function FormSubmissionPage({
           </Link>
         </Button>
         <h1 className="ui-page-title">Submission</h1>
-        <p className="text-sm text-slate-500 mt-1">{form.title}</p>
+        <p className="text-sm text-muted-foreground mt-1">{form.title}</p>
       </div>
 
-      {/* Client info */}
       {(submission.formLink.clientName || submission.formLink.clientEmail || submission.formLink.clientPhone) && (
         <Card>
           <CardHeader>
@@ -74,30 +72,28 @@ export default async function FormSubmissionPage({
           </CardHeader>
           <CardContent className="space-y-1">
             {submission.formLink.clientName && (
-              <p className="text-sm"><span className="text-slate-500">Name:</span> {submission.formLink.clientName}</p>
+              <p className="text-sm"><span className="text-muted-foreground">Name:</span> {submission.formLink.clientName}</p>
             )}
             {submission.formLink.clientEmail && (
-              <p className="text-sm"><span className="text-slate-500">Email:</span> {submission.formLink.clientEmail}</p>
+              <p className="text-sm"><span className="text-muted-foreground">Email:</span> {submission.formLink.clientEmail}</p>
             )}
             {submission.formLink.clientPhone && (
-              <p className="text-sm"><span className="text-slate-500">Phone:</span> {submission.formLink.clientPhone}</p>
+              <p className="text-sm"><span className="text-muted-foreground">Phone:</span> {submission.formLink.clientPhone}</p>
             )}
           </CardContent>
         </Card>
       )}
 
-      {/* Meta */}
-      <div className="flex items-center gap-4 text-xs text-slate-400">
+      <div className="flex items-center gap-4 text-xs text-muted-foreground">
         <span>Submitted {formatDate(submission.createdAt)}</span>
         {submission.viewedAt && (
-          <span className="flex items-center gap-1 text-purple-600">
+          <span className="flex items-center gap-1 text-purple-400">
             <Eye className="w-3 h-3" />Viewed {formatDate(submission.viewedAt)}
           </span>
         )}
         <span>Deletes {formatDate(submission.deleteAt)}</span>
       </div>
 
-      {/* Field values */}
       <Card>
         <CardHeader>
           <CardTitle className="ui-section-title">Submitted data</CardTitle>
@@ -117,9 +113,9 @@ export default async function FormSubmissionPage({
               return (
                 <div key={v.id} className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{v.fieldLabel}</p>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{v.fieldLabel}</p>
                     {v.isEncrypted && (
-                      <span className="inline-flex items-center gap-0.5 text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                      <span className="inline-flex items-center gap-0.5 text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded">
                         <Lock className="w-2.5 h-2.5" />Encrypted
                       </span>
                     )}
@@ -131,18 +127,18 @@ export default async function FormSubmissionPage({
                           const raw = decrypt(v.value);
                           return (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={raw} alt="Signature" className="max-h-24 border border-slate-200 rounded bg-white p-2" />
+                            <img src={raw} alt="Signature" className="max-h-24 border border-border/40 rounded bg-card p-2" />
                           );
                         } catch {
-                          return <p className="text-sm text-slate-900 font-mono">[signature]</p>;
+                          return <p className="text-sm text-foreground font-mono">[signature]</p>;
                         }
                       })()
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={v.value} alt="Signature" className="max-h-24 border border-slate-200 rounded bg-white p-2" />
+                      <img src={v.value} alt="Signature" className="max-h-24 border border-border/40 rounded bg-card p-2" />
                     )
                   ) : (
-                    <p className={`text-sm font-mono ${isSensitive ? "text-slate-600" : "text-slate-900"} bg-slate-50 px-3 py-2 rounded-lg border border-slate-100`}>
+                    <p className={`text-sm font-mono ${isSensitive ? "text-muted-foreground" : "text-foreground"} bg-surface-2 px-3 py-2 rounded-lg border border-border/30`}>
                       {displayVal}
                     </p>
                   )}

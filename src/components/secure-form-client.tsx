@@ -72,7 +72,6 @@ export function SecureFormClient({
     consent: false,
   });
 
-  // ID upload state
   const [frontFile, setFrontFile] = useState<File | null>(null);
   const [backFile, setBackFile] = useState<File | null>(null);
   const [showSsn, setShowSsn] = useState(false);
@@ -237,24 +236,24 @@ export function SecureFormClient({
 
   if (submitted) {
     return (
-      <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center px-4 py-12">
-        <div className="max-w-sm w-full text-center">
-          <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-1 ring-emerald-100">
-            <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+      <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center px-4 py-12">
+        <div className="max-w-sm w-full text-center animate-fade-in">
+          <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-1 ring-emerald-500/20">
+            <CheckCircle2 className="w-8 h-8 text-emerald-400" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-3">Submitted securely</h1>
-          <p className="text-slate-500 leading-relaxed mb-8">
+          <h1 className="text-2xl font-bold text-white mb-3">Submitted securely</h1>
+          <p className="text-slate-400 leading-relaxed mb-8">
             Your information has been encrypted and delivered to {agent.displayName}. You can close this page.
           </p>
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 text-sm text-slate-500 text-left space-y-3">
+          <div className="bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm p-5 text-sm text-slate-400 text-left space-y-3">
             {[
               "Encrypted with AES-256 before storage",
               "Delivered only to your agent",
               "Automatically deleted after the retention period",
             ].map((line) => (
               <div key={line} className="flex items-center gap-2.5">
-                <div className="w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                 </div>
                 <span>{line}</span>
               </div>
@@ -266,25 +265,23 @@ export function SecureFormClient({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex flex-col">
       <ClientTrustHeader logoUrls={logoUrls} agent={agent} expiresAt={expiresAt} isViewOnce />
 
       <main className="flex-1 px-4 py-10">
-        <div className="max-w-sm mx-auto">
-          {/* Form card */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-            <p className="text-sm text-slate-500 mb-5 leading-relaxed">
-              Enter your information below to securely submit your personal information. Nothing is read aloud — this form is end-to-end encrypted.
+        <div className="max-w-sm mx-auto animate-fade-in">
+          <div className="bg-white/[0.04] backdrop-blur-sm rounded-2xl border border-white/10 shadow-xl shadow-black/20 p-6">
+            <p className="text-sm text-slate-400 mb-5 leading-relaxed">
+              Enter your information below to securely submit your personal information. Nothing is read aloud -- this form is end-to-end encrypted.
             </p>
 
             {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400">
                 {error}
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* ── SSN Only ── */}
               {linkType === "SSN_ONLY" && (
                 <>
                   <div className="grid grid-cols-2 gap-3">
@@ -308,7 +305,7 @@ export function SecureFormClient({
                     <button
                       type="button"
                       onClick={() => setShowSsn((v) => !v)}
-                      className="text-xs text-slate-500 hover:text-slate-700 mt-1"
+                      className="text-xs text-slate-500 hover:text-slate-300 mt-1 transition-colors"
                     >
                       {showSsn ? "Hide SSN" : "Show SSN"}
                     </button>
@@ -326,12 +323,12 @@ export function SecureFormClient({
                       placeholder="Re-enter SSN"
                       maxLength={11}
                       autoComplete="off"
-                      className={ssnMismatch ? "border-red-400 focus-visible:ring-red-400" : ""}
+                      className={ssnMismatch ? "border-red-500/50 focus-visible:ring-red-500/30" : ""}
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmSsn((v) => !v)}
-                      className="text-xs text-slate-500 hover:text-slate-700 mt-1"
+                      className="text-xs text-slate-500 hover:text-slate-300 mt-1 transition-colors"
                     >
                       {showConfirmSsn ? "Hide SSN" : "Show SSN"}
                     </button>
@@ -339,7 +336,6 @@ export function SecureFormClient({
                 </>
               )}
 
-              {/* ── Banking Info ── */}
               {linkType === "BANKING_INFO" && (
                 <>
                   <Field label="Full name" error={fieldErrors.fullName} required>
@@ -396,7 +392,7 @@ export function SecureFormClient({
                     <button
                       type="button"
                       onClick={() => setShowAccount((v) => !v)}
-                      className="text-xs text-slate-500 hover:text-slate-700 mt-1"
+                      className="text-xs text-slate-500 hover:text-slate-300 mt-1 transition-colors"
                     >
                       {showAccount ? "Hide account number" : "Show account number"}
                     </button>
@@ -413,12 +409,12 @@ export function SecureFormClient({
                       onChange={(e) => set("confirmAccountNumber", e.target.value.replace(/\D/g, ""))}
                       placeholder="Re-enter account number"
                       autoComplete="off"
-                      className={accountMismatch ? "border-red-400 focus-visible:ring-red-400" : ""}
+                      className={accountMismatch ? "border-red-500/50 focus-visible:ring-red-500/30" : ""}
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmAccount((v) => !v)}
-                      className="text-xs text-slate-500 hover:text-slate-700 mt-1"
+                      className="text-xs text-slate-500 hover:text-slate-300 mt-1 transition-colors"
                     >
                       {showConfirmAccount ? "Hide account number" : "Show account number"}
                     </button>
@@ -429,7 +425,6 @@ export function SecureFormClient({
                 </>
               )}
 
-              {/* ── Full Intake ── */}
               {linkType === "FULL_INTAKE" && (
                 <>
                   <Field label="Full name" error={fieldErrors.fullName} required>
@@ -443,7 +438,7 @@ export function SecureFormClient({
                     <button
                       type="button"
                       onClick={() => setShowSsn((v) => !v)}
-                      className="text-xs text-slate-500 hover:text-slate-700 mt-1"
+                      className="text-xs text-slate-500 hover:text-slate-300 mt-1 transition-colors"
                     >
                       {showSsn ? "Hide SSN" : "Show SSN"}
                     </button>
@@ -476,17 +471,17 @@ export function SecureFormClient({
                     <button
                       type="button"
                       onClick={() => setShowAccount((v) => !v)}
-                      className="text-xs text-slate-500 hover:text-slate-700 mt-1"
+                      className="text-xs text-slate-500 hover:text-slate-300 mt-1 transition-colors"
                     >
                       {showAccount ? "Hide account number" : "Show account number"}
                     </button>
                   </Field>
                   <Field label="Confirm account number" error={fieldErrors.confirmAccountNumber ?? (accountMismatch ? "Account numbers do not match." : undefined)} required>
-                    <Input type={showConfirmAccount ? "text" : "password"} inputMode="numeric" value={fields.confirmAccountNumber} onChange={(e) => set("confirmAccountNumber", e.target.value.replace(/\D/g, ""))} placeholder="Re-enter account number" autoComplete="off" className={accountMismatch ? "border-red-400 focus-visible:ring-red-400" : ""} />
+                    <Input type={showConfirmAccount ? "text" : "password"} inputMode="numeric" value={fields.confirmAccountNumber} onChange={(e) => set("confirmAccountNumber", e.target.value.replace(/\D/g, ""))} placeholder="Re-enter account number" autoComplete="off" className={accountMismatch ? "border-red-500/50 focus-visible:ring-red-500/30" : ""} />
                     <button
                       type="button"
                       onClick={() => setShowConfirmAccount((v) => !v)}
-                      className="text-xs text-slate-500 hover:text-slate-700 mt-1"
+                      className="text-xs text-slate-500 hover:text-slate-300 mt-1 transition-colors"
                     >
                       {showConfirmAccount ? "Hide account number" : "Show account number"}
                     </button>
@@ -497,22 +492,20 @@ export function SecureFormClient({
                 </>
               )}
 
-              {/* ── ID Upload ── */}
               {linkType === "ID_UPLOAD" && (
                 <>
                   <div className="space-y-3">
-                    <p className="text-sm font-medium text-slate-800">
+                    <p className="text-sm font-medium text-slate-200">
                       Upload a photo of your government-issued ID
                     </p>
 
-                    {/* Front */}
                     <div>
-                      <p className="text-xs text-slate-500 mb-1.5">Front of ID <span className="text-red-500">*</span></p>
+                      <p className="text-xs text-slate-400 mb-1.5">Front of ID <span className="text-red-400">*</span></p>
                       {frontFile ? (
-                        <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <div className="flex items-center gap-2 p-3 bg-white/5 rounded-xl border border-white/10">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                           <div className="min-w-0">
-                            <span className="text-sm text-slate-700 truncate block">{frontFile.name}</span>
+                            <span className="text-sm text-slate-200 truncate block">{frontFile.name}</span>
                             <span className="text-xs text-slate-500">{(frontFile.size / 1024 / 1024).toFixed(2)} MB</span>
                           </div>
                           <button
@@ -525,7 +518,7 @@ export function SecureFormClient({
                                 return next;
                               });
                             }}
-                            className="ml-auto text-slate-400 hover:text-slate-600"
+                            className="ml-auto text-slate-500 hover:text-slate-300 transition-colors"
                           >
                             <X className="w-4 h-4" />
                           </button>
@@ -534,11 +527,11 @@ export function SecureFormClient({
                         <button
                           type="button"
                           onClick={() => frontRef.current?.click()}
-                          className="w-full flex flex-col items-center gap-2 p-5 border-2 border-dashed border-slate-200 rounded-xl hover:border-blue-400 hover:bg-blue-50/30 transition-colors"
+                          className="w-full flex flex-col items-center gap-2 p-5 border-2 border-dashed border-white/10 rounded-xl hover:border-blue-500/40 hover:bg-blue-500/5 transition-colors"
                         >
-                          <Upload className="w-5 h-5 text-slate-400" />
-                          <span className="text-sm text-slate-500">Tap to select front of ID</span>
-                          <span className="text-xs text-slate-400">JPG, PNG, PDF - max 5 MB</span>
+                          <Upload className="w-5 h-5 text-slate-500" />
+                          <span className="text-sm text-slate-400">Tap to select front of ID</span>
+                          <span className="text-xs text-slate-600">JPG, PNG, PDF - max 5 MB</span>
                         </button>
                       )}
                       <input
@@ -562,17 +555,16 @@ export function SecureFormClient({
                           setFrontFile(file);
                         }}
                       />
-                      {fieldErrors.front && <p className="text-xs text-red-600 mt-1">{fieldErrors.front}</p>}
+                      {fieldErrors.front && <p className="text-xs text-red-400 mt-1">{fieldErrors.front}</p>}
                     </div>
 
-                    {/* Back */}
                     <div>
-                      <p className="text-xs text-slate-500 mb-1.5">Back of ID <span className="text-slate-400">(optional)</span></p>
+                      <p className="text-xs text-slate-400 mb-1.5">Back of ID <span className="text-slate-600">(optional)</span></p>
                       {backFile ? (
-                        <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <div className="flex items-center gap-2 p-3 bg-white/5 rounded-xl border border-white/10">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                           <div className="min-w-0">
-                            <span className="text-sm text-slate-700 truncate block">{backFile.name}</span>
+                            <span className="text-sm text-slate-200 truncate block">{backFile.name}</span>
                             <span className="text-xs text-slate-500">{(backFile.size / 1024 / 1024).toFixed(2)} MB</span>
                           </div>
                           <button
@@ -585,7 +577,7 @@ export function SecureFormClient({
                                 return next;
                               });
                             }}
-                            className="ml-auto text-slate-400 hover:text-slate-600"
+                            className="ml-auto text-slate-500 hover:text-slate-300 transition-colors"
                           >
                             <X className="w-4 h-4" />
                           </button>
@@ -594,10 +586,10 @@ export function SecureFormClient({
                         <button
                           type="button"
                           onClick={() => backRef.current?.click()}
-                          className="w-full flex items-center justify-center gap-2 p-4 border border-dashed border-slate-200 rounded-xl hover:border-blue-400 transition-colors"
+                          className="w-full flex items-center justify-center gap-2 p-4 border border-dashed border-white/10 rounded-xl hover:border-blue-500/40 transition-colors"
                         >
-                          <Upload className="w-4 h-4 text-slate-400" />
-                          <span className="text-sm text-slate-500">Add back of ID</span>
+                          <Upload className="w-4 h-4 text-slate-500" />
+                          <span className="text-sm text-slate-400">Add back of ID</span>
                         </button>
                       )}
                       <input
@@ -621,34 +613,33 @@ export function SecureFormClient({
                           setBackFile(file);
                         }}
                       />
-                      {fieldErrors.back && <p className="text-xs text-red-600 mt-1">{fieldErrors.back}</p>}
+                      {fieldErrors.back && <p className="text-xs text-red-400 mt-1">{fieldErrors.back}</p>}
                     </div>
                   </div>
                 </>
               )}
 
-              {/* Consent */}
               <div className="pt-1">
-                <label className="flex items-start gap-3 cursor-pointer p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <label className="flex items-start gap-3 cursor-pointer p-4 bg-white/[0.03] rounded-xl border border-white/10 hover:bg-white/[0.05] transition-colors">
                   <input
                     type="checkbox"
                     checked={fields.consent}
                     onChange={(e) => set("consent", e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                    className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-800 accent-blue-500"
                   />
-                  <span className="text-sm text-slate-600 leading-relaxed">
+                  <span className="text-sm text-slate-400 leading-relaxed">
                     I consent to share this information with {agent.displayName}
                     {agent.agencyName ? ` (${agent.agencyName})` : ""} for the purpose of completing my application. I understand it will be encrypted, retained for a limited period, and deleted afterward.
                   </span>
                 </label>
                 {fieldErrors.consent && (
-                  <p className="text-xs text-red-600 mt-1.5">{fieldErrors.consent}</p>
+                  <p className="text-xs text-red-400 mt-1.5">{fieldErrors.consent}</p>
                 )}
               </div>
 
               <Button
                 type="submit"
-                className="w-full h-12 text-base font-semibold"
+                className="w-full h-12 text-base font-semibold bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-lg shadow-blue-500/20"
                 disabled={loading || !fields.consent || ssnMismatch || accountMismatch}
               >
                 {loading ? (
@@ -661,7 +652,7 @@ export function SecureFormClient({
                 )}
               </Button>
 
-              <p className="text-xs text-slate-400 text-center leading-relaxed">
+              <p className="text-xs text-slate-600 text-center leading-relaxed">
                 This link is single-use and expires after submission. Your information is encrypted and not shared with third parties.
               </p>
             </form>
@@ -687,13 +678,13 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-slate-700">
+      <Label className="text-slate-300">
         {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
+        {required && <span className="text-red-400 ml-0.5">*</span>}
       </Label>
       {children}
-      {hint && !error && <p className="text-xs text-slate-400">{hint}</p>}
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {hint && !error && <p className="text-xs text-slate-500">{hint}</p>}
+      {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );
 }

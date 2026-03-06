@@ -92,7 +92,6 @@ export function SubmissionViewer({
         setTimeout(() => setShared(false), 2000);
       }
     } catch {
-      // User cancelled share dialog or clipboard permission was denied.
     }
   }
 
@@ -118,7 +117,7 @@ export function SubmissionViewer({
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl animate-fade-in">
       <div className="mb-6 flex items-center justify-between">
         <Button variant="ghost" size="sm" asChild className="-ml-2">
           <Link href="/dashboard/links">
@@ -128,7 +127,7 @@ export function SubmissionViewer({
         </Button>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleShare}>
-            {shared ? <CheckCheck className="w-3.5 h-3.5 text-green-600" /> : <Share2 className="w-3.5 h-3.5" />}
+            {shared ? <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
             {shared ? "Shared" : "Share"}
           </Button>
           <Button variant="outline" size="sm" asChild>
@@ -148,7 +147,7 @@ export function SubmissionViewer({
             size="sm"
             onClick={handleDelete}
             disabled={deleting}
-            className="text-red-600 hover:bg-red-50 hover:border-red-300"
+            className="text-red-400 hover:bg-red-500/10 hover:border-red-500/30"
           >
             <Trash2 className="w-3.5 h-3.5" />
             Delete
@@ -158,18 +157,17 @@ export function SubmissionViewer({
 
       <div className="mb-6">
         <h1 className="ui-page-title">Submission</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           {LINK_TYPES[submission.link.linkType as LinkType]}{" "}
           {submission.link.clientName && `· ${submission.link.clientName}`}
         </p>
       </div>
 
-      {/* Data card */}
       <Card className="mb-4">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="ui-section-title">Submitted data</CardTitle>
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-muted-foreground">
               Deletes {formatDate(submission.deleteAt)}
             </span>
           </div>
@@ -181,24 +179,24 @@ export function SubmissionViewer({
         </CardHeader>
         <CardContent>
           {maskedSsn && !revealed && (
-            <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-              <span className="text-slate-500">SSN (masked): </span>
-              <span className="font-mono text-slate-800">{maskedSsn}</span>
+            <div className="mb-4 rounded-lg border border-border/40 bg-surface-2 p-3 text-sm">
+              <span className="text-muted-foreground">SSN (masked): </span>
+              <span className="font-mono text-foreground">{maskedSsn}</span>
             </div>
           )}
           {revealed && fields ? (
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-100 rounded-lg p-2.5 text-sm">
+              <div className="flex items-center gap-2 text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2.5 text-sm">
                 <Eye className="w-4 h-4 shrink-0" />
                 <span>Data decrypted successfully.</span>
               </div>
               <div className="space-y-2">
                 {Object.entries(fields).map(([key, value]) => (
-                  <div key={key} className="flex gap-3 py-2 border-b border-slate-100 last:border-0">
-                    <span className="text-sm text-slate-500 w-40 shrink-0 capitalize">
+                  <div key={key} className="flex gap-3 py-2 border-b border-border/30 last:border-0">
+                    <span className="text-sm text-muted-foreground w-40 shrink-0 capitalize">
                       {key.replace(/([A-Z])/g, " $1").trim()}
                     </span>
-                    <span className="text-sm font-mono text-slate-900 break-all">
+                    <span className="text-sm font-mono text-foreground break-all">
                       {value}
                     </span>
                   </div>
@@ -216,17 +214,17 @@ export function SubmissionViewer({
             </div>
           ) : (
             <div className="flex flex-col items-center text-center py-6 gap-3">
-              <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center">
-                <Shield className="w-6 h-6 text-slate-400" />
+              <div className="w-12 h-12 bg-surface-2 rounded-xl flex items-center justify-center border border-border/40">
+                <Shield className="w-6 h-6 text-muted-foreground" />
               </div>
               <div>
-                <p className="font-medium text-slate-800">Data is encrypted</p>
-                <p className="text-sm text-slate-500 mt-1">
+                <p className="font-medium text-foreground">Data is encrypted</p>
+                <p className="text-sm text-muted-foreground mt-1">
                   Click to decrypt and reveal the submitted information.
                 </p>
               </div>
               {error && (
-                <p className="text-sm text-red-600">{error}</p>
+                <p className="text-sm text-red-400">{error}</p>
               )}
               <Button onClick={revealData} disabled={loading}>
                 <Eye className="w-4 h-4" />
@@ -237,7 +235,6 @@ export function SubmissionViewer({
         </CardContent>
       </Card>
 
-      {/* Audit log */}
       <Card>
         <CardHeader>
           <CardTitle className="ui-section-title flex items-center gap-2">
@@ -247,16 +244,16 @@ export function SubmissionViewer({
         </CardHeader>
         <CardContent>
           {auditLogs.length === 0 ? (
-            <p className="text-sm text-slate-400">No activity recorded.</p>
+            <p className="text-sm text-muted-foreground">No activity recorded.</p>
           ) : (
             <div className="space-y-0">
               {auditLogs.map((log, i) => (
                 <div key={log.id}>
                   <div className="flex items-center justify-between py-2.5">
-                    <span className="text-sm text-slate-700">
+                    <span className="text-sm text-foreground">
                       {EVENT_LABELS[log.event] ?? log.event}
                     </span>
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-muted-foreground">
                       {formatDate(log.createdAt)}
                     </span>
                   </div>

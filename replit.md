@@ -51,6 +51,22 @@ Uses Replit's built-in PostgreSQL. Schema is managed with Prisma.
 - `npx prisma generate` - Regenerate client after schema changes
 - `npx prisma studio` - Browse database
 
+## Design System
+
+- "Tesla meets Apple" dark aesthetic with blue-toned palette
+- CSS variables in globals.css use dark navy backgrounds (HSL 222 family)
+- Glass-morphism card effects with backdrop-blur and subtle borders
+- No emojis anywhere in UI — uses Lucide icons exclusively
+- Custom animation keyframes: fade-in, slide-up, scale-in
+- Sidebar uses separate --sidebar-* CSS variables
+- Status badges use translucent colored backgrounds (e.g., bg-blue-500/20)
+
+## Auth Notes
+
+- Uses custom /api/login endpoint that bypasses NextAuth CSRF (needed for Replit iframe)
+- Sets JWT session cookie directly with SameSite=none; Secure
+- Test account: test@example.com / TestPass123!
+
 ## Replit Migration Notes
 
 - Migrated from Vercel: port changed to 5000, host bound to 0.0.0.0

@@ -84,7 +84,7 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
       {open && (
         <CardContent className="space-y-4">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">{error}</div>
           )}
 
           {generated ? (
@@ -95,7 +95,7 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
                   <input
                     readOnly
                     value={generated.url}
-                    className="flex-1 h-10 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg font-mono text-slate-700 focus:outline-none"
+                    className="flex-1 h-11 px-3 text-sm bg-surface-2 border border-border/40 rounded-lg font-mono text-muted-foreground focus:outline-none"
                   />
                   <Button
                     variant="outline"
@@ -103,19 +103,19 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
                     onClick={() => copy(generated.url, setCopied)}
                     className="shrink-0"
                   >
-                    {copied ? <CheckCheck className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                    {copied ? <CheckCheck className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                     {copied ? "Copied" : "Copy"}
                   </Button>
                 </div>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-muted-foreground">
                   Expires {new Date(generated.expiresAt).toLocaleString()}
                 </p>
               </div>
 
               <div className="space-y-2">
                 <Label>Pre-written SMS</Label>
-                <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
-                  <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{generated.smsText}</p>
+                <div className="bg-surface-2 rounded-lg p-3 border border-border/40">
+                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{generated.smsText}</p>
                 </div>
                 <Button
                   variant="outline"
@@ -123,7 +123,7 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
                   className="w-full"
                   onClick={() => copy(generated.smsText, setCopiedSms)}
                 >
-                  {copiedSms ? <CheckCheck className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                  {copiedSms ? <CheckCheck className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                   {copiedSms ? "Copied SMS" : "Copy SMS text"}
                 </Button>
               </div>
@@ -149,7 +149,7 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
                   id="gl-dest"
                   value={form.destination}
                   onChange={(e) => setForm({ ...form, destination: e.target.value })}
-                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex h-11 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:border-primary/50"
                 >
                   <option value="">Select destination</option>
                   <option>Mutual of Omaha</option>
@@ -195,7 +195,7 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
                   id="gl-exp"
                   value={form.expirationHours}
                   onChange={(e) => setForm({ ...form, expirationHours: parseInt(e.target.value) })}
-                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex h-11 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:border-primary/50"
                 >
                   <option value={1}>1 hour</option>
                   <option value={4}>4 hours</option>

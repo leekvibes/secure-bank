@@ -39,6 +39,16 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        "surface-0": "hsl(var(--surface-0))",
+        "surface-1": "hsl(var(--surface-1))",
+        "surface-2": "hsl(var(--surface-2))",
+        sidebar: {
+          bg: "hsl(var(--sidebar-bg))",
+          fg: "hsl(var(--sidebar-fg))",
+          active: "hsl(var(--sidebar-active))",
+          hover: "hsl(var(--sidebar-hover))",
+          border: "hsl(var(--sidebar-border))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -46,7 +56,16 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
+      },
+      boxShadow: {
+        glow: "0 0 20px -5px hsl(var(--glow-primary) / 0.15)",
+        "glow-sm": "0 0 10px -3px hsl(var(--glow-primary) / 0.1)",
+      },
+      animation: {
+        "fade-in": "fade-in 0.4s ease-out both",
+        "slide-up": "slide-up 0.5s ease-out both",
+        "scale-in": "scale-in 0.3s ease-out both",
       },
     },
   },

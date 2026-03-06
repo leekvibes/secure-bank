@@ -79,7 +79,6 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
         setTimeout(() => setCopied(false), 2000);
       }
     } catch {
-      // User cancelled share dialog or clipboard permission was denied.
     }
   }
 
@@ -109,16 +108,16 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
   }
 
   const statusColor =
-    LINK_STATUS_COLORS[link.status] ?? "bg-slate-100 text-slate-600 ring-slate-200/70";
+    LINK_STATUS_COLORS[link.status] ?? "bg-muted/60 text-muted-foreground ring-border/40";
   const expired = isExpired(link.expiresAt);
   const canAct = !expired && link.status !== "SUBMITTED";
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm shadow-slate-200/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
+    <div className="glass-card rounded-xl transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-glow-sm">
       <div className="flex items-start justify-between gap-4 p-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-slate-900 text-sm">
+            <span className="font-medium text-foreground text-sm">
               {LINK_TYPES[link.linkType as LinkType] ?? link.linkType}
             </span>
             <span
@@ -127,7 +126,7 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
               {LINK_STATUS_LABELS[link.status] ?? link.status}
             </span>
             {link.submission?.revealedAt && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium border bg-purple-50 text-purple-700 border-purple-200">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium border bg-violet-500/10 text-violet-400 border-violet-500/20">
                 <Eye className="w-3 h-3" />
                 Revealed
               </span>
@@ -135,13 +134,13 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
           </div>
 
           {link.clientName && (
-            <div className="flex items-center gap-1 mt-1.5 text-sm text-slate-500">
+            <div className="flex items-center gap-1 mt-1.5 text-sm text-muted-foreground">
               <User className="w-3.5 h-3.5" />
               {link.clientName}
             </div>
           )}
 
-          <div className="flex items-center gap-1 mt-1 text-xs text-slate-400">
+          <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
             <Clock className="w-3 h-3" />
             {expired ? "Expired" : "Expires"} {formatDate(link.expiresAt)}
           </div>
@@ -150,14 +149,14 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
         <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
           {canAct && (
             <Button variant="outline" size="sm" onClick={handleShare} className="text-xs">
-              {shared ? <CheckCheck className="w-3.5 h-3.5 text-green-600" /> : <Share2 className="w-3.5 h-3.5" />}
+              {shared ? <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
               {shared ? "Shared" : "Share"}
             </Button>
           )}
           {canAct && (
             <Button variant="outline" size="sm" onClick={copyLink} className="text-xs">
               {copied ? (
-                <CheckCheck className="w-3.5 h-3.5 text-green-600" />
+                <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
               ) : (
                 <Copy className="w-3.5 h-3.5" />
               )}
@@ -188,7 +187,7 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
             size="sm"
             onClick={deleteLink}
             disabled={deleting}
-            className="text-xs text-red-400 hover:text-red-600 hover:bg-red-50"
+            className="text-xs text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
           >
             {deleting ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -199,14 +198,13 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
         </div>
       </div>
 
-      {/* SMS panel */}
       {showSms && (
-        <div className="border-t border-slate-100 px-4 pb-4 pt-3">
-          <p className="text-xs text-slate-500 mb-2">
+        <div className="border-t border-border/30 px-4 pb-4 pt-3 bg-surface-2/50 backdrop-blur-sm rounded-b-xl">
+          <p className="text-xs text-muted-foreground mb-2">
             Send the secure link directly via SMS.
           </p>
           {smsSent ? (
-            <p className="text-xs text-green-600 font-medium">SMS sent!</p>
+            <p className="text-xs text-emerald-500 font-medium">SMS sent!</p>
           ) : (
             <div className="flex gap-2">
               <Input
@@ -229,7 +227,7 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
             </div>
           )}
           {smsError && (
-            <p className="text-xs text-red-600 mt-1">{smsError}</p>
+            <p className="text-xs text-red-400 mt-1">{smsError}</p>
           )}
         </div>
       )}

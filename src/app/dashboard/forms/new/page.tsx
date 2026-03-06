@@ -46,7 +46,7 @@ interface FieldDraft {
   encrypted: boolean;
   maskInput: boolean;
   confirmField: boolean;
-  dropdownOptions: string; // newline-separated
+  dropdownOptions: string;
 }
 
 function makeField(): FieldDraft {
@@ -149,9 +149,9 @@ export default function NewFormPage() {
   }
 
   return (
-    <div className={showPreview ? "max-w-[1200px]" : "max-w-2xl"}>
+    <div className={`animate-fade-in ${showPreview ? "max-w-[1200px]" : "max-w-2xl"}`}>
       <div className="mb-5">
-        <Button variant="ghost" size="sm" asChild className="-ml-2 text-slate-500">
+        <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
           <Link href="/dashboard/forms">
             <ArrowLeft className="w-4 h-4" />
             All forms
@@ -161,8 +161,8 @@ export default function NewFormPage() {
 
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">New form</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <h1 className="ui-page-title">New form</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Build a custom form — fields are encrypted and delivered securely.
           </p>
         </div>
@@ -181,12 +181,11 @@ export default function NewFormPage() {
       <div className={showPreview ? "grid xl:grid-cols-[1fr_380px] gap-8 items-start" : ""}>
       <form onSubmit={handleSubmit} className="space-y-5">
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">
             {error}
           </div>
         )}
 
-        {/* Form meta */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Form details</CardTitle>
@@ -209,7 +208,7 @@ export default function NewFormPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Brief description shown to clients at the top of the form"
-                className="flex min-h-[80px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                className="flex min-h-[80px] w-full rounded-lg border border-input bg-card px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:border-primary/50 resize-none"
                 rows={3}
               />
             </div>
@@ -219,7 +218,7 @@ export default function NewFormPage() {
                 id="retention"
                 value={retentionDays}
                 onChange={(e) => setRetentionDays(parseInt(e.target.value))}
-                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex h-11 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:border-primary/50"
               >
                 <option value={30}>30 days</option>
                 <option value={60}>60 days</option>
@@ -230,11 +229,10 @@ export default function NewFormPage() {
           </CardContent>
         </Card>
 
-        {/* Fields */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-slate-700">
-              Fields <span className="text-slate-400 font-normal">({fields.length})</span>
+            <h2 className="text-sm font-semibold text-foreground">
+              Fields <span className="text-muted-foreground font-normal">({fields.length})</span>
             </h2>
             <Button type="button" variant="outline" size="sm" onClick={addField}>
               <Plus className="w-3.5 h-3.5" />
@@ -248,15 +246,13 @@ export default function NewFormPage() {
               return (
                 <Card key={field.id} className="relative">
                   <CardContent className="pt-4 pb-4 space-y-3">
-                    {/* Row 1: Order controls + type + delete */}
                     <div className="flex items-start gap-2">
-                      {/* Order buttons */}
                       <div className="flex flex-col gap-0.5 pt-0.5 shrink-0">
                         <button
                           type="button"
                           onClick={() => moveField(field.id, -1)}
                           disabled={idx === 0}
-                          className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-slate-700 disabled:opacity-20"
+                          className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors"
                         >
                           <ChevronUp className="w-3.5 h-3.5" />
                         </button>
@@ -264,15 +260,14 @@ export default function NewFormPage() {
                           type="button"
                           onClick={() => moveField(field.id, 1)}
                           disabled={idx === fields.length - 1}
-                          className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-slate-700 disabled:opacity-20"
+                          className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors"
                         >
                           <ChevronDown className="w-3.5 h-3.5" />
                         </button>
                       </div>
 
-                      {/* Field type */}
                       <div className="flex-1 space-y-1.5">
-                        <Label className="text-xs text-slate-500">Field type</Label>
+                        <Label className="text-xs text-muted-foreground">Field type</Label>
                         <select
                           value={field.fieldType}
                           onChange={(e) => {
@@ -284,7 +279,7 @@ export default function NewFormPage() {
                               confirmField: SENSITIVE_FIELD_TYPES.includes(t) ? true : field.confirmField,
                             });
                           }}
-                          className="flex h-9 w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="flex h-9 w-full rounded-lg border border-input bg-card px-2.5 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:border-primary/50"
                         >
                           {FIELD_TYPES.map((t) => (
                             <option key={t} value={t}>
@@ -292,23 +287,21 @@ export default function NewFormPage() {
                             </option>
                           ))}
                         </select>
-                        <p className="text-xs text-slate-400">{FIELD_TYPE_DESCRIPTIONS[field.fieldType]}</p>
+                        <p className="text-xs text-muted-foreground">{FIELD_TYPE_DESCRIPTIONS[field.fieldType]}</p>
                       </div>
 
-                      {/* Delete */}
                       <button
                         type="button"
                         onClick={() => removeField(field.id)}
                         disabled={fields.length === 1}
-                        className="mt-5 shrink-0 text-slate-300 hover:text-red-500 disabled:opacity-20 transition-colors"
+                        className="mt-5 shrink-0 text-muted-foreground/40 hover:text-red-400 disabled:opacity-20 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
 
-                    {/* Label */}
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-slate-500">Label *</Label>
+                      <Label className="text-xs text-muted-foreground">Label *</Label>
                       <Input
                         value={field.label}
                         onChange={(e) => updateField(field.id, { label: e.target.value })}
@@ -317,10 +310,9 @@ export default function NewFormPage() {
                       />
                     </div>
 
-                    {/* Placeholder + help */}
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1.5">
-                        <Label className="text-xs text-slate-500">Placeholder</Label>
+                        <Label className="text-xs text-muted-foreground">Placeholder</Label>
                         <Input
                           value={field.placeholder}
                           onChange={(e) => updateField(field.id, { placeholder: e.target.value })}
@@ -329,7 +321,7 @@ export default function NewFormPage() {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs text-slate-500">Help text</Label>
+                        <Label className="text-xs text-muted-foreground">Help text</Label>
                         <Input
                           value={field.helpText}
                           onChange={(e) => updateField(field.id, { helpText: e.target.value })}
@@ -339,21 +331,19 @@ export default function NewFormPage() {
                       </div>
                     </div>
 
-                    {/* Dropdown options */}
                     {field.fieldType === "dropdown" && (
                       <div className="space-y-1.5">
-                        <Label className="text-xs text-slate-500">Options (one per line)</Label>
+                        <Label className="text-xs text-muted-foreground">Options (one per line)</Label>
                         <textarea
                           value={field.dropdownOptions}
                           onChange={(e) => updateField(field.id, { dropdownOptions: e.target.value })}
                           placeholder={"Option A\nOption B\nOption C"}
-                          className="flex w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                          className="flex w-full rounded-lg border border-input bg-card px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:border-primary/50 resize-none"
                           rows={3}
                         />
                       </div>
                     )}
 
-                    {/* Options toggles */}
                     <div className="flex flex-wrap gap-3 pt-1">
                       <Toggle
                         active={field.required}
@@ -409,7 +399,6 @@ export default function NewFormPage() {
         </div>
       </form>
 
-      {/* ── Live preview panel ── */}
       {showPreview && (
         <div className="xl:sticky xl:top-6">
           <FormPreviewPane title={title} description={description} fields={fields} />
@@ -419,8 +408,6 @@ export default function NewFormPage() {
     </div>
   );
 }
-
-// ── Live preview pane ─────────────────────────────────────────────────────────
 
 function FormPreviewPane({
   title,
@@ -432,52 +419,49 @@ function FormPreviewPane({
   fields: FieldDraft[];
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
-      {/* Header bar */}
-      <div className="px-4 py-3 border-b border-slate-200 bg-white flex items-center gap-2">
+    <div className="rounded-2xl border border-border/40 bg-surface-2 overflow-hidden">
+      <div className="px-4 py-3 border-b border-border/40 bg-card flex items-center gap-2">
         <div className="flex gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
-          <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
-          <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
+          <div className="w-2.5 h-2.5 rounded-full bg-border" />
+          <div className="w-2.5 h-2.5 rounded-full bg-border" />
+          <div className="w-2.5 h-2.5 rounded-full bg-border" />
         </div>
-        <span className="text-xs text-slate-400 mx-auto">Client preview</span>
+        <span className="text-xs text-muted-foreground mx-auto">Client preview</span>
       </div>
 
-      {/* Simulated client form */}
       <div className="p-4">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+        <div className="bg-card rounded-xl border border-border/40 shadow-sm p-5 space-y-4">
           <div>
-            <h2 className="text-base font-semibold text-slate-900">
-              {title || <span className="text-slate-300">Form title</span>}
+            <h2 className="text-base font-semibold text-foreground">
+              {title || <span className="text-muted-foreground/40">Form title</span>}
             </h2>
             {description && (
-              <p className="text-sm text-slate-500 mt-1">{description}</p>
+              <p className="text-sm text-muted-foreground mt-1">{description}</p>
             )}
-            <p className="text-xs text-slate-400 mt-2">
+            <p className="text-xs text-muted-foreground mt-2">
               Enter your information below to securely submit your personal information.
             </p>
           </div>
 
           {fields.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-4">Add fields to see a preview.</p>
+            <p className="text-sm text-muted-foreground text-center py-4">Add fields to see a preview.</p>
           ) : (
             fields.map((field) => (
               <PreviewField key={field.id} field={field} />
             ))
           )}
 
-          {/* Consent block */}
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+          <div className="p-3 bg-surface-2 rounded-xl border border-border/40">
             <label className="flex items-start gap-2.5 cursor-pointer">
-              <div className="mt-0.5 h-4 w-4 rounded border border-slate-300 bg-white shrink-0" />
-              <span className="text-xs text-slate-500 leading-relaxed">
+              <div className="mt-0.5 h-4 w-4 rounded border border-border bg-card shrink-0" />
+              <span className="text-xs text-muted-foreground leading-relaxed">
                 I consent to share this information securely for the purpose of completing my application.
               </span>
             </label>
           </div>
 
-          <div className="h-10 bg-slate-900 rounded-lg flex items-center justify-center">
-            <span className="text-white text-sm font-semibold">Submit securely</span>
+          <div className="h-10 bg-primary rounded-lg flex items-center justify-center">
+            <span className="text-primary-foreground text-sm font-semibold">Submit securely</span>
           </div>
         </div>
       </div>
@@ -491,49 +475,49 @@ function PreviewField({ field }: { field: FieldDraft }) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-1.5">
-        <label className="text-xs font-medium text-slate-700">
-          {field.label || <span className="text-slate-300">Unlabeled field</span>}
-          {field.required && <span className="text-red-500 ml-0.5">*</span>}
+        <label className="text-xs font-medium text-foreground">
+          {field.label || <span className="text-muted-foreground/40">Unlabeled field</span>}
+          {field.required && <span className="text-red-400 ml-0.5">*</span>}
         </label>
         {isSensitive && (
-          <Lock className="w-2.5 h-2.5 text-blue-400 shrink-0" />
+          <Lock className="w-2.5 h-2.5 text-primary/60 shrink-0" />
         )}
       </div>
 
       {field.fieldType === "dropdown" ? (
         <div className="relative">
-          <div className="flex h-9 w-full items-center rounded-lg border border-slate-200 bg-white px-3 pr-8 text-sm text-slate-400">
+          <div className="flex h-9 w-full items-center rounded-lg border border-border/40 bg-card px-3 pr-8 text-sm text-muted-foreground/50">
             {field.placeholder || "Select an option"}
           </div>
-          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-300">
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/40">
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </div>
         </div>
       ) : field.fieldType === "signature" ? (
-        <div className="h-20 rounded-xl border-2 border-dashed border-slate-200 bg-white flex items-center justify-center">
-          <span className="text-xs text-slate-300">Signature area</span>
+        <div className="h-20 rounded-xl border-2 border-dashed border-border/40 bg-card flex items-center justify-center">
+          <span className="text-xs text-muted-foreground/40">Signature area</span>
         </div>
       ) : field.fieldType === "date" ? (
-        <div className="flex h-9 w-full items-center rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-300">
+        <div className="flex h-9 w-full items-center rounded-lg border border-border/40 bg-card px-3 text-sm text-muted-foreground/40">
           MM / DD / YYYY
         </div>
       ) : (
-        <div className="flex h-9 w-full items-center rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-300">
+        <div className="flex h-9 w-full items-center rounded-lg border border-border/40 bg-card px-3 text-sm text-muted-foreground/40">
           {field.maskInput && isSensitive ? "••••••••" : (field.placeholder || FIELD_TYPE_LABELS[field.fieldType])}
         </div>
       )}
 
       {field.helpText && (
-        <p className="text-xs text-slate-400">{field.helpText}</p>
+        <p className="text-xs text-muted-foreground">{field.helpText}</p>
       )}
 
       {field.confirmField && (
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-slate-700">
+          <label className="text-xs font-medium text-foreground">
             Confirm {field.label || "field"}
-            {field.required && <span className="text-red-500 ml-0.5">*</span>}
+            {field.required && <span className="text-red-400 ml-0.5">*</span>}
           </label>
-          <div className="flex h-9 w-full items-center rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-300">
+          <div className="flex h-9 w-full items-center rounded-lg border border-border/40 bg-card px-3 text-sm text-muted-foreground/40">
             {field.maskInput ? "••••••••" : `Re-enter ${(field.label || "value").toLowerCase()}`}
           </div>
         </div>
@@ -560,8 +544,8 @@ function Toggle({
       disabled={disabled}
       className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
         active
-          ? "bg-blue-50 border-blue-200 text-blue-700"
-          : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+          ? "bg-primary/10 border-primary/30 text-primary"
+          : "bg-card border-border/40 text-muted-foreground hover:border-border"
       } ${disabled ? "opacity-60 cursor-default" : "cursor-pointer"}`}
     >
       {label}

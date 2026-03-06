@@ -4,26 +4,37 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 221 92% 45%;
+    --background: 222 30% 8%;
+    --foreground: 210 20% 90%;
+    --card: 222 25% 12%;
+    --card-foreground: 210 20% 90%;
+    --popover: 222 25% 12%;
+    --popover-foreground: 210 20% 90%;
+    --primary: 220 80% 55%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 84% 60%;
+    --secondary: 222 20% 18%;
+    --secondary-foreground: 210 15% 80%;
+    --muted: 222 20% 16%;
+    --muted-foreground: 215 15% 55%;
+    --accent: 222 20% 18%;
+    --accent-foreground: 210 15% 80%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 221 92% 45%;
-    --radius: 0.5rem;
+    --border: 222 15% 20%;
+    --input: 222 15% 18%;
+    --ring: 220 80% 55%;
+    --radius: 0.625rem;
+
+    --sidebar-bg: 222 30% 8%;
+    --sidebar-fg: 220 15% 65%;
+    --sidebar-active: 220 80% 55%;
+    --sidebar-hover: 222 25% 14%;
+    --sidebar-border: 222 15% 16%;
+
+    --surface-0: 222 30% 8%;
+    --surface-1: 222 25% 12%;
+    --surface-2: 222 20% 15%;
+    --glow-primary: 220 80% 55%;
   }
 
   * {
@@ -31,41 +42,86 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
 @layer components {
   .ui-page-title {
-    @apply text-2xl font-semibold text-slate-900;
+    @apply text-2xl font-semibold tracking-tight text-foreground;
   }
 
   .ui-section-title {
-    @apply text-lg font-semibold text-slate-900;
+    @apply text-base font-semibold tracking-tight text-foreground;
   }
 
   .ui-table-wrap {
-    @apply overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm;
+    @apply overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm;
   }
 
   .ui-table-header {
-    @apply sticky top-0 z-10 bg-slate-100/90 backdrop-blur supports-[backdrop-filter]:bg-slate-100/80;
+    @apply sticky top-0 z-10 bg-surface-2/90 backdrop-blur supports-[backdrop-filter]:bg-surface-2/80;
   }
 
   .ui-table-row {
-    @apply transition-colors duration-200 hover:bg-slate-50;
+    @apply transition-colors duration-150 hover:bg-surface-2/50;
+  }
+
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-xl border border-border/40 shadow-sm;
+  }
+
+  .stat-card {
+    @apply relative overflow-hidden rounded-xl border border-border/40 bg-card p-5 transition-all duration-200 hover:border-primary/20 hover:shadow-md;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150;
+  }
+
+  .nav-item-active {
+    @apply bg-[hsl(var(--sidebar-active))]/10 text-[hsl(var(--sidebar-active))];
+  }
+
+  .nav-item-inactive {
+    @apply text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-hover))] hover:text-white;
   }
 }
 
-/* Prevent layout shifts when scrollbar appears/disappears */
 html {
   overflow-y: scroll;
 }
 
-/* Secure form specific: prevent zoom on iOS input focus */
 @media screen and (-webkit-min-device-pixel-ratio: 0) {
   input, select, textarea {
     font-size: 16px;
   }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.5s ease-out both;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out both;
 }

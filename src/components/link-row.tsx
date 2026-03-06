@@ -96,7 +96,6 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
         setTimeout(() => setCopied(false), 2000);
       }
     } catch {
-      // cancelled
     }
   }
 
@@ -175,7 +174,7 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
 
   const expired = isExpired(link.expiresAt);
   const statusKey = expired && link.status !== "SUBMITTED" ? "EXPIRED" : link.status;
-  const statusColor = LINK_STATUS_COLORS[statusKey] ?? "bg-slate-100 text-slate-600 ring-slate-200/70";
+  const statusColor = LINK_STATUS_COLORS[statusKey] ?? "bg-muted/60 text-muted-foreground ring-border/40";
   const canAct = !expired && link.status !== "SUBMITTED" && link.status !== "EXPIRED";
   const isIdUpload = link.linkType === "ID_UPLOAD";
 
@@ -198,59 +197,55 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
   });
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm shadow-slate-200/70 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
+    <div className="glass-card rounded-xl transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-glow-sm">
 
-      {/* ── Card body ── */}
       <div className="px-5 pt-4 pb-3">
         <div className="flex items-start gap-3.5">
-          {/* Type icon */}
-          <div className="shrink-0 w-9 h-9 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center mt-0.5">
+          <div className="shrink-0 w-9 h-9 rounded-lg bg-muted/60 border border-border/40 flex items-center justify-center mt-0.5">
             {isIdUpload
-              ? <ImageIcon className="w-4 h-4 text-slate-400" />
-              : <User className="w-4 h-4 text-slate-400" />
+              ? <ImageIcon className="w-4 h-4 text-muted-foreground" />
+              : <User className="w-4 h-4 text-muted-foreground" />
             }
           </div>
 
-          {/* Title + badges */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-semibold text-slate-900 truncate">{title}</span>
+              <span className="text-sm font-semibold text-foreground truncate">{title}</span>
               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ring-1 ${statusColor}`}>
                 {LINK_STATUS_LABELS[statusKey] ?? statusKey}
               </span>
               {hasViewed && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ring-1 ring-purple-200/60 bg-purple-50 text-purple-700">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ring-1 ring-violet-500/20 bg-violet-500/10 text-violet-400">
                   <Eye className="w-3 h-3" />
                   Viewed
                 </span>
               )}
               {sentCount > 0 && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ring-1 ring-blue-200/70 bg-blue-50 text-blue-700">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ring-1 ring-primary/20 bg-primary/10 text-primary">
                   <CheckCheck className="w-3 h-3" />
                   Sent
                 </span>
               )}
             </div>
             {link.clientName && (
-              <p className="text-xs text-slate-400 mt-0.5">{typeLabel}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{typeLabel}</p>
             )}
           </div>
         </div>
 
-        {/* Meta row */}
-        <div className="flex items-center gap-4 mt-3 pl-[52px] text-xs text-slate-400">
+        <div className="flex items-center gap-4 mt-3 pl-[52px] text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <Calendar className="w-3 h-3" />
             {formatDate(link.createdAt)}
           </span>
-          <span className="text-slate-200 select-none">·</span>
+          <span className="text-border select-none">|</span>
           <span className={expired ? "flex items-center gap-1.5 text-red-400" : "flex items-center gap-1.5"}>
             <Clock className="w-3 h-3" />
             {expired ? "Expired" : "Expires"} {formatDate(link.expiresAt)}
           </span>
           {lastSend && (
             <>
-              <span className="text-slate-200 select-none">·</span>
+              <span className="text-border select-none">|</span>
               <span className="truncate max-w-[280px]">
                 Sent via {lastSend.method.toLowerCase()} to {lastSend.recipient}
               </span>
@@ -259,8 +254,7 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
         </div>
       </div>
 
-      {/* ── Actions bar ── */}
-      <div className="flex items-center gap-0.5 px-4 py-2 border-t border-slate-50">
+      <div className="flex items-center gap-0.5 px-4 py-2 border-t border-border/30">
         {canAct && (
           <ActionBtn
             icon={shared ? CheckCheck : Share2}
@@ -320,10 +314,9 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
         </div>
       </div>
 
-      {/* ── SMS panel ── */}
       {showSend && (
-        <div className="border-t border-slate-100 px-5 py-3.5 bg-slate-50/60 rounded-b-xl">
-          <p className="text-xs font-medium text-slate-600 mb-2">Send secure link</p>
+        <div className="border-t border-border/30 px-5 py-3.5 bg-surface-2/50 backdrop-blur-sm rounded-b-xl">
+          <p className="text-xs font-medium text-muted-foreground mb-2">Send secure link</p>
           <div className="flex gap-1.5 mb-2">
             <Button size="sm" variant={sendMethod === "SMS" ? "default" : "outline"} className="h-8" onClick={() => setSendMethod("SMS")}>SMS</Button>
             <Button size="sm" variant={sendMethod === "EMAIL" ? "default" : "outline"} className="h-8" onClick={() => setSendMethod("EMAIL")}>Email</Button>
@@ -348,10 +341,10 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
           <textarea
             value={sendMessage}
             onChange={(e) => setSendMessage(e.target.value)}
-            className="w-full min-h-[120px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full min-h-[120px] rounded-lg border border-border/60 bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary/50 transition-colors"
           />
           {sendSuccess ? (
-            <p className="text-xs text-emerald-600 font-medium flex items-center gap-1.5">
+            <p className="text-xs text-emerald-500 font-medium flex items-center gap-1.5">
               <CheckCheck className="w-3.5 h-3.5" />
               Sent successfully
             </p>
@@ -374,14 +367,12 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
               Share native
             </Button>
           </div>
-          {sendError && <p className="text-xs text-red-600 mt-1.5">{sendError}</p>}
+          {sendError && <p className="text-xs text-red-400 mt-1.5">{sendError}</p>}
         </div>
       )}
     </div>
   );
 }
-
-// ── Action button ──────────────────────────────────────────────────────────────
 
 function ActionBtn({
   icon: Icon,
@@ -403,13 +394,13 @@ function ActionBtn({
   spinIcon?: boolean;
 }) {
   const cls = cn(
-    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors select-none",
+    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 select-none",
     disabled && "opacity-50 pointer-events-none",
     danger
-      ? "text-slate-400 hover:text-red-600 hover:bg-red-50"
+      ? "text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
       : active
-      ? "text-emerald-700 bg-emerald-50"
-      : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+      ? "text-emerald-400 bg-emerald-500/10"
+      : "text-muted-foreground hover:text-foreground hover:bg-accent"
   );
 
   if (href) {

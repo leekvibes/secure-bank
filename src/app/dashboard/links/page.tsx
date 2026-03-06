@@ -16,7 +16,6 @@ export default async function LinksPage() {
   const session = await getServerSession(authOptions);
   if (!session) return null;
 
-  // Expire stale links
   await db.secureLink.updateMany({
     where: {
       agentId: session.user.id,
@@ -59,13 +58,12 @@ export default async function LinksPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-6 animate-fade-in">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Requests</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            {links.length} secure link{links.length !== 1 ? "s" : ""} — click a row to view details.
+          <h1 className="ui-page-title">Requests</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {links.length} secure link{links.length !== 1 ? "s" : ""} -- click a row to view details.
           </p>
         </div>
         <Button asChild>
@@ -76,14 +74,13 @@ export default async function LinksPage() {
         </Button>
       </div>
 
-      {/* Empty state */}
       {links.length === 0 ? (
-        <div className="bg-white rounded-xl border border-dashed border-slate-200 p-14 text-center">
-          <div className="w-11 h-11 bg-slate-50 rounded-xl flex items-center justify-center mx-auto mb-3 border border-slate-100">
-            <Link2 className="w-5 h-5 text-slate-300" />
+        <div className="glass-card rounded-xl border-dashed p-14 text-center">
+          <div className="w-11 h-11 bg-muted/60 rounded-xl flex items-center justify-center mx-auto mb-3 border border-border/40">
+            <Link2 className="w-5 h-5 text-muted-foreground/50" />
           </div>
-          <p className="font-semibold text-slate-700 mb-1">No requests yet</p>
-          <p className="text-sm text-slate-400 mb-5">
+          <p className="font-semibold text-foreground mb-1">No requests yet</p>
+          <p className="text-sm text-muted-foreground mb-5">
             Create your first secure link to start collecting client data.
           </p>
           <Button asChild size="sm">

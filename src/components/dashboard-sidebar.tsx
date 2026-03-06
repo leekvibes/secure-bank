@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { useState } from "react";
 import {
   Lock, LayoutDashboard, FileText, Inbox,
-  Upload, Settings, LogOut, Link2,
+  Upload, Settings, LogOut, Link2, Menu, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,7 @@ const NAV = [
 
 export function DashboardSidebar({ user }: Props) {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const initials = user.name
     .split(" ")
@@ -34,7 +36,6 @@ export function DashboardSidebar({ user }: Props) {
 
   function isActive(href: string, exact?: boolean) {
     if (exact) return pathname === href;
-    // "Links" section covers /dashboard/new but not /dashboard root
     if (href === "/dashboard/links")
       return pathname.startsWith("/dashboard/links") || pathname === "/dashboard/new";
     return pathname.startsWith(href);
@@ -42,19 +43,16 @@ export function DashboardSidebar({ user }: Props) {
 
   return (
     <>
-      {/* ── Desktop sidebar ── */}
-      <aside className="fixed inset-y-0 left-0 w-60 bg-white border-r border-slate-200 flex-col z-30 hidden lg:flex">
-        {/* Brand */}
-        <div className="h-16 flex items-center px-5 border-b border-slate-100 shrink-0">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm shadow-blue-500/30">
+      <aside className="fixed inset-y-0 left-0 w-60 bg-sidebar-bg flex-col z-30 hidden lg:flex border-r border-sidebar-border">
+        <div className="h-16 flex items-center px-5 border-b border-sidebar-border shrink-0">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/20">
             <Lock className="w-4 h-4 text-white" />
           </div>
-          <span className="ml-2.5 font-semibold text-slate-900 tracking-tight text-sm">
+          <span className="ml-2.5 font-semibold text-white tracking-tight text-sm">
             SecureLink
           </span>
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
           {NAV.map(({ href, label, icon: Icon, exact }) => {
             const active = isActive(href, exact);
@@ -63,16 +61,19 @@ export function DashboardSidebar({ user }: Props) {
                 key={href}
                 href={href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group",
+                  "nav-item group relative",
                   active
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    ? "nav-item-active"
+                    : "nav-item-inactive"
                 )}
               >
+                {active && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-sidebar-active" />
+                )}
                 <Icon
                   className={cn(
                     "w-4 h-4 shrink-0 transition-colors",
-                    active ? "text-blue-600" : "text-slate-400 group-hover:text-slate-600"
+                    active ? "text-sidebar-active" : "text-sidebar-fg group-hover:text-white"
                   )}
                 />
                 {label}
@@ -81,22 +82,21 @@ export function DashboardSidebar({ user }: Props) {
           })}
         </nav>
 
-        {/* User footer */}
-        <div className="p-3 border-t border-slate-100 shrink-0">
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors">
-            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0 ring-2 ring-white">
+        <div className="p-3 border-t border-sidebar-border shrink-0">
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0 ring-2 ring-sidebar-border">
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-800 truncate leading-tight">
+              <p className="text-sm font-medium text-white truncate leading-tight">
                 {user.name}
               </p>
-              <p className="text-xs text-slate-400 truncate">{user.email}</p>
+              <p className="text-xs text-sidebar-fg truncate">{user.email}</p>
             </div>
             <button
               onClick={() => signOut({ callbackUrl: "/" })}
               title="Sign out"
-              className="text-slate-300 hover:text-slate-600 transition-colors p-1 rounded-md hover:bg-slate-100 shrink-0"
+              className="text-sidebar-fg hover:text-white transition-colors p-1 rounded-md hover:bg-sidebar-hover shrink-0"
             >
               <LogOut className="w-3.5 h-3.5" />
             </button>
@@ -104,40 +104,74 @@ export function DashboardSidebar({ user }: Props) {
         </div>
       </aside>
 
-      {/* ── Mobile top bar ── */}
-      <header className="lg:hidden fixed top-0 inset-x-0 h-14 bg-white border-b border-slate-200 z-30 flex items-center px-4 gap-3">
-        <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
+      <header className="lg:hidden fixed top-0 inset-x-0 h-14 bg-sidebar-bg border-b border-sidebar-border z-30 flex items-center px-4 gap-3">
+        <button
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="text-sidebar-fg hover:text-white p-1 rounded-md transition-colors shrink-0"
+        >
+          {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-600 shrink-0">
           <Lock className="w-3.5 h-3.5 text-white" />
         </div>
-        <span className="font-semibold text-slate-900 text-sm mr-2">SecureLink</span>
-
-        <nav className="flex items-center gap-0.5 overflow-x-auto scrollbar-none flex-1">
-          {NAV.map(({ href, label, exact }) => {
-            const active = isActive(href, exact);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={cn(
-                  "px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors",
-                  active
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                )}
-              >
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
+        <span className="font-semibold text-white text-sm flex-1">SecureLink</span>
 
         <button
           onClick={() => signOut({ callbackUrl: "/" })}
-          className="ml-2 text-slate-400 hover:text-slate-700 p-1.5 shrink-0"
+          className="text-sidebar-fg hover:text-white p-1.5 shrink-0 transition-colors"
         >
           <LogOut className="w-4 h-4" />
         </button>
       </header>
+
+      {mobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-20">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+          />
+          <nav className="absolute top-14 left-0 right-0 bg-sidebar-bg border-b border-sidebar-border p-3 space-y-0.5 animate-slide-up">
+            {NAV.map(({ href, label, icon: Icon, exact }) => {
+              const active = isActive(href, exact);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    "nav-item relative",
+                    active
+                      ? "nav-item-active"
+                      : "nav-item-inactive"
+                  )}
+                >
+                  {active && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-sidebar-active" />
+                  )}
+                  <Icon
+                    className={cn(
+                      "w-4 h-4 shrink-0",
+                      active ? "text-sidebar-active" : "text-sidebar-fg"
+                    )}
+                  />
+                  {label}
+                </Link>
+              );
+            })}
+            <div className="pt-2 mt-2 border-t border-sidebar-border">
+              <div className="flex items-center gap-3 px-3 py-2.5">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                  {initials}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                  <p className="text-xs text-sidebar-fg truncate">{user.email}</p>
+                </div>
+              </div>
+            </div>
+          </nav>
+        </div>
+      )}
     </>
   );
 }
