@@ -130,6 +130,9 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
     assets: assetPayload,
     logoUrls,
     link: {
+      destinationLabel: link.destinationLabel ?? link.destination,
+      messageTemplate: link.messageTemplate,
+      options: link.optionsJson ? JSON.parse(link.optionsJson) : {},
       clientName: link.clientName,
       expiresAt: link.expiresAt.toISOString(),
     },

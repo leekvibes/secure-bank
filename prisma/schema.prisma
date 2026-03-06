@@ -49,6 +49,8 @@ model SecureLink {
   destinationLabel String?
   messageTemplate String?
   optionsJson   String?
+  openedAt      DateTime?
+  submittedAt   DateTime?
   clientName    String?
   clientPhone   String?
   clientEmail   String?
@@ -85,7 +87,11 @@ model IdUpload {
   id             String     @id @default(cuid())
   // Paths to AES-256-GCM encrypted files on disk
   frontFilePath  String
+  frontOriginalName String?
+  frontMimeType  String?
   backFilePath   String?
+  backOriginalName String?
+  backMimeType   String?
   viewedAt       DateTime?
   viewCount      Int        @default(0)
   deleteAt       DateTime
@@ -151,6 +157,11 @@ model FormLink {
   formId      String
   token       String   @unique
   destination String?
+  destinationLabel String?
+  messageTemplate String?
+  optionsJson String?
+  openedAt    DateTime?
+  submittedAt DateTime?
   clientName  String?
   clientPhone String?
   clientEmail String?
@@ -161,6 +172,7 @@ model FormLink {
   form       Form            @relation(fields: [formId], references: [id], onDelete: Cascade)
   submission FormSubmission?
   assets     FormLinkAsset[]
+  sends      FormLinkDispatch[]
 }
 
 model LinkDispatch {
@@ -174,6 +186,19 @@ model LinkDispatch {
   link SecureLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
 
   @@index([linkId, createdAt])
+}
+
+model FormLinkDispatch {
+  id         String   @id @default(cuid())
+  formLinkId String
+  method     String   // SMS | EMAIL | COPY | SHARE
+  recipient  String
+  message    String
+  createdAt  DateTime @default(now())
+
+  formLink FormLink @relation(fields: [formLinkId], references: [id], onDelete: Cascade)
+
+  @@index([formLinkId, createdAt])
 }
 
 model LinkTemplate {
