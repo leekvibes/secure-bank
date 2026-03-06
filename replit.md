@@ -93,6 +93,20 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 - Sets JWT session cookie directly with SameSite=none; Secure
 - Test account: test@example.com / TestPass123!
 
+## Routing Number Lookup
+
+- Local database of 150+ common US bank routing numbers in `src/lib/routing-numbers.ts`
+- API endpoint: `/api/routing?number=XXXXXXXXX`
+- Checks local DB first (instant), falls back to routingnumbers.info API (3s timeout, 24hr cache)
+- No API key required — works offline for common banks
+
+## Setup & Portability
+
+- Full setup guide: `SETUP.md` (covers Replit, Vercel, and local development)
+- Environment template: `.env.example` (copy to `.env` and fill in values)
+- All external services use environment variables only — nothing is hardcoded to any platform
+- External services: Resend (email), Twilio (SMS), Upstash Redis (rate limiting) — all optional
+
 ## Replit Migration Notes
 
 - Migrated from Vercel: port changed to 5000, host bound to 0.0.0.0
