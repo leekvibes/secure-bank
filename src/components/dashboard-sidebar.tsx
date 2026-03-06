@@ -15,7 +15,7 @@ interface Props {
 
 const NAV = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
-  { href: "/dashboard/new", label: "Links", icon: Link2, exact: false },
+  { href: "/dashboard/links", label: "Requests", icon: Link2, exact: false },
   { href: "/dashboard/forms", label: "Forms", icon: FileText },
   { href: "/dashboard/submissions", label: "Submissions", icon: Inbox },
   { href: "/dashboard/uploads", label: "Uploads", icon: Upload },
@@ -35,7 +35,8 @@ export function DashboardSidebar({ user }: Props) {
   function isActive(href: string, exact?: boolean) {
     if (exact) return pathname === href;
     // "Links" section covers /dashboard/new but not /dashboard root
-    if (href === "/dashboard/new") return pathname === "/dashboard/new";
+    if (href === "/dashboard/links")
+      return pathname.startsWith("/dashboard/links") || pathname === "/dashboard/new";
     return pathname.startsWith(href);
   }
 
