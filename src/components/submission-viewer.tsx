@@ -121,9 +121,9 @@ export function SubmissionViewer({
     <div className="max-w-2xl">
       <div className="mb-6 flex items-center justify-between">
         <Button variant="ghost" size="sm" asChild className="-ml-2">
-          <Link href="/dashboard">
+          <Link href="/dashboard/links">
             <ArrowLeft className="w-4 h-4" />
-            Back to dashboard
+            Back to requests
           </Link>
         </Button>
         <div className="flex items-center gap-2">

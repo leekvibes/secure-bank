@@ -201,11 +201,8 @@ function RequestRow({
     <div>
       {/* Row */}
       <div
-        className={cn(
-          "group flex sm:grid sm:grid-cols-[2fr_1.2fr_120px_160px_auto] gap-4 px-5 py-3.5 items-center transition-colors",
-          viewHref && "cursor-pointer hover:bg-slate-50/60"
-        )}
-        onClick={() => viewHref && router.push(viewHref)}
+        className="group flex sm:grid sm:grid-cols-[2fr_1.2fr_120px_160px_auto] gap-4 px-5 py-3.5 items-center transition-colors cursor-pointer hover:bg-slate-50/60"
+        onClick={() => router.push(`/dashboard/links/${link.id}`)}
       >
         {/* Client */}
         <div className="flex items-center gap-3 min-w-0 flex-1 sm:flex-none">
