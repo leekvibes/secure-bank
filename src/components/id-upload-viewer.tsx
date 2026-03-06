@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Eye, Trash2, Clock, Loader2 } from "lucide-react";
+import { ArrowLeft, Eye, Trash2, Clock, Loader2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -117,6 +117,12 @@ export function IdUploadViewer({ upload, auditLogs }: Props) {
           {/* Front ID */}
           <div className="space-y-2">
             <p className="text-sm font-medium text-slate-700">Front of ID</p>
+            <Button variant="outline" size="sm" asChild>
+              <a href={`/api/id-uploads/${upload.id}?side=front&download=1`}>
+                <Download className="w-4 h-4" />
+                Download front
+              </a>
+            </Button>
             {frontUrl ? (
               <div className="rounded-xl overflow-hidden border border-slate-200">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -143,6 +149,12 @@ export function IdUploadViewer({ upload, auditLogs }: Props) {
           {upload.hasBack && (
             <div className="space-y-2">
               <p className="text-sm font-medium text-slate-700">Back of ID</p>
+              <Button variant="outline" size="sm" asChild>
+                <a href={`/api/id-uploads/${upload.id}?side=back&download=1`}>
+                  <Download className="w-4 h-4" />
+                  Download back
+                </a>
+              </Button>
               {backUrl ? (
                 <div className="rounded-xl overflow-hidden border border-slate-200">
                   {/* eslint-disable-next-line @next/next/no-img-element */}

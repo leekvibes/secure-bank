@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { readAndDecryptFile } from "@/lib/files";
 import { writeAuditLog } from "@/lib/audit";
 import { NO_STORE_HEADERS } from "@/lib/http";
+import { detectFileMimeType, fileExtensionFromMimeType } from "@/lib/file-signature";
+import { getIdUploadAccessResult } from "@/lib/id-upload-access";
 
 // GET /api/id-uploads/[id]?side=front|back
 export async function GET(
@@ -17,13 +19,18 @@ export async function GET(
   }
 
   const side = req.nextUrl.searchParams.get("side") ?? "front";
+  const download = req.nextUrl.searchParams.get("download") === "1";
 
-  const upload = await db.idUpload.findFirst({
-    where: { id: params.id, agentId: session.user.id }, // agent isolation
+  const upload = await db.idUpload.findUnique({
+    where: { id: params.id },
   });
 
   if (!upload) {
     return NextResponse.json({ error: "Not found." }, { status: 404, headers: NO_STORE_HEADERS });
+  }
+  const access = getIdUploadAccessResult(upload.agentId, session.user.id);
+  if (!access.allowed) {
+    return NextResponse.json({ error: access.message }, { status: access.status, headers: NO_STORE_HEADERS });
   }
 
   const filePath = side === "back" ? upload.backFilePath : upload.frontFilePath;
@@ -56,11 +63,15 @@ export async function GET(
     metadata: { side, uploadId: upload.id, viewCount: upload.viewCount + 1 },
   });
 
+  const mimeType = detectFileMimeType(fileData);
+  const ext = fileExtensionFromMimeType(mimeType);
+  const disposition = download ? "attachment" : "inline";
+
   return new NextResponse(fileData as unknown as BodyInit, {
     headers: {
       ...NO_STORE_HEADERS,
-      "Content-Type": "image/jpeg", // browsers handle detection from content
-      "Content-Disposition": `inline; filename="id-${side}.jpg"`,
+      "Content-Type": mimeType,
+      "Content-Disposition": `${disposition}; filename="id-${side}.${ext}"`,
     },
   });
 }
