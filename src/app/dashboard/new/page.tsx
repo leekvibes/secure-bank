@@ -66,7 +66,7 @@ const TYPE_META: Record<
   BANKING_INFO: {
     icon: CreditCard,
     gradient: "from-blue-500/20 to-blue-600/10",
-    iconColor: "text-blue-400",
+    iconColor: "text-blue-500",
     borderActive: "border-blue-500/50 ring-1 ring-blue-500/20 bg-blue-500/5",
     title: "Banking Information",
     subtitle: "Routing, account number, draft date",
@@ -78,7 +78,7 @@ const TYPE_META: Record<
   SSN_ONLY: {
     icon: Shield,
     gradient: "from-violet-500/20 to-violet-600/10",
-    iconColor: "text-violet-400",
+    iconColor: "text-violet-500",
     borderActive: "border-violet-500/50 ring-1 ring-violet-500/20 bg-violet-500/5",
     title: "Social Security Number",
     subtitle: "SSN with masked entry and confirmation",
@@ -90,7 +90,7 @@ const TYPE_META: Record<
   FULL_INTAKE: {
     icon: ClipboardList,
     gradient: "from-emerald-500/20 to-emerald-600/10",
-    iconColor: "text-emerald-400",
+    iconColor: "text-emerald-500",
     borderActive: "border-emerald-500/50 ring-1 ring-emerald-500/20 bg-emerald-500/5",
     title: "Full Intake Form",
     subtitle: "SSN, banking, address, and beneficiary",
@@ -102,7 +102,7 @@ const TYPE_META: Record<
   ID_UPLOAD: {
     icon: Camera,
     gradient: "from-amber-500/20 to-amber-600/10",
-    iconColor: "text-amber-400",
+    iconColor: "text-amber-500",
     borderActive: "border-amber-500/50 ring-1 ring-amber-500/20 bg-amber-500/5",
     title: "Photo ID Upload",
     subtitle: "Government-issued ID photo submission",
@@ -383,7 +383,7 @@ export default function NewLinkPage() {
           <div className="px-6 pt-6 pb-5 border-b border-border/40">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center ring-1 ring-emerald-500/20 shrink-0">
-                <Shield className="w-5 h-5 text-emerald-400" />
+                <Shield className="w-5 h-5 text-emerald-500" />
               </div>
               <div>
                 <h2 className="text-base font-semibold text-foreground">Link created</h2>
@@ -404,7 +404,7 @@ export default function NewLinkPage() {
                   className="flex-1 h-10 px-3 text-sm bg-surface-2 border border-border/50 rounded-lg font-mono text-foreground focus:outline-none"
                 />
                 <Button onClick={copyLink} variant="outline" size="sm" className="shrink-0 gap-1.5">
-                  {copied ? <CheckCheck className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  {copied ? <CheckCheck className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                   {copied ? "Copied" : "Copy"}
                 </Button>
               </div>
@@ -476,7 +476,7 @@ export default function NewLinkPage() {
                   {sendSuccess ? "Sent!" : "Send now"}
                 </Button>
                 <Button variant="outline" onClick={copySmsText} className="gap-1.5 shrink-0">
-                  {copiedSms ? <CheckCheck className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  {copiedSms ? <CheckCheck className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                   Copy
                 </Button>
               </div>

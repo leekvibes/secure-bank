@@ -10,23 +10,20 @@ export default async function HomePage() {
   if (session) redirect("/dashboard");
 
   return (
-    <main className="min-h-screen bg-[hsl(222,30%,6%)] text-white overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,hsl(220,80%,20%,0.15),transparent_70%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,hsl(220,70%,30%,0.08),transparent_60%)]" />
-
+    <main className="min-h-screen bg-gradient-to-b from-white to-[hsl(210,25%,96%)] text-foreground overflow-hidden">
       <div className="relative z-10">
         <nav className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-md">
               <Lock className="w-4.5 h-4.5 text-white" />
             </div>
-            <span className="font-semibold text-lg tracking-tight text-white/90">Agent Secure Links</span>
+            <span className="font-semibold text-lg tracking-tight text-foreground">Agent Secure Links</span>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" asChild className="text-white/60 hover:text-white hover:bg-white/5">
+            <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-foreground">
               <Link href="/auth">Sign in</Link>
             </Button>
-            <Button size="sm" asChild className="bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20">
+            <Button size="sm" asChild>
               <Link href="/auth?mode=signup">Get started</Link>
             </Button>
           </div>
@@ -34,31 +31,31 @@ export default async function HomePage() {
 
         <section className="max-w-6xl mx-auto px-6 pt-20 pb-28 sm:pt-28 sm:pb-36">
           <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 mb-8 animate-fade-in">
-              <Fingerprint className="w-3.5 h-3.5 text-blue-400" />
-              <span className="text-xs font-medium text-blue-300/90 tracking-wide uppercase">End-to-end encrypted</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/8 border border-primary/15 mb-8 animate-fade-in">
+              <Fingerprint className="w-3.5 h-3.5 text-primary" />
+              <span className="text-xs font-medium text-primary tracking-wide uppercase">End-to-end encrypted</span>
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1] mb-7 animate-slide-up">
-              <span className="text-white">Collect sensitive data</span>
+              <span className="text-foreground">Collect sensitive data</span>
               <br />
-              <span className="bg-gradient-to-r from-blue-400 via-blue-300 to-cyan-400 bg-clip-text text-transparent">without the risk.</span>
+              <span className="bg-gradient-to-r from-primary via-blue-500 to-cyan-500 bg-clip-text text-transparent">without the risk.</span>
             </h1>
 
-            <p className="text-lg sm:text-xl text-white/45 leading-relaxed max-w-xl mb-10 animate-slide-up" style={{ animationDelay: "0.1s" }}>
+            <p className="text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-xl mb-10 animate-slide-up" style={{ animationDelay: "0.1s" }}>
               Generate a secure, expiring link. Your client opens it privately
               and submits their information. You receive it encrypted in your
               dashboard.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 animate-slide-up" style={{ animationDelay: "0.2s" }}>
-              <Button size="lg" asChild className="bg-blue-600 hover:bg-blue-500 shadow-xl shadow-blue-600/25 text-base px-8">
+              <Button size="lg" asChild className="text-base px-8">
                 <Link href="/auth?mode=signup">
                   Get started free
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </Link>
               </Button>
-              <Button variant="outline" size="lg" asChild className="border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white text-base px-8">
+              <Button variant="outline" size="lg" asChild className="text-base px-8">
                 <Link href="/auth">Sign in</Link>
               </Button>
             </div>
@@ -91,26 +88,26 @@ export default async function HomePage() {
             ].map(({ icon: Icon, title, desc }, i) => (
               <div
                 key={title}
-                className="group relative p-6 rounded-2xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.06] hover:border-blue-500/20 hover:shadow-lg hover:shadow-blue-500/5 animate-slide-up"
+                className="group relative p-6 rounded-2xl bg-card border border-border transition-all duration-300 hover:border-primary/25 hover:shadow-lg animate-slide-up"
                 style={{ animationDelay: `${0.3 + i * 0.1}s` }}
               >
-                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/15 flex items-center justify-center mb-4 transition-colors duration-300 group-hover:bg-blue-500/15 group-hover:border-blue-500/25">
-                  <Icon className="w-5 h-5 text-blue-400" />
+                <div className="w-10 h-10 rounded-xl bg-primary/8 border border-primary/12 flex items-center justify-center mb-4 transition-colors duration-300 group-hover:bg-primary/12">
+                  <Icon className="w-5 h-5 text-primary" />
                 </div>
-                <h3 className="font-semibold text-white/90 mb-2 tracking-tight">{title}</h3>
-                <p className="text-sm text-white/35 leading-relaxed">{desc}</p>
+                <h3 className="font-semibold text-foreground mb-2 tracking-tight">{title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
         </section>
 
         <footer className="max-w-6xl mx-auto px-6 pb-12">
-          <div className="border-t border-white/[0.06] pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="border-t border-border pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <Lock className="w-3.5 h-3.5 text-white/20" />
-              <span className="text-sm text-white/25 font-medium">Agent Secure Links</span>
+              <Lock className="w-3.5 h-3.5 text-muted-foreground/50" />
+              <span className="text-sm text-muted-foreground/60 font-medium">Agent Secure Links</span>
             </div>
-            <p className="text-xs text-white/20 text-center sm:text-right max-w-lg leading-relaxed">
+            <p className="text-xs text-muted-foreground/50 text-center sm:text-right max-w-lg leading-relaxed">
               Agent Secure Links does not store data longer than your configured retention period.
               This tool assists with secure data collection; it is not a legal compliance product.
               Consult your compliance officer regarding applicable regulations.

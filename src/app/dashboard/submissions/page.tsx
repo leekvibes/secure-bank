@@ -102,12 +102,12 @@ export default async function SubmissionsPage() {
 
               <div>
                 {sub.viewedAt ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-purple-500/10 text-purple-400">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-purple-500/10 text-purple-600">
                     <Eye className="w-3 h-3" />
                     Viewed
                   </span>
                 ) : (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-400">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-600">
                     New
                   </span>
                 )}

@@ -51,15 +51,25 @@ Uses Replit's built-in PostgreSQL. Schema is managed with Prisma.
 - `npx prisma generate` - Regenerate client after schema changes
 - `npx prisma studio` - Browse database
 
+User model includes `photoUrl` field (String?, base64 data URI) for agent profile photos, alongside the existing `logoUrl` field for company logos.
+
 ## Design System
 
-- "Tesla meets Apple" dark aesthetic with blue-toned palette
-- CSS variables in globals.css use dark navy backgrounds (HSL 222 family)
-- Glass-morphism card effects with backdrop-blur and subtle borders
+- Calm, light baby blue + soft gray palette — professional, trustworthy feel
+- CSS variables in globals.css: `--background: 210 25% 97%`, `--card: 0 0% 100%`, `--primary: 214 65% 52%`
+- White cards with subtle shadows and borders (no glass-morphism)
 - No emojis anywhere in UI — uses Lucide icons exclusively
 - Custom animation keyframes: fade-in, slide-up, scale-in
-- Sidebar uses separate --sidebar-* CSS variables
-- Status badges use translucent colored backgrounds (e.g., bg-blue-500/20)
+- Sidebar: white background with `--sidebar-*` CSS variables
+- Client-facing forms: clean white cards, trust indicators row, professional section headers, agent photo display
+
+## Agent Profile Photo
+
+- Upload endpoint: `/api/agent/photo` (POST for upload, DELETE to remove)
+- Max 512KB, accepts PNG/JPG/WebP, stored as base64 data URI in `photoUrl` field
+- Upload UI in dashboard Settings page (Profile section)
+- Displayed on client-facing secure forms via `client-trust-header.tsx`
+- Falls back to initials avatar when no photo is set
 
 ## Auth Notes
 

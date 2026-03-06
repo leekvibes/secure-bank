@@ -181,7 +181,7 @@ export default function NewFormPage() {
       <div className={showPreview ? "grid xl:grid-cols-[1fr_380px] gap-8 items-start" : ""}>
       <form onSubmit={handleSubmit} className="space-y-5">
         {error && (
-          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">
+          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-500">
             {error}
           </div>
         )}
@@ -294,7 +294,7 @@ export default function NewFormPage() {
                         type="button"
                         onClick={() => removeField(field.id)}
                         disabled={fields.length === 1}
-                        className="mt-5 shrink-0 text-muted-foreground/40 hover:text-red-400 disabled:opacity-20 transition-colors"
+                        className="mt-5 shrink-0 text-muted-foreground/40 hover:text-red-500 disabled:opacity-20 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -477,7 +477,7 @@ function PreviewField({ field }: { field: FieldDraft }) {
       <div className="flex items-center gap-1.5">
         <label className="text-xs font-medium text-foreground">
           {field.label || <span className="text-muted-foreground/40">Unlabeled field</span>}
-          {field.required && <span className="text-red-400 ml-0.5">*</span>}
+          {field.required && <span className="text-red-500 ml-0.5">*</span>}
         </label>
         {isSensitive && (
           <Lock className="w-2.5 h-2.5 text-primary/60 shrink-0" />
@@ -515,7 +515,7 @@ function PreviewField({ field }: { field: FieldDraft }) {
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-foreground">
             Confirm {field.label || "field"}
-            {field.required && <span className="text-red-400 ml-0.5">*</span>}
+            {field.required && <span className="text-red-500 ml-0.5">*</span>}
           </label>
           <div className="flex h-9 w-full items-center rounded-lg border border-border/40 bg-card px-3 text-sm text-muted-foreground/40">
             {field.maskInput ? "••••••••" : `Re-enter ${(field.label || "value").toLowerCase()}`}

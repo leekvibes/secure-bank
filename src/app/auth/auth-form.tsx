@@ -93,27 +93,24 @@ export function AuthForm() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[hsl(222,30%,8%)] via-[hsl(220,25%,12%)] to-[hsl(218,30%,10%)] flex items-center justify-center px-4 py-12 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,hsl(220,80%,50%,0.08),transparent_60%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,hsl(220,70%,40%,0.05),transparent_50%)]" />
-
-      <div className="w-full max-w-md relative z-10 animate-fade-in">
+    <main className="min-h-screen bg-gradient-to-b from-[hsl(210,25%,97%)] to-[hsl(210,20%,94%)] flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md animate-fade-in">
         <Link href="/" className="flex items-center gap-3 justify-center mb-10 group">
-          <div className="w-10 h-10 bg-gradient-to-br from-primary to-blue-600 rounded-xl flex items-center justify-center shadow-glow transition-shadow duration-300 group-hover:shadow-[0_0_30px_-5px_hsl(220,80%,50%,0.3)]">
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-md">
             <Shield className="w-5 h-5 text-white" />
           </div>
-          <span className="text-lg font-semibold text-white tracking-tight">Agent Secure Links</span>
+          <span className="text-lg font-semibold text-foreground tracking-tight">Agent Secure Links</span>
         </Link>
 
-        <Card className="glass-card border-white/[0.08] bg-white/[0.03] backdrop-blur-2xl shadow-2xl shadow-black/20">
+        <Card className="shadow-lg border-border">
           <CardHeader className="text-center pb-2">
-            <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4 ring-1 ring-primary/20">
+            <div className="mx-auto w-12 h-12 rounded-full bg-primary/8 flex items-center justify-center mb-4 ring-1 ring-primary/15">
               <Lock className="w-5 h-5 text-primary" />
             </div>
-            <CardTitle className="text-xl text-white">
+            <CardTitle className="text-xl text-foreground">
               {mode === "signin" ? "Welcome back" : "Create your account"}
             </CardTitle>
-            <CardDescription className="text-blue-200/50">
+            <CardDescription>
               {mode === "signin"
                 ? "Sign in to your agent dashboard"
                 : "Start sending secure links to clients"}
@@ -121,7 +118,7 @@ export function AuthForm() {
           </CardHeader>
           <CardContent>
             {error && (
-              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-300">
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
                 {error}
               </div>
             )}
@@ -129,7 +126,7 @@ export function AuthForm() {
             {mode === "signin" ? (
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-blue-100/70">Email</Label>
+                  <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
                     name="email"
@@ -137,11 +134,10 @@ export function AuthForm() {
                     required
                     autoComplete="email"
                     placeholder="you@agency.com"
-                    className="bg-white/[0.05] border-white/[0.1] text-white placeholder:text-white/30 focus-visible:ring-primary/40 focus-visible:border-primary/40"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-blue-100/70">Password</Label>
+                  <Label htmlFor="password">Password</Label>
                   <Input
                     id="password"
                     name="password"
@@ -149,10 +145,9 @@ export function AuthForm() {
                     required
                     autoComplete="current-password"
                     placeholder="Enter your password"
-                    className="bg-white/[0.05] border-white/[0.1] text-white placeholder:text-white/30 focus-visible:ring-primary/40 focus-visible:border-primary/40"
                   />
                 </div>
-                <Button type="submit" className="w-full h-11 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 shadow-glow-sm text-white font-medium" disabled={loading}>
+                <Button type="submit" className="w-full h-11 font-medium" disabled={loading}>
                   {loading ? (
                     <span className="flex items-center gap-2">
                       <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -168,7 +163,7 @@ export function AuthForm() {
                 <div className="text-right">
                   <Link
                     href="/auth/reset"
-                    className="text-xs text-blue-300/60 hover:text-blue-300 transition-colors"
+                    className="text-xs text-primary hover:text-primary/80 transition-colors"
                   >
                     Forgot password?
                   </Link>
@@ -177,29 +172,27 @@ export function AuthForm() {
             ) : (
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="displayName" className="text-blue-100/70">Your name</Label>
+                  <Label htmlFor="displayName">Your name</Label>
                   <Input
                     id="displayName"
                     name="displayName"
                     required
                     placeholder="Alex Rivera"
-                    className="bg-white/[0.05] border-white/[0.1] text-white placeholder:text-white/30 focus-visible:ring-primary/40 focus-visible:border-primary/40"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="agencyName" className="text-blue-100/70">
+                  <Label htmlFor="agencyName">
                     Agency name{" "}
-                    <span className="text-white/30 font-normal">(optional)</span>
+                    <span className="text-muted-foreground font-normal">(optional)</span>
                   </Label>
                   <Input
                     id="agencyName"
                     name="agencyName"
                     placeholder="Rivera Financial Group"
-                    className="bg-white/[0.05] border-white/[0.1] text-white placeholder:text-white/30 focus-visible:ring-primary/40 focus-visible:border-primary/40"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-blue-100/70">Email</Label>
+                  <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
                     name="email"
@@ -207,11 +200,10 @@ export function AuthForm() {
                     required
                     autoComplete="email"
                     placeholder="you@agency.com"
-                    className="bg-white/[0.05] border-white/[0.1] text-white placeholder:text-white/30 focus-visible:ring-primary/40 focus-visible:border-primary/40"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-blue-100/70">Password</Label>
+                  <Label htmlFor="password">Password</Label>
                   <Input
                     id="password"
                     name="password"
@@ -220,10 +212,9 @@ export function AuthForm() {
                     autoComplete="new-password"
                     placeholder="At least 8 characters"
                     minLength={8}
-                    className="bg-white/[0.05] border-white/[0.1] text-white placeholder:text-white/30 focus-visible:ring-primary/40 focus-visible:border-primary/40"
                   />
                 </div>
-                <Button type="submit" className="w-full h-11 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 shadow-glow-sm text-white font-medium" disabled={loading}>
+                <Button type="submit" className="w-full h-11 font-medium" disabled={loading}>
                   {loading ? (
                     <span className="flex items-center gap-2">
                       <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -239,12 +230,12 @@ export function AuthForm() {
               </form>
             )}
 
-            <div className="mt-6 pt-4 border-t border-white/[0.06] text-center text-sm text-blue-200/40">
+            <div className="mt-6 pt-4 border-t border-border text-center text-sm text-muted-foreground">
               {mode === "signin" ? (
                 <>
                   Don&apos;t have an account?{" "}
                   <button
-                    className="text-primary hover:text-blue-400 font-medium transition-colors"
+                    className="text-primary hover:text-primary/80 font-medium transition-colors"
                     onClick={() => { setMode("signup"); setError(null); }}
                   >
                     Sign up
@@ -254,7 +245,7 @@ export function AuthForm() {
                 <>
                   Already have an account?{" "}
                   <button
-                    className="text-primary hover:text-blue-400 font-medium transition-colors"
+                    className="text-primary hover:text-primary/80 font-medium transition-colors"
                     onClick={() => { setMode("signin"); setError(null); }}
                   >
                     Sign in
@@ -265,7 +256,7 @@ export function AuthForm() {
           </CardContent>
         </Card>
 
-        <p className="mt-6 text-center text-xs text-white/20">
+        <p className="mt-6 text-center text-xs text-muted-foreground/60">
           Protected by end-to-end encryption
         </p>
       </div>

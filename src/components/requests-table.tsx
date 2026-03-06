@@ -47,14 +47,14 @@ const STATUS_CONFIG: Record<DisplayStatus, { label: string; dot: string; badge: 
   SENT:      { label: "Sent",      dot: "bg-primary",             badge: "bg-primary/10 text-primary ring-primary/20" },
   OPENED:    { label: "Opened",    dot: "bg-amber-400",           badge: "bg-amber-500/10 text-amber-500 ring-amber-500/20" },
   SUBMITTED: { label: "Submitted", dot: "bg-emerald-400",         badge: "bg-emerald-500/10 text-emerald-500 ring-emerald-500/20" },
-  EXPIRED:   { label: "Expired",   dot: "bg-red-400",             badge: "bg-red-500/10 text-red-400 ring-red-500/20" },
+  EXPIRED:   { label: "Expired",   dot: "bg-red-400",             badge: "bg-red-500/10 text-red-500 ring-red-500/20" },
 };
 
 const TYPE_META: Record<string, { icon: React.ComponentType<{ className?: string }>; bg: string }> = {
   BANKING_INFO: { icon: CreditCard,    bg: "bg-primary/10 text-primary" },
-  SSN_ONLY:     { icon: Shield,        bg: "bg-violet-500/10 text-violet-400" },
-  FULL_INTAKE:  { icon: ClipboardList, bg: "bg-emerald-500/10 text-emerald-400" },
-  ID_UPLOAD:    { icon: Camera,        bg: "bg-orange-500/10 text-orange-400" },
+  SSN_ONLY:     { icon: Shield,        bg: "bg-violet-500/10 text-violet-500" },
+  FULL_INTAKE:  { icon: ClipboardList, bg: "bg-emerald-500/10 text-emerald-500" },
+  ID_UPLOAD:    { icon: Camera,        bg: "bg-orange-500/10 text-orange-500" },
 };
 
 const FILTERS: { key: FilterTab; label: string }[] = [
@@ -479,7 +479,7 @@ function SendPanel({
           </Button>
         </div>
       )}
-      {error && <p className="mt-1.5 text-xs text-red-400">{error}</p>}
+      {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
     </div>
   );
 }
@@ -507,9 +507,9 @@ function RowAction({
     "flex items-center justify-center w-7 h-7 rounded-md transition-all duration-200",
     disabled && "opacity-40 pointer-events-none",
     danger
-      ? "text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+      ? "text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
       : active
-      ? "text-emerald-400 bg-emerald-500/10"
+      ? "text-emerald-600 bg-emerald-500/10"
       : "text-muted-foreground hover:text-foreground hover:bg-accent"
   );
 

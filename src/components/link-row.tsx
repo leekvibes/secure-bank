@@ -215,7 +215,7 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
                 {LINK_STATUS_LABELS[statusKey] ?? statusKey}
               </span>
               {hasViewed && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ring-1 ring-violet-500/20 bg-violet-500/10 text-violet-400">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ring-1 ring-violet-500/20 bg-violet-500/10 text-violet-500">
                   <Eye className="w-3 h-3" />
                   Viewed
                 </span>
@@ -239,7 +239,7 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
             {formatDate(link.createdAt)}
           </span>
           <span className="text-border select-none">|</span>
-          <span className={expired ? "flex items-center gap-1.5 text-red-400" : "flex items-center gap-1.5"}>
+          <span className={expired ? "flex items-center gap-1.5 text-red-500" : "flex items-center gap-1.5"}>
             <Clock className="w-3 h-3" />
             {expired ? "Expired" : "Expires"} {formatDate(link.expiresAt)}
           </span>
@@ -367,7 +367,7 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
               Share native
             </Button>
           </div>
-          {sendError && <p className="text-xs text-red-400 mt-1.5">{sendError}</p>}
+          {sendError && <p className="text-xs text-red-500 mt-1.5">{sendError}</p>}
         </div>
       )}
     </div>
@@ -397,9 +397,9 @@ function ActionBtn({
     "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 select-none",
     disabled && "opacity-50 pointer-events-none",
     danger
-      ? "text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+      ? "text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
       : active
-      ? "text-emerald-400 bg-emerald-500/10"
+      ? "text-emerald-600 bg-emerald-500/10"
       : "text-muted-foreground hover:text-foreground hover:bg-accent"
   );
 

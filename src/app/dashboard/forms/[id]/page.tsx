@@ -64,7 +64,7 @@ export default async function FormDetailPage({ params }: { params: { id: string 
           <h1 className="ui-page-title">{form.title}</h1>
           <span className={`mt-1 shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium ${
             form.status === "ACTIVE"
-              ? "bg-emerald-500/10 text-emerald-400"
+              ? "bg-emerald-500/10 text-emerald-600"
               : "bg-surface-2 text-muted-foreground"
           }`}>
             {form.status === "ACTIVE" ? "Active" : "Archived"}
@@ -117,7 +117,7 @@ export default async function FormDetailPage({ params }: { params: { id: string 
                     </span>
                   )}
                   {field.confirmField && (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">Confirm</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600">Confirm</span>
                   )}
                 </div>
               </div>
@@ -149,7 +149,7 @@ export default async function FormDetailPage({ params }: { params: { id: string 
                     }`}
                   >
                     <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                       <span className="text-sm font-medium text-foreground truncate">
                         {link.clientName ?? "Anonymous"}
                       </span>
@@ -161,11 +161,11 @@ export default async function FormDetailPage({ params }: { params: { id: string 
                     </div>
                     <div>
                       {link.submission?.viewedAt ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-purple-500/10 text-purple-400">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-purple-500/10 text-purple-600">
                           <Eye className="w-3 h-3" />Viewed
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-400">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-600">
                           New
                         </span>
                       )}
@@ -217,7 +217,7 @@ export default async function FormDetailPage({ params }: { params: { id: string 
                       expired
                         ? "bg-surface-2 text-muted-foreground"
                         : link.status === "OPENED"
-                        ? "bg-amber-500/10 text-amber-400"
+                        ? "bg-amber-500/10 text-amber-600"
                         : "bg-primary/10 text-primary"
                     }`}>
                       {expired ? "Expired" : link.status.charAt(0) + link.status.slice(1).toLowerCase()}

@@ -177,7 +177,7 @@ export default async function DashboardPage() {
           </div>
           <Link
             href="/dashboard/forms"
-            className="flex items-center gap-1.5 text-xs text-violet-500 hover:text-violet-400 font-semibold whitespace-nowrap transition-colors"
+            className="flex items-center gap-1.5 text-xs text-violet-600 hover:text-violet-500 font-semibold whitespace-nowrap transition-colors"
           >
             View forms
             <ArrowRight className="w-3.5 h-3.5" />

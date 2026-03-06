@@ -333,7 +333,7 @@ function SendPanel({
           </Button>
         </div>
       )}
-      {error && <p className="mt-1.5 text-xs text-red-400">{error}</p>}
+      {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
     </div>
   );
 }
@@ -363,9 +363,9 @@ function ActionButton({
         "flex items-center gap-3 w-full px-4 py-2.5 rounded-lg border text-sm font-medium transition-all duration-200",
         disabled && "opacity-50 pointer-events-none",
         danger
-          ? "border-border/60 text-red-400 hover:bg-red-500/10 hover:border-red-500/30"
+          ? "border-border/60 text-red-500 hover:bg-red-500/10 hover:border-red-500/30"
           : active
-          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600"
           : "border-border/60 text-foreground hover:bg-accent hover:border-primary/20"
       )}
     >

@@ -126,7 +126,7 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
               {LINK_STATUS_LABELS[link.status] ?? link.status}
             </span>
             {link.submission?.revealedAt && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium border bg-violet-500/10 text-violet-400 border-violet-500/20">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium border bg-violet-500/10 text-violet-500 border-violet-500/20">
                 <Eye className="w-3 h-3" />
                 Revealed
               </span>
@@ -149,14 +149,14 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
         <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
           {canAct && (
             <Button variant="outline" size="sm" onClick={handleShare} className="text-xs">
-              {shared ? <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
+              {shared ? <CheckCheck className="w-3.5 h-3.5 text-emerald-500" /> : <Share2 className="w-3.5 h-3.5" />}
               {shared ? "Shared" : "Share"}
             </Button>
           )}
           {canAct && (
             <Button variant="outline" size="sm" onClick={copyLink} className="text-xs">
               {copied ? (
-                <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />
               ) : (
                 <Copy className="w-3.5 h-3.5" />
               )}
@@ -187,7 +187,7 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
             size="sm"
             onClick={deleteLink}
             disabled={deleting}
-            className="text-xs text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+            className="text-xs text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
           >
             {deleting ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -227,7 +227,7 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
             </div>
           )}
           {smsError && (
-            <p className="text-xs text-red-400 mt-1">{smsError}</p>
+            <p className="text-xs text-red-500 mt-1">{smsError}</p>
           )}
         </div>
       )}

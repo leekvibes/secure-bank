@@ -84,7 +84,7 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
       {open && (
         <CardContent className="space-y-4">
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">{error}</div>
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-500">{error}</div>
           )}
 
           {generated ? (
@@ -103,7 +103,7 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
                     onClick={() => copy(generated.url, setCopied)}
                     className="shrink-0"
                   >
-                    {copied ? <CheckCheck className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                    {copied ? <CheckCheck className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                     {copied ? "Copied" : "Copy"}
                   </Button>
                 </div>
@@ -123,7 +123,7 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
                   className="w-full"
                   onClick={() => copy(generated.smsText, setCopiedSms)}
                 >
-                  {copiedSms ? <CheckCheck className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  {copiedSms ? <CheckCheck className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                   {copiedSms ? "Copied SMS" : "Copy SMS text"}
                 </Button>
               </div>

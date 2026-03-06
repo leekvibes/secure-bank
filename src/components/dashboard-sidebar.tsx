@@ -45,10 +45,10 @@ export function DashboardSidebar({ user }: Props) {
     <>
       <aside className="fixed inset-y-0 left-0 w-60 bg-sidebar-bg flex-col z-30 hidden lg:flex border-r border-sidebar-border">
         <div className="h-16 flex items-center px-5 border-b border-sidebar-border shrink-0">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/20">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary shadow-sm">
             <Lock className="w-4 h-4 text-white" />
           </div>
-          <span className="ml-2.5 font-semibold text-white tracking-tight text-sm">
+          <span className="ml-2.5 font-semibold text-foreground tracking-tight text-sm">
             SecureLink
           </span>
         </div>
@@ -73,7 +73,7 @@ export function DashboardSidebar({ user }: Props) {
                 <Icon
                   className={cn(
                     "w-4 h-4 shrink-0 transition-colors",
-                    active ? "text-sidebar-active" : "text-sidebar-fg group-hover:text-white"
+                    active ? "text-sidebar-active" : "text-sidebar-fg group-hover:text-foreground"
                   )}
                 />
                 {label}
@@ -84,19 +84,19 @@ export function DashboardSidebar({ user }: Props) {
 
         <div className="p-3 border-t border-sidebar-border shrink-0">
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0 ring-2 ring-sidebar-border">
+            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0 ring-1 ring-primary/20">
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate leading-tight">
+              <p className="text-sm font-medium text-foreground truncate leading-tight">
                 {user.name}
               </p>
-              <p className="text-xs text-sidebar-fg truncate">{user.email}</p>
+              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
             </div>
             <button
               onClick={() => signOut({ callbackUrl: "/" })}
               title="Sign out"
-              className="text-sidebar-fg hover:text-white transition-colors p-1 rounded-md hover:bg-sidebar-hover shrink-0"
+              className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted shrink-0"
             >
               <LogOut className="w-3.5 h-3.5" />
             </button>
@@ -107,18 +107,18 @@ export function DashboardSidebar({ user }: Props) {
       <header className="lg:hidden fixed top-0 inset-x-0 h-14 bg-sidebar-bg border-b border-sidebar-border z-30 flex items-center px-4 gap-3">
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
-          className="text-sidebar-fg hover:text-white p-1 rounded-md transition-colors shrink-0"
+          className="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors shrink-0"
         >
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-600 shrink-0">
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-primary shrink-0">
           <Lock className="w-3.5 h-3.5 text-white" />
         </div>
-        <span className="font-semibold text-white text-sm flex-1">SecureLink</span>
+        <span className="font-semibold text-foreground text-sm flex-1">SecureLink</span>
 
         <button
           onClick={() => signOut({ callbackUrl: "/" })}
-          className="text-sidebar-fg hover:text-white p-1.5 shrink-0 transition-colors"
+          className="text-muted-foreground hover:text-foreground p-1.5 shrink-0 transition-colors"
         >
           <LogOut className="w-4 h-4" />
         </button>
@@ -127,10 +127,10 @@ export function DashboardSidebar({ user }: Props) {
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-20">
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/20 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
           />
-          <nav className="absolute top-14 left-0 right-0 bg-sidebar-bg border-b border-sidebar-border p-3 space-y-0.5 animate-slide-up">
+          <nav className="absolute top-14 left-0 right-0 bg-sidebar-bg border-b border-sidebar-border p-3 space-y-0.5 animate-slide-up shadow-lg">
             {NAV.map(({ href, label, icon: Icon, exact }) => {
               const active = isActive(href, exact);
               return (
@@ -160,12 +160,12 @@ export function DashboardSidebar({ user }: Props) {
             })}
             <div className="pt-2 mt-2 border-t border-sidebar-border">
               <div className="flex items-center gap-3 px-3 py-2.5">
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                <div className="w-7 h-7 rounded-full bg-primary/10 text-primary font-bold text-[10px] flex items-center justify-center shrink-0">
                   {initials}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{user.name}</p>
-                  <p className="text-xs text-sidebar-fg truncate">{user.email}</p>
+                  <p className="text-sm font-medium text-foreground truncate">{user.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                 </div>
               </div>
             </div>

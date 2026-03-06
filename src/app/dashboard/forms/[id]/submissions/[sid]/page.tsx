@@ -87,7 +87,7 @@ export default async function FormSubmissionPage({
       <div className="flex items-center gap-4 text-xs text-muted-foreground">
         <span>Submitted {formatDate(submission.createdAt)}</span>
         {submission.viewedAt && (
-          <span className="flex items-center gap-1 text-purple-400">
+          <span className="flex items-center gap-1 text-purple-600">
             <Eye className="w-3 h-3" />Viewed {formatDate(submission.viewedAt)}
           </span>
         )}

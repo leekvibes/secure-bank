@@ -20,6 +20,7 @@ model User {
   agentSlug         String   @unique
   // Branding
   logoUrl           String?  // base64 data URI
+  photoUrl          String?  // base64 data URI for agent profile photo
   // Onboarding / context
   industry          String?
   destinationLabel  String?  // e.g. "EverQuote", "Carrier Application"

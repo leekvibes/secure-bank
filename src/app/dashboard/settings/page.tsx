@@ -25,6 +25,7 @@ export default async function SettingsPage() {
       agentSlug: true,
       email: true,
       logoUrl: true,
+      photoUrl: true,
       industry: true,
       destinationLabel: true,
       carriersList: true,

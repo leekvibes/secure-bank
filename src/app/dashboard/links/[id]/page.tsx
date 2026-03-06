@@ -33,21 +33,21 @@ function getDisplayStatus(link: {
 }
 
 const STATUS_CONFIG: Record<DisplayStatus, { label: string; dot: string; badge: string }> = {
-  DRAFT:     { label: "Draft",     dot: "bg-slate-400",   badge: "bg-slate-500/20 text-slate-300 ring-slate-500/30" },
-  SENT:      { label: "Sent",      dot: "bg-blue-500",    badge: "bg-blue-500/20 text-blue-300 ring-blue-500/30" },
-  OPENED:    { label: "Opened",    dot: "bg-amber-500",   badge: "bg-amber-500/20 text-amber-300 ring-amber-500/30" },
-  SUBMITTED: { label: "Submitted", dot: "bg-emerald-500", badge: "bg-emerald-500/20 text-emerald-300 ring-emerald-500/30" },
-  EXPIRED:   { label: "Expired",   dot: "bg-red-400",     badge: "bg-red-500/20 text-red-300 ring-red-500/30" },
+  DRAFT:     { label: "Draft",     dot: "bg-muted-foreground/40", badge: "bg-muted/60 text-muted-foreground ring-border/40" },
+  SENT:      { label: "Sent",      dot: "bg-primary",             badge: "bg-primary/10 text-primary ring-primary/20" },
+  OPENED:    { label: "Opened",    dot: "bg-amber-500",           badge: "bg-amber-500/10 text-amber-600 ring-amber-500/20" },
+  SUBMITTED: { label: "Submitted", dot: "bg-emerald-500",         badge: "bg-emerald-500/10 text-emerald-600 ring-emerald-500/20" },
+  EXPIRED:   { label: "Expired",   dot: "bg-red-400",             badge: "bg-red-500/10 text-red-500 ring-red-500/20" },
 };
 
 const TYPE_META: Record<string, {
   icon: React.ComponentType<{ className?: string }>;
   bg: string; iconColor: string; border: string;
 }> = {
-  BANKING_INFO: { icon: CreditCard,    bg: "bg-blue-500/10",    iconColor: "text-blue-400",   border: "border-blue-500/20" },
-  SSN_ONLY:     { icon: Shield,        bg: "bg-violet-500/10",  iconColor: "text-violet-400", border: "border-violet-500/20" },
-  FULL_INTAKE:  { icon: ClipboardList, bg: "bg-emerald-500/10", iconColor: "text-emerald-400",border: "border-emerald-500/20" },
-  ID_UPLOAD:    { icon: Camera,        bg: "bg-orange-500/10",  iconColor: "text-orange-400", border: "border-orange-500/20" },
+  BANKING_INFO: { icon: CreditCard,    bg: "bg-blue-500/10",    iconColor: "text-blue-500",    border: "border-blue-500/20" },
+  SSN_ONLY:     { icon: Shield,        bg: "bg-violet-500/10",  iconColor: "text-violet-500",  border: "border-violet-500/20" },
+  FULL_INTAKE:  { icon: ClipboardList, bg: "bg-emerald-500/10", iconColor: "text-emerald-500", border: "border-emerald-500/20" },
+  ID_UPLOAD:    { icon: Camera,        bg: "bg-orange-500/10",  iconColor: "text-orange-500",  border: "border-orange-500/20" },
 };
 
 export default async function LinkDetailPage({ params }: { params: { id: string } }) {
@@ -341,7 +341,7 @@ export default async function LinkDetailPage({ params }: { params: { id: string 
                 {[...link.sends].reverse().map((send) => (
                   <div key={send.id} className="flex items-start gap-3">
                     <div className="w-7 h-7 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Send className="w-3 h-3 text-blue-400" />
+                      <Send className="w-3 h-3 text-blue-500" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground">
@@ -375,7 +375,7 @@ function MetaItem({
   danger?: boolean;
 }) {
   return (
-    <div className={cn("flex items-center gap-1.5 text-sm", danger ? "text-red-400" : "text-muted-foreground")}>
+    <div className={cn("flex items-center gap-1.5 text-sm", danger ? "text-red-500" : "text-muted-foreground")}>
       <Icon className="w-3.5 h-3.5 shrink-0" />
       <span>{label}</span>
     </div>

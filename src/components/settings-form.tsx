@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ExternalLink, Upload, X, Loader2 } from "lucide-react";
+import { ExternalLink, Upload, X, Loader2, UserCircle } from "lucide-react";
 
 interface Props {
   user: {
@@ -19,6 +19,7 @@ interface Props {
     agentSlug: string;
     email: string;
     logoUrl: string | null;
+    photoUrl: string | null;
     industry: string | null;
     destinationLabel: string | null;
     carriersList: string | null;
@@ -31,12 +32,16 @@ interface Props {
 export function SettingsForm({ user }: Props) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string | null>(user.logoUrl);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [currentPhotoUrl, setCurrentPhotoUrl] = useState<string | null>(user.photoUrl);
 
   const [form, setForm] = useState({
     displayName: user.displayName,
@@ -112,6 +117,41 @@ export function SettingsForm({ user }: Props) {
     router.refresh();
   }
 
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 512 * 1024) {
+      setPhotoError("Photo must be under 512 KB.");
+      return;
+    }
+
+    setPhotoUploading(true);
+    setPhotoError(null);
+
+    const fd = new FormData();
+    fd.append("photo", file);
+
+    const res = await fetch("/api/agent/photo", { method: "POST", body: fd });
+    const data = await res.json();
+    setPhotoUploading(false);
+
+    if (!res.ok) {
+      setPhotoError(data.error ?? "Upload failed.");
+      return;
+    }
+
+    setCurrentPhotoUrl(data.photoUrl);
+    router.refresh();
+  }
+
+  async function handlePhotoDelete() {
+    setPhotoUploading(true);
+    await fetch("/api/agent/photo", { method: "DELETE" });
+    setCurrentPhotoUrl(null);
+    setPhotoUploading(false);
+    router.refresh();
+  }
+
   const verifyUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/verify/${user.agentSlug}`
@@ -128,15 +168,65 @@ export function SettingsForm({ user }: Props) {
         </CardHeader>
         <CardContent>
           {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-500">
               {error}
             </div>
           )}
           {success && (
-            <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-sm text-emerald-400">
+            <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-sm text-emerald-600">
               Settings saved.
             </div>
           )}
+          <div className="mb-6 space-y-2">
+            <Label>Profile Photo</Label>
+            <p className="text-xs text-muted-foreground">Displayed to clients on secure forms</p>
+            {photoError && (
+              <p className="text-sm text-red-500">{photoError}</p>
+            )}
+            {currentPhotoUrl ? (
+              <div className="flex items-center gap-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={currentPhotoUrl}
+                  alt="Profile photo"
+                  className="h-16 w-16 object-cover rounded-full border border-border/40"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePhotoDelete}
+                  disabled={photoUploading}
+                  className="text-red-500 hover:bg-red-500/10 hover:border-red-500/30"
+                >
+                  {photoUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                  Remove
+                </Button>
+              </div>
+            ) : (
+              <div>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={handlePhotoUpload}
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={photoUploading}
+                >
+                  {photoUploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <UserCircle className="w-4 h-4" />
+                  )}
+                  {photoUploading ? "Uploading..." : "Upload photo"}
+                </Button>
+                <p className="text-xs text-muted-foreground mt-1.5">PNG, JPG, or WebP · Max 512 KB</p>
+              </div>
+            )}
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <Label>Email</Label>
@@ -224,7 +314,7 @@ export function SettingsForm({ user }: Props) {
         </CardHeader>
         <CardContent className="space-y-4">
           {logoError && (
-            <p className="text-sm text-red-400">{logoError}</p>
+            <p className="text-sm text-red-500">{logoError}</p>
           )}
           {currentLogoUrl ? (
             <div className="flex items-center gap-4">
@@ -239,7 +329,7 @@ export function SettingsForm({ user }: Props) {
                 size="sm"
                 onClick={handleLogoDelete}
                 disabled={logoUploading}
-                className="text-red-400 hover:bg-red-500/10 hover:border-red-500/30"
+                className="text-red-500 hover:bg-red-500/10 hover:border-red-500/30"
               >
                 {logoUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
                 Remove

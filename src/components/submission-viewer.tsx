@@ -127,7 +127,7 @@ export function SubmissionViewer({
         </Button>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleShare}>
-            {shared ? <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
+            {shared ? <CheckCheck className="w-3.5 h-3.5 text-emerald-500" /> : <Share2 className="w-3.5 h-3.5" />}
             {shared ? "Shared" : "Share"}
           </Button>
           <Button variant="outline" size="sm" asChild>
@@ -147,7 +147,7 @@ export function SubmissionViewer({
             size="sm"
             onClick={handleDelete}
             disabled={deleting}
-            className="text-red-400 hover:bg-red-500/10 hover:border-red-500/30"
+            className="text-red-500 hover:bg-red-500/10 hover:border-red-500/30"
           >
             <Trash2 className="w-3.5 h-3.5" />
             Delete
@@ -186,7 +186,7 @@ export function SubmissionViewer({
           )}
           {revealed && fields ? (
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2.5 text-sm">
+              <div className="flex items-center gap-2 text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2.5 text-sm">
                 <Eye className="w-4 h-4 shrink-0" />
                 <span>Data decrypted successfully.</span>
               </div>
@@ -224,7 +224,7 @@ export function SubmissionViewer({
                 </p>
               </div>
               {error && (
-                <p className="text-sm text-red-400">{error}</p>
+                <p className="text-sm text-red-500">{error}</p>
               )}
               <Button onClick={revealData} disabled={loading}>
                 <Eye className="w-4 h-4" />

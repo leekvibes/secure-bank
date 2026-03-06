@@ -147,7 +147,7 @@ export function BrandingSelector({ selectedIds, onChange, agentName }: Props) {
           )}
 
           {uploadError && (
-            <p className="text-xs text-red-400">{uploadError}</p>
+            <p className="text-xs text-red-500">{uploadError}</p>
           )}
 
           {assets.length > 0 && (

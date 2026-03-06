@@ -4,37 +4,37 @@
 
 @layer base {
   :root {
-    --background: 222 30% 8%;
-    --foreground: 210 20% 90%;
-    --card: 222 25% 12%;
-    --card-foreground: 210 20% 90%;
-    --popover: 222 25% 12%;
-    --popover-foreground: 210 20% 90%;
-    --primary: 220 80% 55%;
+    --background: 210 25% 97%;
+    --foreground: 215 25% 17%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 17%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 17%;
+    --primary: 214 65% 52%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 222 20% 18%;
-    --secondary-foreground: 210 15% 80%;
-    --muted: 222 20% 16%;
-    --muted-foreground: 215 15% 55%;
-    --accent: 222 20% 18%;
-    --accent-foreground: 210 15% 80%;
+    --secondary: 210 20% 94%;
+    --secondary-foreground: 215 20% 35%;
+    --muted: 210 18% 93%;
+    --muted-foreground: 215 12% 50%;
+    --accent: 210 20% 94%;
+    --accent-foreground: 215 20% 35%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 222 15% 20%;
-    --input: 222 15% 18%;
-    --ring: 220 80% 55%;
+    --border: 214 15% 88%;
+    --input: 214 15% 88%;
+    --ring: 214 65% 52%;
     --radius: 0.625rem;
 
-    --sidebar-bg: 222 30% 8%;
-    --sidebar-fg: 220 15% 65%;
-    --sidebar-active: 220 80% 55%;
-    --sidebar-hover: 222 25% 14%;
-    --sidebar-border: 222 15% 16%;
+    --sidebar-bg: 0 0% 100%;
+    --sidebar-fg: 215 15% 45%;
+    --sidebar-active: 214 65% 52%;
+    --sidebar-hover: 210 20% 96%;
+    --sidebar-border: 214 15% 90%;
 
-    --surface-0: 222 30% 8%;
-    --surface-1: 222 25% 12%;
-    --surface-2: 222 20% 15%;
-    --glow-primary: 220 80% 55%;
+    --surface-0: 210 25% 97%;
+    --surface-1: 0 0% 100%;
+    --surface-2: 210 18% 95%;
+    --glow-primary: 214 65% 52%;
   }
 
   * {
@@ -57,23 +57,23 @@
   }
 
   .ui-table-wrap {
-    @apply overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm;
+    @apply overflow-hidden rounded-xl border border-border bg-card shadow-sm;
   }
 
   .ui-table-header {
-    @apply sticky top-0 z-10 bg-surface-2/90 backdrop-blur supports-[backdrop-filter]:bg-surface-2/80;
+    @apply sticky top-0 z-10 bg-surface-2 backdrop-blur supports-[backdrop-filter]:bg-surface-2/90;
   }
 
   .ui-table-row {
-    @apply transition-colors duration-150 hover:bg-surface-2/50;
+    @apply transition-colors duration-150 hover:bg-surface-2/60;
   }
 
   .glass-card {
-    @apply bg-card/80 backdrop-blur-xl border border-border/40 shadow-sm;
+    @apply bg-card border border-border shadow-sm;
   }
 
   .stat-card {
-    @apply relative overflow-hidden rounded-xl border border-border/40 bg-card p-5 transition-all duration-200 hover:border-primary/20 hover:shadow-md;
+    @apply relative overflow-hidden rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:border-primary/30 hover:shadow-md;
   }
 
   .nav-item {
@@ -81,11 +81,13 @@
   }
 
   .nav-item-active {
-    @apply bg-[hsl(var(--sidebar-active))]/10 text-[hsl(var(--sidebar-active))];
+    background-color: hsl(var(--sidebar-active) / 0.08);
+    color: hsl(var(--sidebar-active));
+    @apply font-semibold;
   }
 
   .nav-item-inactive {
-    @apply text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-hover))] hover:text-white;
+    @apply text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-hover))] hover:text-foreground;
   }
 }
 

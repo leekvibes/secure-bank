@@ -82,7 +82,7 @@ export function IdUploadViewer({ upload, auditLogs }: Props) {
           size="sm"
           onClick={handleDelete}
           disabled={deleting}
-          className="text-red-400 hover:bg-red-500/10 hover:border-red-500/30"
+          className="text-red-500 hover:bg-red-500/10 hover:border-red-500/30"
         >
           {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
           Delete
@@ -111,7 +111,7 @@ export function IdUploadViewer({ upload, auditLogs }: Props) {
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
-            <p className="text-sm text-red-400">{error}</p>
+            <p className="text-sm text-red-500">{error}</p>
           )}
 
           <div className="space-y-2">

@@ -103,7 +103,7 @@ export default async function FormsPage() {
               <div className="hidden sm:block">
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
                   form.status === "ACTIVE"
-                    ? "bg-emerald-500/10 text-emerald-400"
+                    ? "bg-emerald-500/10 text-emerald-600"
                     : "bg-surface-2 text-muted-foreground"
                 }`}>
                   {form.status === "ACTIVE" ? "Active" : "Archived"}
