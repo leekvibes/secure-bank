@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
@@ -5,12 +6,17 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, CreditCard, Shield, ClipboardList, Camera, ImageIcon,
-  CheckCircle2, Clock, Send, Eye, Building2, Calendar, AlertCircle,
-  Plus, Download, Trash2,
+  Clock, Send, Eye, Building2, Calendar,
+  Download,
 } from "lucide-react";
 import { cn, LINK_TYPES, formatDate, isExpired, type LinkType } from "@/lib/utils";
 import { RequestActions } from "@/components/request-actions";
 import { isTwilioConfigured } from "@/lib/sms";
+import { buildRequestTimeline } from "@/lib/request-timeline";
+
+export const metadata: Metadata = {
+  title: "Request Details",
+};
 
 // ── Status ───────────────────────────────────────────────────────────────────
 
@@ -47,62 +53,6 @@ const TYPE_META: Record<string, {
   FULL_INTAKE:  { icon: ClipboardList, bg: "bg-emerald-50", iconColor: "text-emerald-600",border: "border-emerald-100" },
   ID_UPLOAD:    { icon: Camera,        bg: "bg-orange-50",  iconColor: "text-orange-600", border: "border-orange-100" },
 };
-
-// ── Timeline ─────────────────────────────────────────────────────────────────
-
-type TimelineEvent = {
-  id: string;
-  label: string;
-  sublabel?: string;
-  time: Date;
-  iconBg: string;
-  iconColor: string;
-  icon: React.ComponentType<{ className?: string }>;
-};
-
-// Audit events to skip (sends table covers these)
-const SKIP_EVENTS = new Set(["LINK_SENT"]);
-
-const AUDIT_CONFIG: Record<string, Omit<TimelineEvent, "id" | "time" | "sublabel">> = {
-  LINK_CREATED:  { label: "Request created",       icon: Plus,         iconBg: "bg-slate-100",   iconColor: "text-slate-500" },
-  LINK_OPENED:   { label: "Opened by client",      icon: Eye,          iconBg: "bg-amber-100",   iconColor: "text-amber-600" },
-  SSN_OPENED:    { label: "Opened by client",      icon: Eye,          iconBg: "bg-amber-100",   iconColor: "text-amber-600" },
-  SUBMITTED:     { label: "Form submitted",         icon: CheckCircle2, iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
-  SSN_SUBMITTED: { label: "SSN submitted",          icon: CheckCircle2, iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
-  REVEALED:      { label: "Data revealed by agent", icon: Eye,          iconBg: "bg-blue-100",    iconColor: "text-blue-600" },
-  SSN_REVEALED:  { label: "SSN revealed by agent",  icon: Eye,          iconBg: "bg-blue-100",    iconColor: "text-blue-600" },
-  EXPORTED:      { label: "Data exported",          icon: Download,     iconBg: "bg-blue-100",    iconColor: "text-blue-600" },
-  EXPIRED:       { label: "Link expired",           icon: AlertCircle,  iconBg: "bg-red-100",     iconColor: "text-red-500" },
-  DELETED:       { label: "Submission deleted",     icon: Trash2,       iconBg: "bg-red-100",     iconColor: "text-red-500" },
-};
-
-function buildTimeline(
-  auditLogs: { id: string; event: string; createdAt: Date }[],
-  sends: { id: string; method: string; recipient: string; createdAt: Date }[]
-): TimelineEvent[] {
-  const events: TimelineEvent[] = [];
-
-  for (const log of auditLogs) {
-    if (SKIP_EVENTS.has(log.event)) continue;
-    const cfg = AUDIT_CONFIG[log.event];
-    if (!cfg) continue;
-    events.push({ id: `audit-${log.id}`, ...cfg, time: log.createdAt });
-  }
-
-  for (const send of sends) {
-    events.push({
-      id: `send-${send.id}`,
-      label: `Sent via ${send.method === "SMS" ? "SMS" : send.method === "EMAIL" ? "email" : "link copy"}`,
-      sublabel: send.recipient !== "clipboard" ? `To: ${send.recipient}` : undefined,
-      time: send.createdAt,
-      iconBg: "bg-blue-100",
-      iconColor: "text-blue-600",
-      icon: Send,
-    });
-  }
-
-  return events.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
-}
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
@@ -142,7 +92,7 @@ export default async function LinkDetailPage({ params }: { params: { id: string 
   const TypeIcon = typeMeta.icon;
   const typeLabel = LINK_TYPES[link.linkType as LinkType] ?? link.linkType;
   const expired = isExpired(link.expiresAt);
-  const timeline = buildTimeline(auditLogs, link.sends);
+  const timeline = buildRequestTimeline(auditLogs, link.sends);
 
   return (
     <div className="space-y-6 max-w-[1080px]">
@@ -403,11 +353,13 @@ export default async function LinkDetailPage({ params }: { params: { id: string 
           </div>
 
           {/* Send history card */}
-          {link.sends.length > 0 && (
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm shadow-slate-200/40 p-5">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-4">
-                Send history · {link.sends.length}
-              </h3>
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm shadow-slate-200/40 p-5">
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-4">
+              Send history · {link.sends.length}
+            </h3>
+            {link.sends.length === 0 ? (
+              <p className="text-sm text-slate-400">No sends recorded yet.</p>
+            ) : (
               <div className="space-y-3">
                 {[...link.sends].reverse().map((send) => (
                   <div key={send.id} className="flex items-start gap-3">
@@ -428,8 +380,8 @@ export default async function LinkDetailPage({ params }: { params: { id: string 
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { db } from "@/lib/db";
-import { deriveRequestStatus, listRequestRows } from "@/lib/requests";
+import { deriveRequestStatus, latestSentAt, listRequestRows } from "@/lib/requests";
 
 function uniqueEmail(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
@@ -35,6 +35,15 @@ test("request status derivation covers draft/sent/opened/submitted/expired", () 
     "SUBMITTED"
   );
   assert.equal(deriveRequestStatus({ expiresAt: past, now }), "EXPIRED");
+});
+
+test("latestSentAt returns most recent send or null", () => {
+  const older = new Date("2026-03-06T01:00:00.000Z");
+  const newer = new Date("2026-03-06T02:00:00.000Z");
+
+  assert.equal(latestSentAt(undefined), null);
+  assert.equal(latestSentAt([]), null);
+  assert.equal(latestSentAt([{ createdAt: older }, { createdAt: newer }])?.toISOString(), newer.toISOString());
 });
 
 test("request index includes id uploads and uses latest send timestamp", async () => {

@@ -10,3 +10,8 @@ test("id upload download ownership protection returns forbidden for non-owner", 
     assert.equal(result.message, "Forbidden.");
   }
 });
+
+test("id upload download ownership protection allows owner", () => {
+  const result = getIdUploadAccessResult("agent_owner", "agent_owner");
+  assert.deepEqual(result, { allowed: true });
+});

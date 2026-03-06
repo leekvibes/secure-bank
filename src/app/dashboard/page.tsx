@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
@@ -6,6 +7,10 @@ import Link from "next/link";
 import { Plus, Link2, Clock, CheckCircle2, FileText, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LinkRow } from "@/components/link-row";
+
+export const metadata: Metadata = {
+  title: "Overview",
+};
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);

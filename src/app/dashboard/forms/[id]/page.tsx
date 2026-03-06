@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
@@ -7,6 +8,10 @@ import { ArrowLeft, Lock, CheckCircle2, Clock, Eye, ExternalLink } from "lucide-
 import { Button } from "@/components/ui/button";
 import { formatDate, isExpired } from "@/lib/utils";
 import { FormLinkGenerator } from "@/components/form-link-generator";
+
+export const metadata: Metadata = {
+  title: "Form Details",
+};
 
 export default async function FormDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);

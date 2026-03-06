@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { isExpired } from "@/lib/utils";
 import { notFound } from "next/navigation";
@@ -6,6 +7,9 @@ import type { FormFieldType } from "@/lib/schemas";
 import { ensureLegacyLogoAsset, toAssetRenderEntry } from "@/lib/asset-library";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "Secure Form Submission",
+};
 
 interface Props {
   params: { token: string };

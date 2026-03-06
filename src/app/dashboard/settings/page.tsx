@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { SettingsForm } from "@/components/settings-form";
+
+export const metadata: Metadata = {
+  title: "Settings",
+};
 
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions);

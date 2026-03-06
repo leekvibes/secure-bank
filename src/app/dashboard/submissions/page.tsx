@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
@@ -5,6 +6,10 @@ import Link from "next/link";
 import { Inbox, Eye, ChevronRight } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { buildSubmissionsIndex } from "@/lib/submissions-index";
+
+export const metadata: Metadata = {
+  title: "Submissions",
+};
 
 export default async function SubmissionsPage() {
   const session = await getServerSession(authOptions);

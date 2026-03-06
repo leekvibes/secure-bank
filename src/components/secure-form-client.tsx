@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { CheckCircle2, Upload, X } from "lucide-react";
+import { CheckCircle2, Loader2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,6 +81,7 @@ export function SecureFormClient({
   const [showConfirmAccount, setShowConfirmAccount] = useState(false);
   const frontRef = useRef<HTMLInputElement>(null);
   const backRef = useRef<HTMLInputElement>(null);
+  const submitLockRef = useRef(false);
   const middleInitialEnabled =
     linkType === "BANKING_INFO" &&
     (Boolean(linkOptions?.middleInitialEnabled) || Boolean(linkOptions?.requireMiddleInitial));
@@ -123,6 +124,8 @@ export function SecureFormClient({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading || submitted || submitLockRef.current) return;
+    submitLockRef.current = true;
     setLoading(true);
     setError(null);
     setFieldErrors({});
@@ -177,12 +180,13 @@ export function SecureFormClient({
     });
 
     const data = await res.json();
-    setLoading(false);
 
     if (!res.ok) {
       const parsedFieldErrors = getFieldErrors(data);
       if (Object.keys(parsedFieldErrors).length > 0) setFieldErrors(parsedFieldErrors);
       setError(getErrorMessage(data, "Submission failed. Please try again."));
+      setLoading(false);
+      submitLockRef.current = false;
       return;
     }
     setSubmitted(true);
@@ -192,11 +196,13 @@ export function SecureFormClient({
     if (!frontFile) {
       setFieldErrors({ front: "Front of ID is required." });
       setLoading(false);
+      submitLockRef.current = false;
       return;
     }
     if (!fields.consent) {
       setFieldErrors({ consent: "You must consent to submit." });
       setLoading(false);
+      submitLockRef.current = false;
       return;
     }
 
@@ -210,10 +216,11 @@ export function SecureFormClient({
     });
 
     const data = await res.json();
-    setLoading(false);
 
     if (!res.ok) {
       setError(getErrorMessage(data, "Upload failed. Please try again."));
+      setLoading(false);
+      submitLockRef.current = false;
       return;
     }
     setSubmitted(true);
@@ -644,7 +651,14 @@ export function SecureFormClient({
                 className="w-full h-12 text-base font-semibold"
                 disabled={loading || !fields.consent || ssnMismatch || accountMismatch}
               >
-                {loading ? "Submitting..." : "Submit securely"}
+                {loading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Submitting...
+                  </span>
+                ) : (
+                  "Submit securely"
+                )}
               </Button>
 
               <p className="text-xs text-slate-400 text-center leading-relaxed">

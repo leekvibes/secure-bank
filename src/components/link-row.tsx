@@ -20,6 +20,7 @@ import {
 } from "@/lib/utils";
 import { shareLink } from "@/lib/share";
 import { buildTrustMessage } from "@/lib/link-message";
+import { toast } from "@/components/ui/use-toast";
 
 interface LinkRowProps {
   link: {
@@ -61,9 +62,23 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
       : `/secure/${link.token}`;
 
   function copyLink() {
-    navigator.clipboard.writeText(secureUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard
+      .writeText(secureUrl)
+      .then(() => {
+        setCopied(true);
+        toast({
+          title: "Link copied",
+          description: "Secure link copied to clipboard.",
+        });
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {
+        toast({
+          title: "Clipboard failed",
+          description: "Unable to copy link in this browser.",
+          variant: "destructive",
+        });
+      });
   }
 
   async function handleShare() {
@@ -97,7 +112,18 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
         : "clipboard";
 
     if (sendMethod === "COPY") {
-      await navigator.clipboard.writeText(sendMessage);
+      try {
+        await navigator.clipboard.writeText(sendMessage);
+      } catch {
+        setSending(false);
+        setSendError("Unable to copy message in this browser.");
+        toast({
+          title: "Clipboard failed",
+          description: "Unable to copy message in this browser.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     const res = await fetch(`/api/links/${link.id}/send`, {
@@ -114,6 +140,10 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
     if (!res.ok) {
       setSendError(data.error?.message ?? data.error ?? "Failed to send.");
     } else {
+      toast({
+        title: sendMethod === "SMS" ? "SMS sent" : sendMethod === "EMAIL" ? "Email sent" : "Link copied",
+        description: sendMethod === "COPY" ? "Message copied to clipboard." : "Link sent successfully.",
+      });
       setSendSuccess(true);
       setTimeout(() => {
         setShowSend(false);
@@ -126,8 +156,21 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
   async function deleteLink() {
     if (!confirm("Delete this link? This cannot be undone.")) return;
     setDeleting(true);
-    await fetch(`/api/links/${link.id}`, { method: "DELETE" });
-    router.refresh();
+    try {
+      const res = await fetch(`/api/links/${link.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast({
+          title: "Delete failed",
+          description: data.error ?? "Failed to delete link.",
+          variant: "destructive",
+        });
+        return;
+      }
+      router.refresh();
+    } finally {
+      setDeleting(false);
+    }
   }
 
   const expired = isExpired(link.expiresAt);

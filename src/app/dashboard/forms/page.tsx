@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
@@ -5,6 +6,10 @@ import Link from "next/link";
 import { Plus, FileText, Archive, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
+
+export const metadata: Metadata = {
+  title: "Forms",
+};
 
 export default async function FormsPage() {
   const session = await getServerSession(authOptions);

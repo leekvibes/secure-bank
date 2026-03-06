@@ -1,7 +1,15 @@
+import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { redirect } from "next/navigation";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
+
+export const metadata: Metadata = {
+  title: {
+    default: "Dashboard | Agent Secure Links",
+    template: "%s | Agent Secure Links",
+  },
+};
 
 export default async function DashboardLayout({
   children,

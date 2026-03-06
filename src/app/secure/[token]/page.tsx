@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { isExpired } from "@/lib/utils";
@@ -11,6 +12,9 @@ interface Props {
 }
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "Secure Submission",
+};
 
 export default async function SecurePage({ params }: Props) {
   const link = await db.secureLink.findUnique({
