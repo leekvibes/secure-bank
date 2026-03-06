@@ -34,6 +34,10 @@ export async function GET(
   }
 
   const filePath = side === "back" ? upload.backFilePath : upload.frontFilePath;
+  const originalName =
+    side === "back" ? upload.backOriginalName : upload.frontOriginalName;
+  const storedMimeType =
+    side === "back" ? upload.backMimeType : upload.frontMimeType;
   if (!filePath) {
     return NextResponse.json({ error: "File not available." }, { status: 404, headers: NO_STORE_HEADERS });
   }
@@ -63,15 +67,28 @@ export async function GET(
     metadata: { side, uploadId: upload.id, viewCount: upload.viewCount + 1 },
   });
 
-  const mimeType = detectFileMimeType(fileData);
+  const detectedMime = detectFileMimeType(fileData);
+  const mimeType = storedMimeType || detectedMime;
+  const allowedMimeTypes = new Set(["image/jpeg", "image/png", "application/pdf"]);
+  if (!allowedMimeTypes.has(mimeType)) {
+    return NextResponse.json(
+      { error: "Unsupported file type." },
+      { status: 415, headers: NO_STORE_HEADERS }
+    );
+  }
   const ext = fileExtensionFromMimeType(mimeType);
   const disposition = download ? "attachment" : "inline";
+  const sanitizedOriginal =
+    originalName?.replace(/[^a-zA-Z0-9._-]/g, "_") || `id-${side}.${ext}`;
+  const filename = sanitizedOriginal.includes(".")
+    ? sanitizedOriginal
+    : `${sanitizedOriginal}.${ext}`;
 
   return new NextResponse(fileData as unknown as BodyInit, {
     headers: {
       ...NO_STORE_HEADERS,
       "Content-Type": mimeType,
-      "Content-Disposition": `${disposition}; filename="id-${side}.${ext}"`,
+      "Content-Disposition": `${disposition}; filename="${filename}"`,
     },
   });
 }

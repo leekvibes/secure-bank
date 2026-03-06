@@ -90,13 +90,19 @@ export async function POST(req: NextRequest) {
         linkId: link.id,
         agentId: link.agentId,
         frontFilePath,
+        frontOriginalName: frontFile.name || null,
+        frontMimeType: frontFile.type || null,
         backFilePath: backFilePath ?? null,
+        backOriginalName:
+          backFile && typeof backFile !== "string" ? backFile.name || null : null,
+        backMimeType:
+          backFile && typeof backFile !== "string" ? backFile.type || null : null,
         deleteAt,
       },
     }),
     db.secureLink.update({
       where: { id: link.id },
-      data: { status: "SUBMITTED" },
+      data: { status: "SUBMITTED", submittedAt: new Date() },
     }),
   ]);
 
