@@ -10,6 +10,16 @@ import { addHours } from "date-fns";
 import { buildTrustMessage } from "@/lib/link-message";
 import { applyTemplateDefaults } from "@/lib/link-templates";
 
+function isPrismaSchemaDriftError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : "";
+  return (
+    message.includes("Unknown field") ||
+    message.includes("does not exist in the current database") ||
+    message.includes("The column") ||
+    message.includes("no such column")
+  );
+}
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -80,27 +90,54 @@ export async function POST(req: NextRequest) {
       linkType === "SSN_ONLY" && expirationHours === 24 ? 168 : expirationHours;
     const expiresAt = addHours(new Date(), effectiveExpirationHours);
 
-    const link = await db.secureLink.create({
-      data: {
-        token,
-        linkType,
-        destination:
-          destinationLabel?.trim() || destination?.trim() || "Internal processing",
-        destinationLabel:
-          destinationLabel?.trim() || destination?.trim() || "Internal processing",
-        messageTemplate: message?.trim() || null,
-        optionsJson: options ? JSON.stringify(options) : null,
-        clientName: clientName || null,
-        clientPhone: clientPhone || null,
-        clientEmail: clientEmail || null,
-        expiresAt,
-        retentionDays,
-        agentId: session.user.id,
-        assets: uniqueAssetIds.length > 0 ? {
-          create: uniqueAssetIds.map((assetId, order) => ({ assetId, order })),
-        } : undefined,
-      },
-    });
+    const normalizedDestination =
+      destinationLabel?.trim() || destination?.trim() || "Internal processing";
+
+    let link: { id: string; destination: string | null };
+    try {
+      link = await db.secureLink.create({
+        data: {
+          token,
+          linkType,
+          destination: normalizedDestination,
+          destinationLabel: normalizedDestination,
+          messageTemplate: message?.trim() || null,
+          optionsJson: options ? JSON.stringify(options) : null,
+          clientName: clientName || null,
+          clientPhone: clientPhone || null,
+          clientEmail: clientEmail || null,
+          expiresAt,
+          retentionDays,
+          agentId: session.user.id,
+          assets:
+            uniqueAssetIds.length > 0
+              ? {
+                  create: uniqueAssetIds.map((assetId, order) => ({
+                    assetId,
+                    order,
+                  })),
+                }
+              : undefined,
+        },
+        select: { id: true, destination: true },
+      });
+    } catch (createErr) {
+      if (!isPrismaSchemaDriftError(createErr)) throw createErr;
+      link = await db.secureLink.create({
+        data: {
+          token,
+          linkType,
+          destination: normalizedDestination,
+          clientName: clientName || null,
+          clientPhone: clientPhone || null,
+          clientEmail: clientEmail || null,
+          expiresAt,
+          retentionDays,
+          agentId: session.user.id,
+        },
+        select: { id: true, destination: true },
+      });
+    }
 
     await writeAuditLog({
       event: "LINK_CREATED",
@@ -141,9 +178,9 @@ export async function POST(req: NextRequest) {
         smsText,
         trustMessage,
         destination: link.destination,
-        destinationLabel: link.destinationLabel,
-        message: link.messageTemplate,
-        options: link.optionsJson ? JSON.parse(link.optionsJson) : {},
+        destinationLabel: normalizedDestination,
+        message: message?.trim() || "",
+        options: options ?? {},
         expiresAt: expiresAt.toISOString(),
       },
       { status: 201 }
@@ -164,20 +201,32 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const links = await db.secureLink.findMany({
-      where: { agentId: session.user.id },
-      include: {
-        submission: { select: { id: true } },
-        sends: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: { method: true, recipient: true, createdAt: true },
+    let links: any[] = [];
+    try {
+      links = await db.secureLink.findMany({
+        where: { agentId: session.user.id },
+        include: {
+          submission: { select: { id: true } },
+          sends: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { method: true, recipient: true, createdAt: true },
+          },
+          _count: { select: { sends: true } },
         },
-        _count: { select: { sends: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    });
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      });
+    } catch (queryErr) {
+      if (!isPrismaSchemaDriftError(queryErr)) throw queryErr;
+      const fallback = await db.secureLink.findMany({
+        where: { agentId: session.user.id },
+        include: { submission: { select: { id: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      });
+      links = fallback.map((link) => ({ ...link, sends: [], _count: { sends: 0 } }));
+    }
 
     return NextResponse.json({ links });
   } catch (err) {

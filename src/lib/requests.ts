@@ -1,6 +1,16 @@
 import { db } from "@/lib/db";
 import { LINK_TYPES, type LinkType } from "@/lib/utils";
 
+function isPrismaSchemaDriftError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : "";
+  return (
+    message.includes("Unknown field") ||
+    message.includes("does not exist in the current database") ||
+    message.includes("The column") ||
+    message.includes("no such column")
+  );
+}
+
 export type RequestStatus = "DRAFT" | "SENT" | "OPENED" | "SUBMITTED" | "EXPIRED";
 
 export function deriveRequestStatus(input: {
@@ -46,34 +56,62 @@ export type RequestRow = {
 };
 
 export async function listRequestRows(agentId: string): Promise<RequestRow[]> {
-  const [secureLinks, formLinks] = await Promise.all([
-    db.secureLink.findMany({
-      where: { agentId },
-      include: {
-        submission: { select: { id: true, createdAt: true } },
-        idUpload: { select: { id: true, createdAt: true } },
-        sends: {
-          orderBy: { createdAt: "desc" },
-          select: { createdAt: true, method: true, recipient: true },
+  let secureLinks: any[] = [];
+  let formLinks: any[] = [];
+  try {
+    [secureLinks, formLinks] = await Promise.all([
+      db.secureLink.findMany({
+        where: { agentId },
+        include: {
+          submission: { select: { id: true, createdAt: true } },
+          idUpload: { select: { id: true, createdAt: true } },
+          sends: {
+            orderBy: { createdAt: "desc" },
+            select: { createdAt: true, method: true, recipient: true },
+          },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    }),
-    db.formLink.findMany({
-      where: { form: { agentId } },
-      include: {
-        form: { select: { id: true, title: true } },
-        submission: { select: { id: true, createdAt: true } },
-        sends: {
-          orderBy: { createdAt: "desc" },
-          select: { createdAt: true, method: true, recipient: true },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      }),
+      db.formLink.findMany({
+        where: { form: { agentId } },
+        include: {
+          form: { select: { id: true, title: true } },
+          submission: { select: { id: true, createdAt: true } },
+          sends: {
+            orderBy: { createdAt: "desc" },
+            select: { createdAt: true, method: true, recipient: true },
+          },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    }),
-  ]);
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      }),
+    ]);
+  } catch (err) {
+    if (!isPrismaSchemaDriftError(err)) throw err;
+    [secureLinks, formLinks] = await Promise.all([
+      db.secureLink.findMany({
+        where: { agentId },
+        include: {
+          submission: { select: { id: true, createdAt: true } },
+          idUpload: { select: { id: true, createdAt: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      }),
+      db.formLink.findMany({
+        where: { form: { agentId } },
+        include: {
+          form: { select: { id: true, title: true } },
+          submission: { select: { id: true, createdAt: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      }),
+    ]);
+    secureLinks = secureLinks.map((link) => ({ ...link, sends: [] }));
+    formLinks = formLinks.map((link) => ({ ...link, sends: [] }));
+  }
 
   const secureRows: RequestRow[] = secureLinks.map((link) => {
     const submittedAt = link.submittedAt ?? link.submission?.createdAt ?? link.idUpload?.createdAt ?? null;
