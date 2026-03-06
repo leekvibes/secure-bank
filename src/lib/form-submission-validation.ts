@@ -2,6 +2,7 @@ import {
   fieldsMatch,
   isValidBankAccountNumber,
   isValidEmailAddress,
+  isValidIsoDateString,
   isValidPhoneNumber,
   isValidRoutingNumberChecksum,
   isValidSsnFormat,
@@ -15,6 +16,7 @@ export type DynamicField = {
   required: boolean;
   confirmField: boolean;
   encrypted: boolean;
+  dropdownOptions?: string | string[] | null;
 };
 
 export type ValidatedFormValue = {
@@ -61,6 +63,28 @@ export function validateDynamicSubmission(
     if (field.fieldType === "email" && !isValidEmailAddress(value)) {
       fieldErrors[field.id] = `${field.label} is invalid.`;
       continue;
+    }
+    if (field.fieldType === "date" && !isValidIsoDateString(value)) {
+      fieldErrors[field.id] = `${field.label} must be a valid date.`;
+      continue;
+    }
+    if (field.fieldType === "dropdown") {
+      const options = Array.isArray(field.dropdownOptions)
+        ? field.dropdownOptions
+        : typeof field.dropdownOptions === "string" && field.dropdownOptions.trim().startsWith("[")
+        ? (() => {
+            try {
+              const parsed = JSON.parse(field.dropdownOptions);
+              return Array.isArray(parsed) ? parsed.map((opt) => String(opt)) : [];
+            } catch {
+              return [];
+            }
+          })()
+        : [];
+      if (options.length > 0 && !options.includes(value)) {
+        fieldErrors[field.id] = `${field.label} selection is invalid.`;
+        continue;
+      }
     }
 
     if (field.confirmField) {

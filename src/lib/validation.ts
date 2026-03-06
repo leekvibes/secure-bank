@@ -42,6 +42,18 @@ export function isValidBankAccountNumber(value: string): boolean {
   return /^\d{4,34}$/.test(digits);
 }
 
+export function isValidIsoDateString(value: string): boolean {
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return false;
+  const [year, month, day] = trimmed.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
+}
+
 export function isValidSingleUseToken(
   expiresAt: Date | string,
   status: string,

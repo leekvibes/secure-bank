@@ -84,11 +84,20 @@ export default async function SecurePage({ params }: Props) {
     await Promise.all(selectedAssets.map(toAssetRenderEntry))
   ).filter((a) => a.url && a.mimeType.startsWith("image/"));
   const logoUrls = renderedAssets.map((a) => a.url as string);
+  let linkOptions: Record<string, unknown> = {};
+  if (link.optionsJson) {
+    try {
+      linkOptions = JSON.parse(link.optionsJson) as Record<string, unknown>;
+    } catch {
+      linkOptions = {};
+    }
+  }
 
   return (
     <SecureFormClient
       token={params.token}
       linkType={link.linkType}
+      linkOptions={linkOptions}
       agent={{
         displayName: link.agent.displayName,
         agencyName: link.agent.agencyName,

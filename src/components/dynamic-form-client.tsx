@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { CheckCircle2, Eye, EyeOff, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -263,6 +263,7 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
             value={value}
             onChange={(e) => onChange(e.target.value)}
             required={field.required}
+            aria-invalid={Boolean(error)}
             className={cn(
               "flex h-11 w-full appearance-none rounded-lg border bg-background px-3 py-2 pr-9 text-sm",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -397,8 +398,9 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
           type="date"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          max={new Date().toISOString().split("T")[0]}
           required={field.required}
+          onFocus={(e) => e.currentTarget.showPicker?.()}
+          onClick={(e) => e.currentTarget.showPicker?.()}
           className={cn(
             "cursor-pointer",
             error ? "border-red-400 focus-visible:ring-red-400" : ""
@@ -493,7 +495,6 @@ function MaskedInput({
           type="button"
           onClick={onToggle}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-          tabIndex={-1}
           aria-label={masked ? "Show" : "Hide"}
         >
           {masked ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
@@ -541,10 +542,44 @@ function SignaturePad({
   error: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasWrapRef = useRef<HTMLDivElement>(null);
   const drawing = useRef(false);
   const lastPos = useRef<{ x: number; y: number } | null>(null);
   const hasDrawnRef = useRef(false);
   const [hasDrawn, setHasDrawn] = useState(false);
+  const dprRef = useRef(1);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const wrap = canvasWrapRef.current;
+    if (!canvas || !wrap) return;
+
+    const resize = () => {
+      const dpr = Math.max(window.devicePixelRatio || 1, 1);
+      dprRef.current = dpr;
+      const rect = wrap.getBoundingClientRect();
+      const width = Math.max(Math.floor(rect.width), 280);
+      const height = 160;
+      const current = canvas.toDataURL("image/png");
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+        if (hasDrawnRef.current || value) {
+          ctx.drawImage(img, 0, 0, width, height);
+        }
+      };
+      img.src = current;
+    };
+
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, [value]);
 
   function getPos(e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) {
     const rect = canvas.getBoundingClientRect();
@@ -577,7 +612,7 @@ function SignaturePad({
       ctx.moveTo(lastPos.current.x, lastPos.current.y);
       ctx.lineTo(pos.x, pos.y);
       ctx.strokeStyle = "#1e293b";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.2;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.stroke();
@@ -610,10 +645,13 @@ function SignaturePad({
 
   return (
     <div className="space-y-2">
-      <div className={cn(
+      <div
+        ref={canvasWrapRef}
+        className={cn(
         "relative border-2 rounded-xl overflow-hidden bg-white select-none",
         error ? "border-red-400" : hasDrawn ? "border-slate-400" : "border-dashed border-slate-200"
-      )}>
+      )}
+      >
         <canvas
           ref={canvasRef}
           width={480}

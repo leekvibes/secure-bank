@@ -201,6 +201,29 @@ export async function POST(
 
   validated = parsed.data as unknown as Record<string, string | boolean>;
 
+  const linkOptions =
+    link.optionsJson && link.optionsJson.trim().length > 0
+      ? (() => {
+          try {
+            return JSON.parse(link.optionsJson) as Record<string, unknown>;
+          } catch {
+            return {};
+          }
+        })()
+      : {};
+  const middleInitialEnabled =
+    Boolean(linkOptions.middleInitialEnabled) ||
+    Boolean(linkOptions.requireMiddleInitial);
+  if (
+    link.linkType === "BANKING_INFO" &&
+    middleInitialEnabled &&
+    typeof validated.middleInitial !== "string"
+  ) {
+    return apiError(422, "VALIDATION_ERROR", "Please fix the errors below.", {
+      fieldErrors: { middleInitial: "Middle initial is required." },
+    });
+  }
+
   const encryptedData = buildEncryptedSubmissionData(validated);
   const deleteAt = addDays(new Date(), link.retentionDays);
 

@@ -15,9 +15,20 @@ function fmtSsn(raw: string): string {
   return `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}`;
 }
 
+function fmtPhone(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 15);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6, 10)}${d.length > 10 ? ` ${d.slice(10)}` : ""}`;
+}
+
+const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_UPLOAD_MIMES = new Set(["image/jpeg", "image/png", "application/pdf"]);
+
 interface Props {
   token: string;
   linkType: string;
+  linkOptions?: Record<string, unknown>;
   agent: AgentProfile;
   logoUrls: string[];
   clientName: string | null;
@@ -27,6 +38,7 @@ interface Props {
 export function SecureFormClient({
   token,
   linkType,
+  linkOptions,
   agent,
   logoUrls,
   clientName,
@@ -43,6 +55,7 @@ export function SecureFormClient({
     firstName: "",
     lastName: "",
     fullName: clientName ?? "",
+    middleInitial: "",
     bankName: "",
     routingNumber: "",
     accountNumber: "",
@@ -62,8 +75,15 @@ export function SecureFormClient({
   // ID upload state
   const [frontFile, setFrontFile] = useState<File | null>(null);
   const [backFile, setBackFile] = useState<File | null>(null);
+  const [showSsn, setShowSsn] = useState(false);
+  const [showConfirmSsn, setShowConfirmSsn] = useState(false);
+  const [showAccount, setShowAccount] = useState(false);
+  const [showConfirmAccount, setShowConfirmAccount] = useState(false);
   const frontRef = useRef<HTMLInputElement>(null);
   const backRef = useRef<HTMLInputElement>(null);
+  const middleInitialEnabled =
+    linkType === "BANKING_INFO" &&
+    (Boolean(linkOptions?.middleInitialEnabled) || Boolean(linkOptions?.requireMiddleInitial));
 
   function set(key: string, value: string | boolean) {
     setFields((f) => ({ ...f, [key]: value }));
@@ -117,6 +137,7 @@ export function SecureFormClient({
     if (linkType === "BANKING_INFO") {
       Object.assign(body, {
         fullName: fields.fullName,
+        ...(middleInitialEnabled ? { middleInitial: fields.middleInitial } : {}),
         bankName: fields.bankName,
         routingNumber: fields.routingNumber,
         accountNumber: fields.accountNumber,
@@ -133,6 +154,7 @@ export function SecureFormClient({
     } else if (linkType === "FULL_INTAKE") {
       Object.assign(body, {
         fullName: fields.fullName,
+        middleInitial: fields.middleInitial,
         dateOfBirth: fields.dateOfBirth,
         ssn: fields.ssn,
         address: fields.address,
@@ -197,6 +219,15 @@ export function SecureFormClient({
     setSubmitted(true);
   }
 
+  function validateUploadSelection(file: File | null): string | null {
+    if (!file) return null;
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) return "File exceeds 5MB limit.";
+    if (!ALLOWED_UPLOAD_MIMES.has(file.type)) {
+      return "Only JPG, PNG, or PDF files are allowed.";
+    }
+    return null;
+  }
+
   if (submitted) {
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center px-4 py-12">
@@ -259,7 +290,7 @@ export function SecureFormClient({
                   </div>
                   <Field label="Social Security Number" error={fieldErrors.ssn} required hint="Auto-formats as XXX-XX-XXXX">
                     <Input
-                      type="text"
+                      type={showSsn ? "text" : "password"}
                       inputMode="numeric"
                       value={fields.ssn}
                       onChange={(e) => set("ssn", fmtSsn(e.target.value))}
@@ -267,6 +298,13 @@ export function SecureFormClient({
                       maxLength={11}
                       autoComplete="off"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowSsn((v) => !v)}
+                      className="text-xs text-slate-500 hover:text-slate-700 mt-1"
+                    >
+                      {showSsn ? "Hide SSN" : "Show SSN"}
+                    </button>
                   </Field>
                   <Field
                     label="Confirm SSN"
@@ -274,7 +312,7 @@ export function SecureFormClient({
                     required
                   >
                     <Input
-                      type="text"
+                      type={showConfirmSsn ? "text" : "password"}
                       inputMode="numeric"
                       value={fields.confirmSsn}
                       onChange={(e) => set("confirmSsn", fmtSsn(e.target.value))}
@@ -283,6 +321,13 @@ export function SecureFormClient({
                       autoComplete="off"
                       className={ssnMismatch ? "border-red-400 focus-visible:ring-red-400" : ""}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmSsn((v) => !v)}
+                      className="text-xs text-slate-500 hover:text-slate-700 mt-1"
+                    >
+                      {showConfirmSsn ? "Hide SSN" : "Show SSN"}
+                    </button>
                   </Field>
                 </>
               )}
@@ -293,6 +338,22 @@ export function SecureFormClient({
                   <Field label="Full name" error={fieldErrors.fullName} required>
                     <Input value={fields.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Your full legal name" autoComplete="name" />
                   </Field>
+                  {middleInitialEnabled && (
+                    <Field label="Middle initial" error={fieldErrors.middleInitial} required hint="Single letter (A-Z)">
+                      <Input
+                        value={fields.middleInitial}
+                        onChange={(e) =>
+                          set(
+                            "middleInitial",
+                            e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 1).toUpperCase()
+                          )
+                        }
+                        placeholder="A"
+                        autoComplete="additional-name"
+                        maxLength={1}
+                      />
+                    </Field>
+                  )}
                   <Field
                     label="Routing number"
                     error={fieldErrors.routingNumber}
@@ -318,13 +379,20 @@ export function SecureFormClient({
                   </Field>
                   <Field label="Account number" error={fieldErrors.accountNumber} required>
                     <Input
-                      type="text"
+                      type={showAccount ? "text" : "password"}
                       inputMode="numeric"
                       value={fields.accountNumber}
                       onChange={(e) => set("accountNumber", e.target.value.replace(/\D/g, ""))}
                       placeholder="Your account number"
                       autoComplete="off"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowAccount((v) => !v)}
+                      className="text-xs text-slate-500 hover:text-slate-700 mt-1"
+                    >
+                      {showAccount ? "Hide account number" : "Show account number"}
+                    </button>
                   </Field>
                   <Field
                     label="Confirm account number"
@@ -332,7 +400,7 @@ export function SecureFormClient({
                     required
                   >
                     <Input
-                      type="text"
+                      type={showConfirmAccount ? "text" : "password"}
                       inputMode="numeric"
                       value={fields.confirmAccountNumber}
                       onChange={(e) => set("confirmAccountNumber", e.target.value.replace(/\D/g, ""))}
@@ -340,6 +408,13 @@ export function SecureFormClient({
                       autoComplete="off"
                       className={accountMismatch ? "border-red-400 focus-visible:ring-red-400" : ""}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmAccount((v) => !v)}
+                      className="text-xs text-slate-500 hover:text-slate-700 mt-1"
+                    >
+                      {showConfirmAccount ? "Hide account number" : "Show account number"}
+                    </button>
                   </Field>
                   <Field label="Preferred draft date" error={fieldErrors.preferredDraftDate} required hint="Day of month for automatic payments (e.g. 1st, 15th)">
                     <Input value={fields.preferredDraftDate} onChange={(e) => set("preferredDraftDate", e.target.value)} placeholder="e.g. 1st, 15th, or any day" />
@@ -357,14 +432,21 @@ export function SecureFormClient({
                     <Input type="date" value={fields.dateOfBirth} onChange={(e) => set("dateOfBirth", e.target.value)} max={new Date().toISOString().split("T")[0]} />
                   </Field>
                   <Field label="Social Security Number" error={fieldErrors.ssn} required hint="Auto-formats as XXX-XX-XXXX">
-                    <Input type="text" inputMode="numeric" value={fields.ssn} onChange={(e) => set("ssn", fmtSsn(e.target.value))} placeholder="XXX-XX-XXXX" maxLength={11} autoComplete="off" />
+                    <Input type={showSsn ? "text" : "password"} inputMode="numeric" value={fields.ssn} onChange={(e) => set("ssn", fmtSsn(e.target.value))} placeholder="XXX-XX-XXXX" maxLength={11} autoComplete="off" />
+                    <button
+                      type="button"
+                      onClick={() => setShowSsn((v) => !v)}
+                      className="text-xs text-slate-500 hover:text-slate-700 mt-1"
+                    >
+                      {showSsn ? "Hide SSN" : "Show SSN"}
+                    </button>
                   </Field>
                   <Field label="Address" error={fieldErrors.address} required>
                     <Input value={fields.address} onChange={(e) => set("address", e.target.value)} placeholder="123 Main St, City, State 00000" autoComplete="street-address" />
                   </Field>
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Phone" error={fieldErrors.phone} required>
-                      <Input type="tel" value={fields.phone} onChange={(e) => set("phone", e.target.value)} placeholder="555-000-0000" autoComplete="tel" />
+                      <Input type="tel" value={fields.phone} onChange={(e) => set("phone", fmtPhone(e.target.value))} placeholder="(555) 000-0000" autoComplete="tel" />
                     </Field>
                     <Field label="Email" error={fieldErrors.email} required>
                       <Input type="email" value={fields.email} onChange={(e) => set("email", e.target.value)} placeholder="you@email.com" autoComplete="email" />
@@ -383,10 +465,24 @@ export function SecureFormClient({
                     <Input value={fields.bankName} onChange={(e) => set("bankName", e.target.value)} placeholder="Auto-filled from routing number" autoComplete="off" />
                   </Field>
                   <Field label="Account number" error={fieldErrors.accountNumber} required>
-                    <Input type="text" inputMode="numeric" value={fields.accountNumber} onChange={(e) => set("accountNumber", e.target.value.replace(/\D/g, ""))} placeholder="Your account number" autoComplete="off" />
+                    <Input type={showAccount ? "text" : "password"} inputMode="numeric" value={fields.accountNumber} onChange={(e) => set("accountNumber", e.target.value.replace(/\D/g, ""))} placeholder="Your account number" autoComplete="off" />
+                    <button
+                      type="button"
+                      onClick={() => setShowAccount((v) => !v)}
+                      className="text-xs text-slate-500 hover:text-slate-700 mt-1"
+                    >
+                      {showAccount ? "Hide account number" : "Show account number"}
+                    </button>
                   </Field>
                   <Field label="Confirm account number" error={fieldErrors.confirmAccountNumber ?? (accountMismatch ? "Account numbers do not match." : undefined)} required>
-                    <Input type="text" inputMode="numeric" value={fields.confirmAccountNumber} onChange={(e) => set("confirmAccountNumber", e.target.value.replace(/\D/g, ""))} placeholder="Re-enter account number" autoComplete="off" className={accountMismatch ? "border-red-400 focus-visible:ring-red-400" : ""} />
+                    <Input type={showConfirmAccount ? "text" : "password"} inputMode="numeric" value={fields.confirmAccountNumber} onChange={(e) => set("confirmAccountNumber", e.target.value.replace(/\D/g, ""))} placeholder="Re-enter account number" autoComplete="off" className={accountMismatch ? "border-red-400 focus-visible:ring-red-400" : ""} />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmAccount((v) => !v)}
+                      className="text-xs text-slate-500 hover:text-slate-700 mt-1"
+                    >
+                      {showConfirmAccount ? "Hide account number" : "Show account number"}
+                    </button>
                   </Field>
                   <Field label="Preferred draft date" error={fieldErrors.preferredDraftDate} required>
                     <Input value={fields.preferredDraftDate} onChange={(e) => set("preferredDraftDate", e.target.value)} placeholder="e.g. 1st, 15th" />
@@ -408,8 +504,22 @@ export function SecureFormClient({
                       {frontFile ? (
                         <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
                           <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                          <span className="text-sm text-slate-700 truncate">{frontFile.name}</span>
-                          <button type="button" onClick={() => setFrontFile(null)} className="ml-auto text-slate-400 hover:text-slate-600">
+                          <div className="min-w-0">
+                            <span className="text-sm text-slate-700 truncate block">{frontFile.name}</span>
+                            <span className="text-xs text-slate-500">{(frontFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFrontFile(null);
+                              setFieldErrors((prev) => {
+                                const next = { ...prev };
+                                delete next.front;
+                                return next;
+                              });
+                            }}
+                            className="ml-auto text-slate-400 hover:text-slate-600"
+                          >
                             <X className="w-4 h-4" />
                           </button>
                         </div>
@@ -421,15 +531,29 @@ export function SecureFormClient({
                         >
                           <Upload className="w-5 h-5 text-slate-400" />
                           <span className="text-sm text-slate-500">Tap to select front of ID</span>
-                          <span className="text-xs text-slate-400">JPG, PNG, WebP — max 10 MB</span>
+                          <span className="text-xs text-slate-400">JPG, PNG, PDF - max 5 MB</span>
                         </button>
                       )}
                       <input
                         ref={frontRef}
                         type="file"
-                        accept="image/jpeg,image/png,image/webp,image/heic"
+                        accept="image/jpeg,image/png,application/pdf"
                         className="hidden"
-                        onChange={(e) => setFrontFile(e.target.files?.[0] ?? null)}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] ?? null;
+                          const uploadError = validateUploadSelection(file);
+                          if (uploadError) {
+                            setFieldErrors((prev) => ({ ...prev, front: uploadError }));
+                            setFrontFile(null);
+                            return;
+                          }
+                          setFieldErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.front;
+                            return next;
+                          });
+                          setFrontFile(file);
+                        }}
                       />
                       {fieldErrors.front && <p className="text-xs text-red-600 mt-1">{fieldErrors.front}</p>}
                     </div>
@@ -440,8 +564,22 @@ export function SecureFormClient({
                       {backFile ? (
                         <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
                           <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                          <span className="text-sm text-slate-700 truncate">{backFile.name}</span>
-                          <button type="button" onClick={() => setBackFile(null)} className="ml-auto text-slate-400 hover:text-slate-600">
+                          <div className="min-w-0">
+                            <span className="text-sm text-slate-700 truncate block">{backFile.name}</span>
+                            <span className="text-xs text-slate-500">{(backFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setBackFile(null);
+                              setFieldErrors((prev) => {
+                                const next = { ...prev };
+                                delete next.back;
+                                return next;
+                              });
+                            }}
+                            className="ml-auto text-slate-400 hover:text-slate-600"
+                          >
                             <X className="w-4 h-4" />
                           </button>
                         </div>
@@ -458,10 +596,25 @@ export function SecureFormClient({
                       <input
                         ref={backRef}
                         type="file"
-                        accept="image/jpeg,image/png,image/webp,image/heic"
+                        accept="image/jpeg,image/png,application/pdf"
                         className="hidden"
-                        onChange={(e) => setBackFile(e.target.files?.[0] ?? null)}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] ?? null;
+                          const uploadError = validateUploadSelection(file);
+                          if (uploadError) {
+                            setFieldErrors((prev) => ({ ...prev, back: uploadError }));
+                            setBackFile(null);
+                            return;
+                          }
+                          setFieldErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.back;
+                            return next;
+                          });
+                          setBackFile(file);
+                        }}
                       />
+                      {fieldErrors.back && <p className="text-xs text-red-600 mt-1">{fieldErrors.back}</p>}
                     </div>
                   </div>
                 </>

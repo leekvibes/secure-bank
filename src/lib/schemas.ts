@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   fieldsMatch,
   isValidEmailAddress,
+  isValidIsoDateString,
   isValidPhoneNumber,
   isValidRoutingNumberChecksum,
   isValidSsnFormat,
@@ -57,6 +58,12 @@ const routingNumberRegex = /^\d{9}$/;
 export const bankingInfoSchema = z
   .object({
     fullName: z.string().min(2, "Full name required").max(120),
+    middleInitial: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z]$/, "Middle initial must be a single letter")
+      .optional()
+      .or(z.literal("")),
     bankName: z.string().max(120).optional(),
     routingNumber: z
       .string()
@@ -112,7 +119,16 @@ export type SsnOnlyInput = z.infer<typeof ssnOnlySchema>;
 export const fullIntakeSchema = z
   .object({
     fullName: z.string().min(2, "Full name required").max(120),
-    dateOfBirth: z.string().min(1, "Date of birth required"),
+    middleInitial: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z]$/, "Middle initial must be a single letter")
+      .optional()
+      .or(z.literal("")),
+    dateOfBirth: z
+      .string()
+      .refine(isValidIsoDateString, "Date of birth must be a valid date")
+      .refine((v) => new Date(`${v}T00:00:00.000Z`) <= new Date(), "Date of birth cannot be in the future"),
     ssn: z.string().refine(isValidSsnFormat, "SSN must be in format XXX-XX-XXXX"),
     address: z.string().min(5, "Address required").max(300),
     phone: z.string().min(7, "Phone required").max(30).refine(isValidPhoneNumber, "Invalid phone number"),
