@@ -10,3 +10,31 @@ channel = "stable-25_05"
 [userenv.shared]
 NEXTAUTH_URL = "https://e1a9a0ed-3ef0-4632-b20c-cf23efe9addc-00-mcl9bwxsxr1f.spock.replit.dev"
 AUDIT_STORE_IP = "false"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
