@@ -10,6 +10,8 @@ channel = "stable-25_05"
 [userenv.shared]
 NEXTAUTH_URL = "https://e1a9a0ed-3ef0-4632-b20c-cf23efe9addc-00-mcl9bwxsxr1f.spock.replit.dev"
 AUDIT_STORE_IP = "false"
+RESEND_FROM_EMAIL = "Secure Link <onboarding@resend.dev>"
+TWILIO_FROM_NUMBER = "+12028739162"
 
 [workflows]
 runButton = "Project"
