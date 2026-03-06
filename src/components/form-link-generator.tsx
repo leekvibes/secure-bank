@@ -30,6 +30,7 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
 
   const [form, setForm] = useState({
+    destination: "",
     clientName: "",
     clientPhone: "",
     clientEmail: "",
@@ -134,7 +135,7 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
                 onClick={() => {
                   setGenerated(null);
                   setSelectedAssetIds([]);
-                  setForm({ clientName: "", clientPhone: "", clientEmail: "", expirationHours: 24 });
+                  setForm({ destination: "", clientName: "", clientPhone: "", clientEmail: "", expirationHours: 24 });
                 }}
               >
                 Generate another
@@ -142,6 +143,21 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
             </div>
           ) : (
             <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="gl-dest">Where will this be submitted?</Label>
+                <select
+                  id="gl-dest"
+                  value={form.destination}
+                  onChange={(e) => setForm({ ...form, destination: e.target.value })}
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="">Select destination</option>
+                  <option>Mutual of Omaha</option>
+                  <option>Americo</option>
+                  <option>Aetna</option>
+                  <option>Internal processing</option>
+                </select>
+              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="gl-name">Client name (optional)</Label>
                 <Input
@@ -202,7 +218,7 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
                 <Button variant="outline" size="sm" onClick={() => setOpen(false)} className="flex-1">
                   Cancel
                 </Button>
-                <Button size="sm" onClick={generate} disabled={loading} className="flex-1">
+                <Button size="sm" onClick={generate} disabled={loading} className="flex-1 gap-1.5">
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Generate link"}
                 </Button>
               </div>

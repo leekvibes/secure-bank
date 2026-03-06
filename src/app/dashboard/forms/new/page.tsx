@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Lock, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Lock, Eye, EyeOff, MonitorSmartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,6 +72,7 @@ export default function NewFormPage() {
   const [description, setDescription] = useState("");
   const [retentionDays, setRetentionDays] = useState(30);
   const [fields, setFields] = useState<FieldDraft[]>([makeField()]);
+  const [showPreview, setShowPreview] = useState(false);
 
   function updateField(id: string, patch: Partial<FieldDraft>) {
     setFields((fs) => fs.map((f) => (f.id === id ? { ...f, ...patch } : f)));
@@ -148,7 +149,7 @@ export default function NewFormPage() {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className={showPreview ? "max-w-[1200px]" : "max-w-2xl"}>
       <div className="mb-5">
         <Button variant="ghost" size="sm" asChild className="-ml-2 text-slate-500">
           <Link href="/dashboard/forms">
@@ -158,13 +159,26 @@ export default function NewFormPage() {
         </Button>
       </div>
 
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">New form</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Build a custom form — fields are encrypted and delivered securely.
-        </p>
+      <div className="flex items-start justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">New form</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Build a custom form — fields are encrypted and delivered securely.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant={showPreview ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowPreview((p) => !p)}
+          className="shrink-0 gap-1.5"
+        >
+          <MonitorSmartphone className="w-3.5 h-3.5" />
+          {showPreview ? "Hide preview" : "Preview"}
+        </Button>
       </div>
 
+      <div className={showPreview ? "grid xl:grid-cols-[1fr_380px] gap-8 items-start" : ""}>
       <form onSubmit={handleSubmit} className="space-y-5">
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
@@ -394,6 +408,136 @@ export default function NewFormPage() {
           </Button>
         </div>
       </form>
+
+      {/* ── Live preview panel ── */}
+      {showPreview && (
+        <div className="xl:sticky xl:top-6">
+          <FormPreviewPane title={title} description={description} fields={fields} />
+        </div>
+      )}
+      </div>
+    </div>
+  );
+}
+
+// ── Live preview pane ─────────────────────────────────────────────────────────
+
+function FormPreviewPane({
+  title,
+  description,
+  fields,
+}: {
+  title: string;
+  description: string;
+  fields: FieldDraft[];
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
+      {/* Header bar */}
+      <div className="px-4 py-3 border-b border-slate-200 bg-white flex items-center gap-2">
+        <div className="flex gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
+          <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
+          <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
+        </div>
+        <span className="text-xs text-slate-400 mx-auto">Client preview</span>
+      </div>
+
+      {/* Simulated client form */}
+      <div className="p-4">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">
+              {title || <span className="text-slate-300">Form title</span>}
+            </h2>
+            {description && (
+              <p className="text-sm text-slate-500 mt-1">{description}</p>
+            )}
+            <p className="text-xs text-slate-400 mt-2">
+              Enter your information below to securely submit your personal information.
+            </p>
+          </div>
+
+          {fields.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-4">Add fields to see a preview.</p>
+          ) : (
+            fields.map((field) => (
+              <PreviewField key={field.id} field={field} />
+            ))
+          )}
+
+          {/* Consent block */}
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <div className="mt-0.5 h-4 w-4 rounded border border-slate-300 bg-white shrink-0" />
+              <span className="text-xs text-slate-500 leading-relaxed">
+                I consent to share this information securely for the purpose of completing my application.
+              </span>
+            </label>
+          </div>
+
+          <div className="h-10 bg-slate-900 rounded-lg flex items-center justify-center">
+            <span className="text-white text-sm font-semibold">Submit securely</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PreviewField({ field }: { field: FieldDraft }) {
+  const isSensitive = SENSITIVE_FIELD_TYPES.includes(field.fieldType);
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1.5">
+        <label className="text-xs font-medium text-slate-700">
+          {field.label || <span className="text-slate-300">Unlabeled field</span>}
+          {field.required && <span className="text-red-500 ml-0.5">*</span>}
+        </label>
+        {isSensitive && (
+          <Lock className="w-2.5 h-2.5 text-blue-400 shrink-0" />
+        )}
+      </div>
+
+      {field.fieldType === "dropdown" ? (
+        <div className="relative">
+          <div className="flex h-9 w-full items-center rounded-lg border border-slate-200 bg-white px-3 pr-8 text-sm text-slate-400">
+            {field.placeholder || "Select an option"}
+          </div>
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-300">
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </div>
+        </div>
+      ) : field.fieldType === "signature" ? (
+        <div className="h-20 rounded-xl border-2 border-dashed border-slate-200 bg-white flex items-center justify-center">
+          <span className="text-xs text-slate-300">Signature area</span>
+        </div>
+      ) : field.fieldType === "date" ? (
+        <div className="flex h-9 w-full items-center rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-300">
+          MM / DD / YYYY
+        </div>
+      ) : (
+        <div className="flex h-9 w-full items-center rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-300">
+          {field.maskInput && isSensitive ? "••••••••" : (field.placeholder || FIELD_TYPE_LABELS[field.fieldType])}
+        </div>
+      )}
+
+      {field.helpText && (
+        <p className="text-xs text-slate-400">{field.helpText}</p>
+      )}
+
+      {field.confirmField && (
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-slate-700">
+            Confirm {field.label || "field"}
+            {field.required && <span className="text-red-500 ml-0.5">*</span>}
+          </label>
+          <div className="flex h-9 w-full items-center rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-300">
+            {field.maskInput ? "••••••••" : `Re-enter ${(field.label || "value").toLowerCase()}`}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

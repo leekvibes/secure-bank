@@ -7,6 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ClientTrustHeader, type AgentProfile } from "@/components/client-trust-header";
 
+function fmtSsn(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 9);
+  if (d.length <= 3) return d;
+  if (d.length <= 5) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}`;
+}
+
 interface Props {
   token: string;
   linkType: string;
@@ -227,7 +234,7 @@ export function SecureFormClient({
           {/* Form card */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
             <p className="text-sm text-slate-500 mb-5 leading-relaxed">
-              Enter your information below. Nothing is read aloud — this goes directly and privately to {agent.displayName}.
+              Enter your information below to securely submit your personal information. Nothing is read aloud — this form is end-to-end encrypted.
             </p>
 
             {error && (
@@ -248,12 +255,12 @@ export function SecureFormClient({
                       <Input value={fields.lastName} onChange={(e) => set("lastName", e.target.value)} placeholder="Last" autoComplete="family-name" />
                     </Field>
                   </div>
-                  <Field label="Social Security Number" error={fieldErrors.ssn} required hint="Format: XXX-XX-XXXX">
+                  <Field label="Social Security Number" error={fieldErrors.ssn} required hint="Auto-formats as XXX-XX-XXXX">
                     <Input
                       type="text"
                       inputMode="numeric"
                       value={fields.ssn}
-                      onChange={(e) => set("ssn", e.target.value)}
+                      onChange={(e) => set("ssn", fmtSsn(e.target.value))}
                       placeholder="XXX-XX-XXXX"
                       maxLength={11}
                       autoComplete="off"
@@ -268,7 +275,7 @@ export function SecureFormClient({
                       type="text"
                       inputMode="numeric"
                       value={fields.confirmSsn}
-                      onChange={(e) => set("confirmSsn", e.target.value)}
+                      onChange={(e) => set("confirmSsn", fmtSsn(e.target.value))}
                       placeholder="Re-enter SSN"
                       maxLength={11}
                       autoComplete="off"
@@ -347,8 +354,8 @@ export function SecureFormClient({
                   <Field label="Date of birth" error={fieldErrors.dateOfBirth} required>
                     <Input type="date" value={fields.dateOfBirth} onChange={(e) => set("dateOfBirth", e.target.value)} max={new Date().toISOString().split("T")[0]} />
                   </Field>
-                  <Field label="Social Security Number" error={fieldErrors.ssn} required hint="Format: XXX-XX-XXXX">
-                    <Input type="text" inputMode="numeric" value={fields.ssn} onChange={(e) => set("ssn", e.target.value)} placeholder="XXX-XX-XXXX" maxLength={11} autoComplete="off" />
+                  <Field label="Social Security Number" error={fieldErrors.ssn} required hint="Auto-formats as XXX-XX-XXXX">
+                    <Input type="text" inputMode="numeric" value={fields.ssn} onChange={(e) => set("ssn", fmtSsn(e.target.value))} placeholder="XXX-XX-XXXX" maxLength={11} autoComplete="off" />
                   </Field>
                   <Field label="Address" error={fieldErrors.address} required>
                     <Input value={fields.address} onChange={(e) => set("address", e.target.value)} placeholder="123 Main St, City, State 00000" autoComplete="street-address" />
@@ -486,7 +493,7 @@ export function SecureFormClient({
               </Button>
 
               <p className="text-xs text-slate-400 text-center leading-relaxed">
-                This link cannot be reused after submission. Your information goes directly to {agent.displayName} and is not shared with third parties.
+                This link is single-use and expires after submission. Your information is encrypted and not shared with third parties.
               </p>
             </form>
           </div>

@@ -1,11 +1,28 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ClientTrustHeader } from "@/components/client-trust-header";
+import { cn } from "@/lib/utils";
+
+// ── Formatters ────────────────────────────────────────────────────────────────
+
+function fmtSsn(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 9);
+  if (d.length <= 3) return d;
+  if (d.length <= 5) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}`;
+}
+
+function fmtPhone(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 10);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+}
 
 type FormFieldType =
   | "text" | "email" | "phone" | "address" | "date"
@@ -152,8 +169,8 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
           {form.description && (
             <p className="text-sm text-slate-500 mb-4 leading-relaxed">{form.description}</p>
           )}
-          <p className="text-sm text-slate-400 mb-5 leading-relaxed">
-            Enter your information below. This goes directly and privately to {agent.displayName}.
+          <p className="text-sm text-slate-500 mb-5 leading-relaxed">
+            Enter your information below to securely submit your personal information. This form is end-to-end encrypted.
           </p>
 
           {error && (
@@ -202,7 +219,7 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
             </Button>
 
             <p className="text-xs text-slate-400 text-center leading-relaxed">
-              This link cannot be reused after submission. Your information goes directly to {agent.displayName} and is not shared with third parties.
+              This link is single-use and expires after submission. Your information is encrypted and not shared with third parties.
             </p>
           </form>
         </div>
@@ -223,118 +240,264 @@ interface DynamicFieldProps {
 }
 
 function DynamicField({ field, value, confirmValue, error, confirmError, onChange, onConfirmChange }: DynamicFieldProps) {
-  const inputType = (() => {
-    if (field.maskInput) return "password";
-    if (field.fieldType === "email") return "email";
-    if (field.fieldType === "phone") return "tel";
-    if (field.fieldType === "date") return "date";
-    return "text";
-  })();
+  const [showVal, setShowVal] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  const inputMode = (() => {
-    if (field.fieldType === "ssn" || field.fieldType === "routing" || field.fieldType === "bank_account") return "numeric" as const;
-    return undefined;
-  })();
-
-  const maxLength = (() => {
-    if (field.fieldType === "ssn") return 11;
-    if (field.fieldType === "routing") return 9;
-    return undefined;
-  })();
-
-  const autoComplete = (() => {
-    if (field.fieldType === "email") return "email";
-    if (field.fieldType === "phone") return "tel";
-    if (field.fieldType === "address") return "street-address";
-    if (field.fieldType === "ssn" || field.fieldType === "bank_account" || field.fieldType === "routing") return "off";
-    return undefined;
-  })();
-
+  // ── Signature ──────────────────────────────────────────────────────────────
   if (field.fieldType === "signature") {
     return (
       <FieldWrapper label={field.label} required={field.required} error={error} hint={field.helpText ?? undefined}>
-        <SignaturePad
-          value={value}
-          onChange={onChange}
-          error={!!error}
-        />
+        <SignaturePad value={value} onChange={onChange} error={!!error} />
       </FieldWrapper>
     );
   }
 
+  // ── Dropdown ───────────────────────────────────────────────────────────────
   if (field.fieldType === "dropdown" && field.dropdownOptions) {
     return (
       <FieldWrapper label={field.label} required={field.required} error={error} hint={field.helpText ?? undefined}>
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={`flex h-11 w-full rounded-lg border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-            error ? "border-red-400 focus-visible:ring-red-400" : "border-input"
-          }`}
-          required={field.required}
-        >
-          <option value="">
-            {field.placeholder ?? "Select an option"}
-          </option>
-          {field.dropdownOptions.map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
-          ))}
-        </select>
+        <div className="relative">
+          <select
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            required={field.required}
+            className={cn(
+              "flex h-11 w-full appearance-none rounded-lg border bg-background px-3 py-2 pr-9 text-sm",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              error ? "border-red-400 focus-visible:ring-red-400" : "border-input",
+              !value && "text-slate-400"
+            )}
+          >
+            <option value="">{field.placeholder ?? "Select an option"}</option>
+            {field.dropdownOptions.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </div>
+        </div>
       </FieldWrapper>
     );
   }
 
-  return (
-    <>
-      <FieldWrapper label={field.label} required={field.required} error={error} hint={!field.confirmField ? (field.helpText ?? undefined) : undefined}>
+  // ── SSN ───────────────────────────────────────────────────────────────────
+  if (field.fieldType === "ssn") {
+    return (
+      <>
+        <FieldWrapper label={field.label} required={field.required} error={error} hint={field.helpText ?? "Auto-formats as XXX-XX-XXXX"}>
+          <MaskedInput
+            value={value}
+            onChange={(v) => onChange(fmtSsn(v))}
+            masked={field.maskInput && !showVal}
+            onToggle={() => setShowVal((s) => !s)}
+            showMaskToggle={field.maskInput}
+            placeholder="XXX-XX-XXXX"
+            inputMode="numeric"
+            maxLength={11}
+            hasError={!!error}
+          />
+        </FieldWrapper>
+        {field.confirmField && (
+          <FieldWrapper label={`Confirm ${field.label}`} required={field.required} error={confirmError}>
+            <MaskedInput
+              value={confirmValue}
+              onChange={(v) => onConfirmChange(fmtSsn(v))}
+              masked={field.maskInput && !showConfirm}
+              onToggle={() => setShowConfirm((s) => !s)}
+              showMaskToggle={field.maskInput}
+              placeholder="Re-enter SSN"
+              inputMode="numeric"
+              maxLength={11}
+              hasError={!!confirmError}
+            />
+          </FieldWrapper>
+        )}
+      </>
+    );
+  }
+
+  // ── Routing number ────────────────────────────────────────────────────────
+  if (field.fieldType === "routing") {
+    return (
+      <FieldWrapper label={field.label} required={field.required} error={error} hint={field.helpText ?? "9-digit number printed on your check"}>
         <Input
-          type={inputType}
-          inputMode={inputMode}
+          type="text"
+          inputMode="numeric"
           value={value}
-          onChange={(e) => {
-            let v = e.target.value;
-            if (field.fieldType === "routing" || field.fieldType === "bank_account") {
-              v = v.replace(/\D/g, "");
-            }
-            if (maxLength) v = v.slice(0, maxLength);
-            onChange(v);
-          }}
-          placeholder={field.placeholder ?? undefined}
-          autoComplete={autoComplete}
-          maxLength={maxLength}
+          onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 9))}
+          placeholder={field.placeholder ?? "021000021"}
+          autoComplete="off"
+          maxLength={9}
           required={field.required}
           className={error ? "border-red-400 focus-visible:ring-red-400" : ""}
         />
       </FieldWrapper>
+    );
+  }
 
-      {field.confirmField && (
-        <FieldWrapper
-          label={`Confirm ${field.label}`}
+  // ── Bank account ──────────────────────────────────────────────────────────
+  if (field.fieldType === "bank_account") {
+    return (
+      <>
+        <FieldWrapper label={field.label} required={field.required} error={error} hint={field.helpText ?? undefined}>
+          <MaskedInput
+            value={value}
+            onChange={(v) => onChange(v.replace(/\D/g, ""))}
+            masked={field.maskInput && !showVal}
+            onToggle={() => setShowVal((s) => !s)}
+            showMaskToggle={field.maskInput}
+            placeholder={field.placeholder ?? "Account number"}
+            inputMode="numeric"
+            hasError={!!error}
+          />
+        </FieldWrapper>
+        {field.confirmField && (
+          <FieldWrapper label={`Confirm ${field.label}`} required={field.required} error={confirmError}>
+            <MaskedInput
+              value={confirmValue}
+              onChange={(v) => onConfirmChange(v.replace(/\D/g, ""))}
+              masked={field.maskInput && !showConfirm}
+              onToggle={() => setShowConfirm((s) => !s)}
+              showMaskToggle={field.maskInput}
+              placeholder="Re-enter account number"
+              inputMode="numeric"
+              hasError={!!confirmError}
+            />
+          </FieldWrapper>
+        )}
+      </>
+    );
+  }
+
+  // ── Phone ─────────────────────────────────────────────────────────────────
+  if (field.fieldType === "phone") {
+    return (
+      <FieldWrapper label={field.label} required={field.required} error={error} hint={field.helpText ?? undefined}>
+        <Input
+          type="tel"
+          value={value}
+          onChange={(e) => onChange(fmtPhone(e.target.value))}
+          placeholder={field.placeholder ?? "(555) 000-0000"}
+          autoComplete="tel"
           required={field.required}
-          error={confirmError}
-          hint={field.helpText ?? undefined}
-        >
+          className={error ? "border-red-400 focus-visible:ring-red-400" : ""}
+        />
+      </FieldWrapper>
+    );
+  }
+
+  // ── Date ──────────────────────────────────────────────────────────────────
+  if (field.fieldType === "date") {
+    return (
+      <FieldWrapper label={field.label} required={field.required} error={error} hint={field.helpText ?? undefined}>
+        <Input
+          type="date"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          max={new Date().toISOString().split("T")[0]}
+          required={field.required}
+          className={cn(
+            "cursor-pointer",
+            error ? "border-red-400 focus-visible:ring-red-400" : ""
+          )}
+        />
+      </FieldWrapper>
+    );
+  }
+
+  // ── Email ─────────────────────────────────────────────────────────────────
+  if (field.fieldType === "email") {
+    return (
+      <FieldWrapper label={field.label} required={field.required} error={error} hint={field.helpText ?? undefined}>
+        <Input
+          type="email"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={field.placeholder ?? "you@email.com"}
+          autoComplete="email"
+          required={field.required}
+          className={error ? "border-red-400 focus-visible:ring-red-400" : ""}
+        />
+      </FieldWrapper>
+    );
+  }
+
+  // ── Default (text / address) ───────────────────────────────────────────────
+  const autoComplete = field.fieldType === "address" ? "street-address" : undefined;
+  return (
+    <>
+      <FieldWrapper label={field.label} required={field.required} error={error} hint={!field.confirmField ? (field.helpText ?? undefined) : undefined}>
+        <Input
+          type={field.maskInput ? "password" : "text"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={field.placeholder ?? undefined}
+          autoComplete={autoComplete}
+          required={field.required}
+          className={error ? "border-red-400 focus-visible:ring-red-400" : ""}
+        />
+      </FieldWrapper>
+      {field.confirmField && (
+        <FieldWrapper label={`Confirm ${field.label}`} required={field.required} error={confirmError} hint={field.helpText ?? undefined}>
           <Input
-            type={inputType}
-            inputMode={inputMode}
+            type={field.maskInput ? "password" : "text"}
             value={confirmValue}
-            onChange={(e) => {
-              let v = e.target.value;
-              if (field.fieldType === "routing" || field.fieldType === "bank_account") {
-                v = v.replace(/\D/g, "");
-              }
-              if (maxLength) v = v.slice(0, maxLength);
-              onConfirmChange(v);
-            }}
+            onChange={(e) => onConfirmChange(e.target.value)}
             placeholder={`Re-enter ${field.label.toLowerCase()}`}
             autoComplete="off"
-            maxLength={maxLength}
             required={field.required}
             className={confirmError ? "border-red-400 focus-visible:ring-red-400" : ""}
           />
         </FieldWrapper>
       )}
     </>
+  );
+}
+
+// ── Masked input with show/hide toggle ────────────────────────────────────────
+
+function MaskedInput({
+  value, onChange, masked, onToggle, showMaskToggle,
+  placeholder, inputMode, maxLength, hasError,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  masked: boolean;
+  onToggle: () => void;
+  showMaskToggle: boolean;
+  placeholder?: string;
+  inputMode?: "numeric" | "text";
+  maxLength?: number;
+  hasError: boolean;
+}) {
+  return (
+    <div className="relative">
+      <Input
+        type={masked ? "password" : "text"}
+        inputMode={inputMode}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete="off"
+        maxLength={maxLength}
+        className={cn(
+          showMaskToggle && "pr-10",
+          hasError ? "border-red-400 focus-visible:ring-red-400" : ""
+        )}
+      />
+      {showMaskToggle && (
+        <button
+          type="button"
+          onClick={onToggle}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+          tabIndex={-1}
+          aria-label={masked ? "Show" : "Hide"}
+        >
+          {masked ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -445,12 +608,15 @@ function SignaturePad({
 
   return (
     <div className="space-y-2">
-      <div className={`relative border-2 rounded-xl overflow-hidden bg-white ${error ? "border-red-400" : "border-slate-200"}`}>
+      <div className={cn(
+        "relative border-2 rounded-xl overflow-hidden bg-white select-none",
+        error ? "border-red-400" : hasDrawn ? "border-slate-400" : "border-dashed border-slate-200"
+      )}>
         <canvas
           ref={canvasRef}
-          width={380}
-          height={120}
-          className="w-full touch-none cursor-crosshair"
+          width={480}
+          height={160}
+          className="w-full touch-none cursor-crosshair block"
           onMouseDown={startDraw}
           onMouseMove={draw}
           onMouseUp={endDraw}
@@ -460,19 +626,27 @@ function SignaturePad({
           onTouchEnd={endDraw}
         />
         {!hasDrawn && !value && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-1.5">
             <p className="text-sm text-slate-400">Draw your signature here</p>
+            <p className="text-xs text-slate-300">Use mouse or finger</p>
           </div>
+        )}
+        {hasDrawn && (
+          <button
+            type="button"
+            onClick={clear}
+            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+            title="Clear signature"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         )}
       </div>
       {hasDrawn && (
-        <button
-          type="button"
-          onClick={clear}
-          className="text-xs text-slate-400 hover:text-slate-600 underline"
-        >
-          Clear signature
-        </button>
+        <p className="text-xs text-emerald-600 flex items-center gap-1">
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          Signature captured
+        </p>
       )}
     </div>
   );

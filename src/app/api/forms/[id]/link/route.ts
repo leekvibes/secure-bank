@@ -37,7 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     );
   }
 
-  const { clientName, clientPhone, clientEmail, expirationHours, assetIds } = parsed.data;
+  const { destination, clientName, clientPhone, clientEmail, expirationHours, assetIds } = parsed.data;
 
   const token = generateToken();
   const expiresAt = addHours(new Date(), expirationHours);
@@ -65,6 +65,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     data: {
       formId: form.id,
       token,
+      destination: destination?.trim() || null,
       clientName: clientName || null,
       clientPhone: clientPhone || null,
       clientEmail: clientEmail || null,
