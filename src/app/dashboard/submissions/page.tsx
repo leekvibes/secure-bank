@@ -4,18 +4,41 @@ import { db } from "@/lib/db";
 import Link from "next/link";
 import { Inbox, Eye, ChevronRight } from "lucide-react";
 import { formatDate } from "@/lib/utils";
-import { LINK_TYPES, type LinkType } from "@/lib/utils";
+import { buildSubmissionsIndex } from "@/lib/submissions-index";
 
 export default async function SubmissionsPage() {
   const session = await getServerSession(authOptions);
   if (!session) return null;
 
-  const submissions = await db.submission.findMany({
-    where: { link: { agentId: session.user.id } },
-    include: { link: { select: { clientName: true, linkType: true, id: true } } },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  const [legacySubmissions, formSubmissions, idUploads] = await Promise.all([
+    db.submission.findMany({
+      where: { link: { agentId: session.user.id } },
+      include: { link: { select: { clientName: true, linkType: true, id: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    db.formSubmission.findMany({
+      where: { form: { agentId: session.user.id } },
+      include: {
+        form: { select: { title: true } },
+        formLink: { select: { clientName: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    db.idUpload.findMany({
+      where: { agentId: session.user.id },
+      include: { link: { select: { clientName: true, id: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+  ]);
+
+  const submissions = buildSubmissionsIndex(
+    legacySubmissions,
+    formSubmissions,
+    idUploads
+  );
 
   return (
     <div className="space-y-8">
@@ -53,7 +76,7 @@ export default async function SubmissionsPage() {
           {submissions.map((sub, i) => (
             <Link
               key={sub.id}
-              href={`/dashboard/submissions/${sub.id}`}
+              href={sub.href}
               className={`flex sm:grid sm:grid-cols-[1fr_150px_150px_100px_32px] items-center gap-3 sm:gap-4 px-5 py-4 hover:bg-slate-50 transition-colors group ${
                 i < submissions.length - 1 ? "border-b border-slate-100" : ""
               }`}
@@ -61,18 +84,16 @@ export default async function SubmissionsPage() {
               {/* Client name */}
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
-                  {sub.link.clientName ?? "Anonymous"}
+                  {sub.clientName ?? "Anonymous"}
                 </p>
                 <p className="text-xs text-slate-400 mt-0.5 sm:hidden">
-                  {LINK_TYPES[sub.link.linkType as LinkType] ?? sub.link.linkType}
+                  {sub.typeLabel}
                 </p>
               </div>
 
               {/* Link type */}
               <div className="hidden sm:block">
-                <span className="text-xs text-slate-500">
-                  {LINK_TYPES[sub.link.linkType as LinkType] ?? sub.link.linkType}
-                </span>
+                <span className="text-xs text-slate-500">{sub.typeLabel}</span>
               </div>
 
               {/* Date */}
@@ -82,7 +103,7 @@ export default async function SubmissionsPage() {
 
               {/* Viewed badge */}
               <div>
-                {sub.revealedAt ? (
+                {sub.viewedAt ? (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ring-1 ring-purple-200/60 bg-purple-50 text-purple-700">
                     <Eye className="w-3 h-3" />
                     Viewed
