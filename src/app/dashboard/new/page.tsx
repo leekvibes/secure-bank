@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { BrandingSelector } from "@/components/branding-selector";
 import { buildTrustMessage } from "@/lib/link-message";
 import { cn } from "@/lib/utils";
+import { toast } from "@/components/ui/use-toast";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,9 @@ const DESTINATIONS = [
   "Aetna",
   "Internal processing",
 ];
+
+const MESSAGE_MAX_CHARS = 4000;
+const MESSAGE_WARN_CHARS = 3600;
 
 const TYPE_META: Record<
   LinkType,
@@ -205,7 +209,11 @@ export default function NewLinkPage() {
       }),
     });
     setSavingTemplate(false);
-    if (!res.ok) return;
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? "Failed to save template.");
+      return;
+    }
     const data = await res.json();
     // Refetch
     const r2 = await fetch("/api/link-templates");
@@ -214,13 +222,26 @@ export default function NewLinkPage() {
     setActiveTemplateId(data.id ?? "");
     setShowSaveName(false);
     setNewTemplateName("");
+    toast({
+      title: "Template saved",
+      description: "Saved template is now available in your list.",
+    });
   }
 
   async function deleteTemplate(id: string) {
-    await fetch(`/api/link-templates/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/link-templates/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? "Failed to delete template.");
+      return;
+    }
     setTemplates((prev) => prev.filter((t) => t.id !== id));
     if (activeTemplateId === id) setActiveTemplateId("");
     setDeleteConfirmId(null);
+    toast({
+      title: "Template deleted",
+      description: "Template removed successfully.",
+    });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -265,16 +286,44 @@ export default function NewLinkPage() {
 
   function copyLink() {
     if (!created) return;
-    navigator.clipboard.writeText(created.url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard
+      .writeText(created.url)
+      .then(() => {
+        setCopied(true);
+        toast({
+          title: "Link copied",
+          description: "Secure link copied to clipboard.",
+        });
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {
+        toast({
+          title: "Clipboard failed",
+          description: "Unable to copy link in this browser.",
+          variant: "destructive",
+        });
+      });
   }
 
   function copySmsText() {
     if (!created) return;
-    navigator.clipboard.writeText(created.smsText);
-    setCopiedSms(true);
-    setTimeout(() => setCopiedSms(false), 2000);
+    navigator.clipboard
+      .writeText(created.smsText)
+      .then(() => {
+        setCopiedSms(true);
+        toast({
+          title: "Link copied",
+          description: "Message copied to clipboard.",
+        });
+        setTimeout(() => setCopiedSms(false), 2000);
+      })
+      .catch(() => {
+        toast({
+          title: "Clipboard failed",
+          description: "Unable to copy message in this browser.",
+          variant: "destructive",
+        });
+      });
   }
 
   async function sendNow() {
@@ -283,9 +332,24 @@ export default function NewLinkPage() {
     setSendError(null);
 
     if (sendMethod === "COPY") {
-      await navigator.clipboard.writeText(sendMsg);
+      try {
+        await navigator.clipboard.writeText(sendMsg);
+      } catch {
+        setSending(false);
+        setSendError("Unable to copy message in this browser.");
+        toast({
+          title: "Clipboard failed",
+          description: "Unable to copy message in this browser.",
+          variant: "destructive",
+        });
+        return;
+      }
       setSendSuccess(true);
       setSending(false);
+      toast({
+        title: "Link copied",
+        description: "Message copied to clipboard.",
+      });
       return;
     }
 
@@ -302,6 +366,10 @@ export default function NewLinkPage() {
       return;
     }
     setSendSuccess(true);
+    toast({
+      title: sendMethod === "SMS" ? "SMS sent" : "Email sent",
+      description: "Link sent successfully.",
+    });
   }
 
   function createAnother() {
@@ -755,14 +823,25 @@ export default function NewLinkPage() {
               </div>
               <textarea
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                onChange={(e) => setMessage(e.target.value.slice(0, MESSAGE_MAX_CHARS))}
                 rows={5}
+                maxLength={MESSAGE_MAX_CHARS}
                 placeholder="Auto-generated message will appear here…"
                 className="w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-ring resize-none"
               />
-              <p className="text-xs text-slate-400">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-400">
                 Edit freely. This message is sent alongside the link.
-              </p>
+                </p>
+                <p
+                  className={cn(
+                    "text-xs tabular-nums",
+                    message.length >= MESSAGE_WARN_CHARS ? "text-amber-600" : "text-slate-400"
+                  )}
+                >
+                  {message.length}/{MESSAGE_MAX_CHARS}
+                </p>
+              </div>
             </div>
 
             {/* 6. Link settings */}
@@ -974,10 +1053,17 @@ function LivePreview({
             <span className="text-[11px] font-medium text-slate-600">{meta.title}</span>
           </div>
 
+          {/* Greeting — updates live as client name is typed */}
+          {clientName && (
+            <p className="text-[12px] font-semibold text-slate-800">
+              Hi {clientName.split(" ")[0]},
+            </p>
+          )}
+
           {/* Message preview */}
           {message && (
             <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100">
-              <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-5 whitespace-pre-line">
+              <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-4 whitespace-pre-line">
                 {message}
               </p>
             </div>
