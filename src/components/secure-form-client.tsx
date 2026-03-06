@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ClientTrustHeader, type AgentProfile } from "@/components/client-trust-header";
+import { getErrorMessage, getFieldErrors } from "@/lib/error-message";
 
 function fmtSsn(raw: string): string {
   const d = raw.replace(/\D/g, "").slice(0, 9);
@@ -157,8 +158,9 @@ export function SecureFormClient({
     setLoading(false);
 
     if (!res.ok) {
-      if (data.fieldErrors) setFieldErrors(data.fieldErrors);
-      setError(data.error ?? "Submission failed. Please try again.");
+      const parsedFieldErrors = getFieldErrors(data);
+      if (Object.keys(parsedFieldErrors).length > 0) setFieldErrors(parsedFieldErrors);
+      setError(getErrorMessage(data, "Submission failed. Please try again."));
       return;
     }
     setSubmitted(true);
@@ -189,7 +191,7 @@ export function SecureFormClient({
     setLoading(false);
 
     if (!res.ok) {
-      setError(data.error ?? "Upload failed. Please try again.");
+      setError(getErrorMessage(data, "Upload failed. Please try again."));
       return;
     }
     setSubmitted(true);

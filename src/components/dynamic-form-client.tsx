@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ClientTrustHeader } from "@/components/client-trust-header";
 import { cn } from "@/lib/utils";
+import { getErrorMessage, getFieldErrors } from "@/lib/error-message";
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
@@ -106,8 +107,9 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
     setLoading(false);
 
     if (!res.ok) {
-      if (data.fieldErrors) setFieldErrors(data.fieldErrors);
-      setError(data.error ?? "Submission failed. Please try again.");
+      const parsedFieldErrors = getFieldErrors(data);
+      if (Object.keys(parsedFieldErrors).length > 0) setFieldErrors(parsedFieldErrors);
+      setError(getErrorMessage(data, "Submission failed. Please try again."));
       return;
     }
 
