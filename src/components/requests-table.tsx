@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, LINK_TYPES, isExpired, formatDate, type LinkType } from "@/lib/utils";
 import { buildTrustMessage } from "@/lib/link-message";
+import { getInitialSendMethod } from "@/lib/request-send";
+import { toast } from "@/components/ui/use-toast";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -163,6 +165,7 @@ function RequestRow({
   const [copied, setCopied] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showSend, setShowSend] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const isIdUpload = link.linkType === "ID_UPLOAD";
   const viewHref =
@@ -184,17 +187,43 @@ function RequestRow({
 
   function copyLink(e: React.MouseEvent) {
     e.stopPropagation();
-    navigator.clipboard.writeText(secureUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard
+      .writeText(secureUrl)
+      .then(() => {
+        setCopied(true);
+        toast({
+          title: "Link copied",
+          description: "Secure link copied to clipboard.",
+        });
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch((error) => {
+        toast({
+          title: "Clipboard failed",
+          description: error instanceof Error ? error.message : "Unable to copy link in this browser.",
+          variant: "destructive",
+        });
+      });
   }
 
   async function deleteLink(e: React.MouseEvent) {
     e.stopPropagation();
-    if (!confirm("Delete this link? This cannot be undone.")) return;
     setDeleting(true);
-    await fetch(`/api/links/${link.id}`, { method: "DELETE" });
-    router.refresh();
+    try {
+      const res = await fetch(`/api/links/${link.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        toast({
+          title: "Delete failed",
+          description: payload?.error ?? "Failed to delete link.",
+          variant: "destructive",
+        });
+        return;
+      }
+      router.refresh();
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -267,14 +296,30 @@ function RequestRow({
               href={viewHref}
             />
           )}
-          <RowAction
-            icon={deleting ? Loader2 : Trash2}
-            label="Delete"
-            danger
-            spinIcon={deleting}
-            disabled={deleting}
-            onClick={deleteLink}
-          />
+          {deleteConfirm ? (
+            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={(e) => { e.stopPropagation(); setDeleteConfirm(false); }}
+                className="px-2 py-1 text-xs text-slate-500 hover:text-slate-700 font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteLink}
+                disabled={deleting}
+                className="px-2 py-1 rounded-md text-xs font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-60 transition-colors"
+              >
+                {deleting ? "…" : "Delete"}
+              </button>
+            </div>
+          ) : (
+            <RowAction
+              icon={Trash2}
+              label="Delete"
+              danger
+              onClick={(e) => { e.stopPropagation(); setDeleteConfirm(true); }}
+            />
+          )}
         </div>
       </div>
 
@@ -314,7 +359,13 @@ function SendPanel({
     url: secureUrl,
   });
 
-  const [method, setMethod] = useState<"SMS" | "EMAIL" | "COPY">(twilioEnabled ? "SMS" : "EMAIL");
+  const [method, setMethod] = useState<"SMS" | "EMAIL" | "COPY">(
+    getInitialSendMethod({
+      twilioEnabled,
+      clientPhone: link.clientPhone,
+      clientEmail: link.clientEmail,
+    })
+  );
   const [smsTo, setSmsTo] = useState(link.clientPhone ?? "");
   const [emailTo, setEmailTo] = useState(link.clientEmail ?? "");
   const [message, setMessage] = useState(defaultMsg);
@@ -327,7 +378,20 @@ function SendPanel({
     setError(null);
     const recipient =
       method === "SMS" ? smsTo.trim() : method === "EMAIL" ? emailTo.trim() : "clipboard";
-    if (method === "COPY") await navigator.clipboard.writeText(message);
+    if (method === "COPY") {
+      try {
+        await navigator.clipboard.writeText(message);
+      } catch {
+        setSending(false);
+        setError("Unable to copy message in this browser.");
+        toast({
+          title: "Clipboard failed",
+          description: "Unable to copy message in this browser.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
 
     const res = await fetch(`/api/links/${link.id}/send`, {
       method: "POST",
@@ -337,6 +401,10 @@ function SendPanel({
     setSending(false);
     if (res.ok) {
       setSuccess(true);
+      toast({
+        title: method === "SMS" ? "SMS sent" : method === "EMAIL" ? "Email sent" : "Link copied",
+        description: method === "COPY" ? "Message copied to clipboard." : "Link sent successfully.",
+      });
       setTimeout(onSent, 1200);
     } else {
       const d = await res.json();
