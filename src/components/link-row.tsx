@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Copy, CheckCheck, Share2, Eye, MessageSquare,
+  Copy, CheckCheck, Share2, Eye,
   Trash2, Loader2, ImageIcon, User, Calendar, Clock, Mail,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -39,15 +39,14 @@ interface LinkRowProps {
     sends?: { method: string; recipient: string; createdAt: Date }[];
     _count?: { sends: number };
   };
-  twilioEnabled?: boolean;
 }
 
-export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
+export function LinkRow({ link }: LinkRowProps) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
   const [showSend, setShowSend] = useState(false);
-  const [sendMethod, setSendMethod] = useState<"SMS" | "EMAIL" | "COPY">("EMAIL");
+  const [sendMethod, setSendMethod] = useState<"EMAIL" | "COPY">("EMAIL");
   const [emailTo, setEmailTo] = useState(link.clientEmail ?? "");
   const [sendMessage, setSendMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -137,7 +136,7 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
       setSendError(data.error?.message ?? data.error ?? "Failed to send.");
     } else {
       toast({
-        title: sendMethod === "SMS" ? "SMS sent" : sendMethod === "EMAIL" ? "Email sent" : "Link copied",
+        title: sendMethod === "EMAIL" ? "Email sent" : "Link copied",
         description: sendMethod === "COPY" ? "Message copied to clipboard." : "Link sent successfully.",
       });
       setSendSuccess(true);

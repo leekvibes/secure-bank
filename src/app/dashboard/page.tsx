@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
-import { isTwilioConfigured } from "@/lib/sms";
 import Link from "next/link";
 import { Plus, Link2, Clock, CheckCircle2, FileText, ArrowRight, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,6 @@ export default async function DashboardPage() {
   let links: any[] = [];
   let idUploads: any[] = [];
   let formCount = 0;
-  const twilioEnabled = isTwilioConfigured();
 
   try {
     [links, idUploads, formCount] = await Promise.all([
@@ -219,14 +217,12 @@ export default async function DashboardPage() {
               <LinkRow
                 key={link.id}
                 link={{ ...link, clientPhone: link.clientPhone, submission: link.submission, idUpload: null }}
-                twilioEnabled={twilioEnabled}
               />
             ))}
             {idUploads.map((link) => (
               <LinkRow
                 key={link.id}
                 link={{ ...link, clientPhone: link.clientPhone, submission: null, idUpload: link.idUpload }}
-                twilioEnabled={twilioEnabled}
               />
             ))}
           </div>

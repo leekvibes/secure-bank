@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: first }, { status: 400 });
     }
 
-    const { email, password, displayName, agencyName } = parsed.data;
+    const { email, password, displayName, agencyName, industry, destinationLabel } = parsed.data;
 
     const existing = await db.user.findUnique({
       where: { email: email.toLowerCase().trim() },
@@ -37,6 +37,8 @@ export async function POST(req: NextRequest) {
         displayName,
         agencyName: agencyName ?? null,
         agentSlug,
+        industry: industry ?? null,
+        destinationLabel: destinationLabel ?? null,
       },
     });
 

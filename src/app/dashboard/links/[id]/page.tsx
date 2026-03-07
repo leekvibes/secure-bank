@@ -11,11 +11,10 @@ import {
 } from "lucide-react";
 import { cn, LINK_TYPES, formatDate, isExpired, type LinkType } from "@/lib/utils";
 import { RequestActions } from "@/components/request-actions";
-import { isTwilioConfigured } from "@/lib/sms";
 import { buildRequestTimeline } from "@/lib/request-timeline";
 
 export const metadata: Metadata = {
-  title: "Request Details",
+  title: "Link Details",
 };
 
 type DisplayStatus = "DRAFT" | "SENT" | "OPENED" | "SUBMITTED" | "EXPIRED";
@@ -79,7 +78,6 @@ export default async function LinkDetailPage({ params }: { params: { id: string 
     take: 50,
   });
 
-  const twilioEnabled = isTwilioConfigured();
   const displayStatus = getDisplayStatus(link);
   const statusCfg = STATUS_CONFIG[displayStatus];
   const typeMeta = TYPE_META[link.linkType] ?? TYPE_META.FULL_INTAKE;
@@ -167,7 +165,6 @@ export default async function LinkDetailPage({ params }: { params: { id: string 
           {(link.destinationLabel || link.destination) && (
             <MetaItem icon={Building2} label={link.destinationLabel ?? link.destination!} />
           )}
-          <MetaItem icon={Shield} label={`${link.retentionDays}-day data retention`} />
         </div>
       </div>
 
@@ -233,7 +230,6 @@ export default async function LinkDetailPage({ params }: { params: { id: string 
                       label="Last revealed"
                       value={link.submission.revealedAt ? formatDate(link.submission.revealedAt) : "Never"}
                     />
-                    <Row label="Auto-deletes" value={formatDate(link.submission.deleteAt)} />
                   </>
                 )}
                 {link.idUpload && (
@@ -243,7 +239,6 @@ export default async function LinkDetailPage({ params }: { params: { id: string 
                       label="Last viewed"
                       value={link.idUpload.viewedAt ? formatDate(link.idUpload.viewedAt) : "Never"}
                     />
-                    <Row label="Auto-deletes" value={formatDate(link.idUpload.deleteAt)} />
                   </>
                 )}
               </dl>
@@ -298,13 +293,11 @@ export default async function LinkDetailPage({ params }: { params: { id: string 
             linkToken={link.token}
             linkType={link.linkType}
             clientName={link.clientName}
-            clientPhone={link.clientPhone}
             clientEmail={link.clientEmail}
             destination={link.destinationLabel ?? link.destination}
             displayStatus={displayStatus}
             submissionId={link.submission?.id ?? null}
             idUploadId={link.idUpload?.id ?? null}
-            twilioEnabled={twilioEnabled}
           />
 
           <div className="bg-card rounded-xl border border-border shadow-sm p-5">
@@ -320,7 +313,6 @@ export default async function LinkDetailPage({ params }: { params: { id: string 
                 ["Email",       link.clientEmail ?? "—"],
                 ["Destination", link.destinationLabel ?? link.destination ?? "—"],
                 ["Sends",       String(link.sends.length)],
-                ["Retention",   `${link.retentionDays} days`],
               ] as [string, string][]).map(([label, value]) => (
                 <div key={label} className="flex justify-between gap-2 text-sm">
                   <dt className="text-muted-foreground shrink-0">{label}</dt>
@@ -345,7 +337,7 @@ export default async function LinkDetailPage({ params }: { params: { id: string 
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground">
-                        {send.method === "SMS" ? "SMS" : send.method === "EMAIL" ? "Email" : "Link copied"}
+                        {send.method === "EMAIL" ? "Email" : "Link copied"}
                       </p>
                       {send.recipient !== "clipboard" && (
                         <p className="text-xs text-muted-foreground truncate">{send.recipient}</p>

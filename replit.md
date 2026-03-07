@@ -87,13 +87,16 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 - Displayed on client-facing secure forms via `client-trust-header.tsx`
 - Falls back to initials avatar when no photo is set
 
-## Requests Page
+## Secure Links Page
 
-- Link-type tabs at top: All Requests, Banking, Social Security, Full Intake, Document Upload
+- Sidebar label: "Secure Links" (renamed from "Requests")
+- Link-type tabs at top: All Links, Banking, Social Security, Full Intake, Document Upload
 - Underline-style navigation (active = blue text + blue bottom border, inactive = gray text)
 - Status filter pills below tabs: All, Sent, Opened, Submitted, Expired
 - Selecting a type tab resets the status filter to "All"
 - Status counts are scoped to the currently selected type tab
+- Create button: "Create Secure Link"
+- No SMS buttons anywhere — only Email and Copy options in send panels
 
 ## Auth Notes
 
@@ -108,6 +111,21 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 - API endpoint: `/api/routing?number=XXXXXXXXX`
 - Checks local DB first (instant), falls back to routingnumbers.info API (3s timeout, 24hr cache)
 - No API key required — works offline for common banks
+- Green "Verified" checkmark appears next to bank name after successful lookup
+
+## Custom Forms
+
+- Form builder at `/dashboard/forms/new` — create custom encrypted forms with drag-and-drop field ordering
+- Field types: text, email, phone, address, date, dropdown, SSN, routing, bank account, signature
+- Form fields can be edited after creation via "Edit Fields" button on form detail page
+- PATCH `/api/forms/[id]` accepts field updates in a DB transaction for atomic saves
+- No consent checkbox on any form type
+- No data retention/auto-delete UI — data is only deleted manually by the agent
+
+## Signup Onboarding
+
+- Signup form asks: Full Name, Agency Name (optional), Industry (optional), Where client info is submitted (optional), Email, Password
+- Industry and destinationLabel stored on User model and pre-populate link creation defaults
 
 ## Setup & Portability
 

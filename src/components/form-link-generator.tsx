@@ -16,7 +16,7 @@ interface Props {
 
 interface GeneratedLink {
   url: string;
-  smsText: string;
+  messageText: string;
   expiresAt: string;
 }
 
@@ -115,13 +115,13 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
               <div className="space-y-2">
                 <Label>Pre-written Message</Label>
                 <div className="bg-surface-2 rounded-lg p-3 border border-border/40">
-                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{generated.smsText}</p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{generated.messageText}</p>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
                   className="w-full"
-                  onClick={() => copy(generated.smsText, setCopiedSms)}
+                  onClick={() => copy(generated.messageText, setCopiedSms)}
                 >
                   {copiedSms ? <CheckCheck className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                   {copiedSms ? "Copied" : "Copy Message Text"}

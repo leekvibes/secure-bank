@@ -8,6 +8,7 @@ import { ArrowLeft, Lock, CheckCircle2, Clock, Eye, ExternalLink } from "lucide-
 import { Button } from "@/components/ui/button";
 import { formatDate, isExpired } from "@/lib/utils";
 import { FormLinkGenerator } from "@/components/form-link-generator";
+import { FormFieldEditor } from "@/components/form-field-editor";
 
 export const metadata: Metadata = {
   title: "Form Details",
@@ -77,14 +78,28 @@ export default async function FormDetailPage({ params }: { params: { id: string 
           <span>{form.fields.length} field{form.fields.length !== 1 ? "s" : ""}</span>
           <span className="text-border">·</span>
           <span>{submittedLinks.length} submission{submittedLinks.length !== 1 ? "s" : ""}</span>
-          <span className="text-border">·</span>
-          <span>Retention: {form.retentionDays === -1 ? "Manual" : `${form.retentionDays} days`}</span>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-[1fr_360px] gap-8 items-start">
 
         <div className="space-y-6">
+
+          <FormFieldEditor
+            formId={form.id}
+            initialFields={form.fields.map((f) => ({
+              id: f.id,
+              label: f.label,
+              fieldType: f.fieldType,
+              placeholder: f.placeholder,
+              helpText: f.helpText,
+              required: f.required,
+              encrypted: f.encrypted,
+              maskInput: f.maskInput,
+              confirmField: f.confirmField,
+              dropdownOptions: f.dropdownOptions,
+            }))}
+          />
 
           <div className="ui-table-wrap">
             <div className="px-5 py-4 border-b border-border/40">

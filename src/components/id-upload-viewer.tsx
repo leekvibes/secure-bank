@@ -101,7 +101,6 @@ export function IdUploadViewer({ upload, auditLogs }: Props) {
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">ID Images</CardTitle>
             <span className="text-xs text-muted-foreground">
-              Deletes {formatDate(upload.deleteAt)}
             </span>
           </div>
           <CardDescription>

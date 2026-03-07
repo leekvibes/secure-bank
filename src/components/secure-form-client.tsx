@@ -241,7 +241,7 @@ export function SecureFormClient({
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-3">Submitted Securely</h1>
           <p className="text-gray-500 leading-relaxed mb-8">
-            Your information has been encrypted and securely delivered to {agent.displayName}. You may now close this page.
+            Your information has been encrypted and securely submitted. You may now close this page.
           </p>
           <div className="bg-slate-50 rounded-2xl border border-gray-200 shadow-sm p-5 text-sm text-gray-600 text-left space-y-3">
             {[
@@ -380,7 +380,12 @@ export function SecureFormClient({
                     label="Routing Number"
                     error={fieldErrors.routingNumber}
                     required
-                    hint={checkingRouting ? "Looking up bank..." : routingInfo ? `Bank: ${routingInfo}` : "9-digit number found on your check"}
+                    hint={checkingRouting ? "Looking up bank..." : routingInfo ? (
+                      <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                        Verified — {routingInfo}
+                      </span>
+                    ) : "9-digit number found on your check"}
                   >
                     <Input
                       type="text"
@@ -498,7 +503,12 @@ export function SecureFormClient({
                       <span className="text-sm font-semibold text-gray-700">Banking Information</span>
                       <div className="flex-1 h-px bg-gray-200" />
                     </div>
-                    <Field label="Routing Number" error={fieldErrors.routingNumber} required hint={checkingRouting ? "Looking up bank..." : routingInfo ? `Bank: ${routingInfo}` : "9-digit number found on your check"}>
+                    <Field label="Routing Number" error={fieldErrors.routingNumber} required hint={checkingRouting ? "Looking up bank..." : routingInfo ? (
+                      <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                        Verified — {routingInfo}
+                      </span>
+                    ) : "9-digit number found on your check"}>
                       <Input type="text" inputMode="numeric" value={fields.routingNumber} onChange={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 9); set("routingNumber", v); lookupRouting(v); }} placeholder="021000021" maxLength={9} autoComplete="off" />
                     </Field>
                     <Field label="Bank Name" error={fieldErrors.bankName}>
@@ -748,7 +758,7 @@ function Field({
   label: string;
   children: React.ReactNode;
   error?: string;
-  hint?: string;
+  hint?: React.ReactNode;
   required?: boolean;
 }) {
   return (
@@ -758,7 +768,7 @@ function Field({
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </Label>
       {children}
-      {hint && !error && <p className="text-xs text-gray-400">{hint}</p>}
+      {hint && !error && <div className="text-xs text-gray-400">{hint}</div>}
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );

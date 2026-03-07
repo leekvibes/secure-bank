@@ -1,8 +1,6 @@
-export type RequestSendMethod = "SMS" | "EMAIL" | "COPY";
+export type RequestSendMethod = "EMAIL" | "COPY";
 
 export function getInitialSendMethod(input: {
-  twilioEnabled: boolean;
-  clientPhone?: string | null;
   clientEmail?: string | null;
 }): RequestSendMethod {
   const hasEmail = Boolean(input.clientEmail?.trim());

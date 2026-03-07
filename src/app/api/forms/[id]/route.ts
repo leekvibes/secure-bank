@@ -31,17 +31,60 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const form = await db.form.findFirst({
     where: { id: params.id, agentId: session.user.id },
+    include: { fields: true },
   });
   if (!form) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
-  const allowed = ["title", "description", "status", "retentionDays"] as const;
-  const data: Record<string, unknown> = {};
-  for (const key of allowed) {
-    if (key in body) data[key] = body[key];
+
+  const formData: Record<string, unknown> = {};
+  for (const key of ["title", "description", "status", "retentionDays"] as const) {
+    if (key in body) formData[key] = body[key];
   }
 
-  const updated = await db.form.update({ where: { id: params.id }, data });
+  if (Object.keys(formData).length > 0) {
+    await db.form.update({ where: { id: params.id }, data: formData });
+  }
+
+  if (Array.isArray(body.fields)) {
+    await db.$transaction(async (tx) => {
+      const existingIds = form.fields.map((f) => f.id);
+      const incomingIds = body.fields.filter((f: { id?: string }) => f.id).map((f: { id: string }) => f.id);
+      const toDelete = existingIds.filter((id) => !incomingIds.includes(id));
+
+      if (toDelete.length > 0) {
+        await tx.formField.deleteMany({ where: { id: { in: toDelete }, formId: params.id } });
+      }
+
+      for (let idx = 0; idx < body.fields.length; idx++) {
+        const f = body.fields[idx];
+        const fieldData = {
+          label: f.label,
+          fieldType: f.fieldType,
+          placeholder: f.placeholder ?? null,
+          helpText: f.helpText ?? null,
+          required: f.required ?? false,
+          encrypted: f.encrypted ?? true,
+          maskInput: f.maskInput ?? false,
+          confirmField: f.confirmField ?? false,
+          dropdownOptions: f.dropdownOptions ? JSON.stringify(f.dropdownOptions) : null,
+          order: idx,
+        };
+
+        if (f.id && existingIds.includes(f.id)) {
+          await tx.formField.update({ where: { id: f.id }, data: fieldData });
+        } else {
+          await tx.formField.create({ data: { ...fieldData, formId: params.id } });
+        }
+      }
+    });
+  }
+
+  const updated = await db.form.findFirst({
+    where: { id: params.id },
+    include: { fields: { orderBy: { order: "asc" } } },
+  });
+
   return NextResponse.json({ form: updated });
 }
 

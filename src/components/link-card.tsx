@@ -11,12 +11,10 @@ import {
   ChevronRight,
   User,
   Eye,
-  MessageSquare,
   Trash2,
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   LINK_TYPES,
   LINK_STATUS_LABELS,
@@ -39,18 +37,12 @@ interface LinkCardProps {
     createdAt: Date;
     submission: { id: string; revealedAt: Date | null } | null;
   };
-  twilioEnabled?: boolean;
 }
 
-export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
+export function LinkCard({ link }: LinkCardProps) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
-  const [showSms, setShowSms] = useState(false);
-  const [smsTo, setSmsTo] = useState(link.clientPhone ?? "");
-  const [smsSending, setSmsSending] = useState(false);
-  const [smsSent, setSmsSent] = useState(false);
-  const [smsError, setSmsError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const secureUrl =
@@ -79,24 +71,6 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
         setTimeout(() => setCopied(false), 2000);
       }
     } catch {
-    }
-  }
-
-  async function sendSms() {
-    setSmsSending(true);
-    setSmsError(null);
-    const res = await fetch(`/api/links/${link.id}/sms`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ to: smsTo }),
-    });
-    const data = await res.json();
-    setSmsSending(false);
-    if (!res.ok) {
-      setSmsError(data.error ?? "Failed to send SMS.");
-    } else {
-      setSmsSent(true);
-      setTimeout(() => { setShowSms(false); setSmsSent(false); }, 2000);
     }
   }
 
@@ -188,39 +162,6 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
         </div>
       </div>
 
-      {showSms && (
-        <div className="border-t border-border/30 px-4 pb-4 pt-3 bg-surface-2/50 backdrop-blur-sm rounded-b-xl">
-          <p className="text-xs text-muted-foreground mb-2">
-            Send the secure link directly via SMS.
-          </p>
-          {smsSent ? (
-            <p className="text-xs text-emerald-500 font-medium">SMS sent!</p>
-          ) : (
-            <div className="flex gap-2">
-              <Input
-                value={smsTo}
-                onChange={(e) => setSmsTo(e.target.value)}
-                placeholder="+1 555-000-0000"
-                className="h-9 text-sm"
-              />
-              <Button
-                size="sm"
-                onClick={sendSms}
-                disabled={smsSending || !smsTo.trim()}
-              >
-                {smsSending ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  "Send"
-                )}
-              </Button>
-            </div>
-          )}
-          {smsError && (
-            <p className="text-xs text-red-500 mt-1">{smsError}</p>
-          )}
-        </div>
-      )}
     </div>
   );
 }

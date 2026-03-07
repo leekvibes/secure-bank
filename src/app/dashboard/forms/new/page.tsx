@@ -70,7 +70,7 @@ export default function NewFormPage() {
   const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [retentionDays, setRetentionDays] = useState(30);
+  const retentionDays = -1;
   const [fields, setFields] = useState<FieldDraft[]>([makeField()]);
   const [showPreview, setShowPreview] = useState(false);
 
@@ -211,20 +211,6 @@ export default function NewFormPage() {
                 className="flex min-h-[80px] w-full rounded-lg border border-input bg-card px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:border-primary/50 resize-none"
                 rows={3}
               />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="retention">Data retention</Label>
-              <select
-                id="retention"
-                value={retentionDays}
-                onChange={(e) => setRetentionDays(parseInt(e.target.value))}
-                className="flex h-11 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:border-primary/50"
-              >
-                <option value={30}>30 days</option>
-                <option value={60}>60 days</option>
-                <option value={90}>90 days</option>
-                <option value={-1}>Manual deletion</option>
-              </select>
             </div>
           </CardContent>
         </Card>
@@ -450,15 +436,6 @@ function FormPreviewPane({
               <PreviewField key={field.id} field={field} />
             ))
           )}
-
-          <div className="p-3 bg-surface-2 rounded-xl border border-border/40">
-            <label className="flex items-start gap-2.5 cursor-pointer">
-              <div className="mt-0.5 h-4 w-4 rounded border border-border bg-card shrink-0" />
-              <span className="text-xs text-muted-foreground leading-relaxed">
-                I consent to share this information securely for the purpose of completing my application.
-              </span>
-            </label>
-          </div>
 
           <div className="h-10 bg-primary rounded-lg flex items-center justify-center">
             <span className="text-primary-foreground text-sm font-semibold">Submit Securely</span>

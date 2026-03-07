@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
         ? "a photo of your ID"
         : "your information";
 
-    const smsText = `${clientPart}I need to securely collect your ${typePart} for your application. Instead of reading it aloud, please tap this private link and enter it directly — it's encrypted and expires soon:\n\n${url}\n\nLet me know once you've submitted it.`;
+    const messageText = `${clientPart}I need to securely collect your ${typePart} for your application. Instead of reading it aloud, please tap this private link and enter it directly — it's encrypted and expires soon:\n\n${url}\n\nLet me know once you've submitted it.`;
     const trustMessage = buildTrustMessage({
       clientName: clientName || null,
       destination:
@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
         id: link.id,
         token,
         url,
-        smsText,
+        messageText,
         trustMessage,
         destination: link.destination,
         destinationLabel: normalizedDestination,

@@ -16,7 +16,7 @@ interface Props {
 
 const NAV = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
-  { href: "/dashboard/links", label: "Requests", icon: Link2, exact: false },
+  { href: "/dashboard/links", label: "Secure Links", icon: Link2, exact: false },
   { href: "/dashboard/forms", label: "Forms", icon: FileText },
   { href: "/dashboard/submissions", label: "Submissions", icon: Inbox },
   { href: "/dashboard/uploads", label: "Uploads", icon: Upload },

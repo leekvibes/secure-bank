@@ -33,7 +33,7 @@ interface CreatedLink {
   id: string;
   token: string;
   url: string;
-  smsText: string;
+  messageText: string;
   trustMessage: string;
   expiresAt: string;
 }
@@ -141,8 +141,7 @@ export default function NewLinkPage() {
 
   const [copied, setCopied] = useState(false);
   const [copiedSms, setCopiedSms] = useState(false);
-  const [sendMethod, setSendMethod] = useState<"SMS" | "EMAIL" | "COPY">("SMS");
-  const [sendPhone, setSendPhone] = useState("");
+  const [sendMethod, setSendMethod] = useState<"EMAIL" | "COPY">("EMAIL");
   const [sendEmail, setSendEmail] = useState("");
   const [sendMsg, setSendMsg] = useState("");
   const [sending, setSending] = useState(false);
@@ -256,7 +255,7 @@ export default function NewLinkPage() {
         clientPhone: clientPhone || undefined,
         clientEmail: clientEmail || undefined,
         expirationHours,
-        retentionDays: 7,
+        retentionDays: -1,
         assetIds: selectedAssetIds,
         ...(activeTemplateId ? { templateId: activeTemplateId } : {}),
       }),
@@ -271,8 +270,7 @@ export default function NewLinkPage() {
     }
 
     setCreated(data);
-    setSendMsg(data.trustMessage ?? data.smsText ?? message);
-    setSendPhone(clientPhone);
+    setSendMsg(data.trustMessage ?? data.messageText ?? message);
     setSendEmail(clientEmail);
   }
 
@@ -297,10 +295,10 @@ export default function NewLinkPage() {
       });
   }
 
-  function copySmsText() {
+  function copyMessageText() {
     if (!created) return;
     navigator.clipboard
-      .writeText(created.smsText)
+      .writeText(created.messageText)
       .then(() => {
         setCopiedSms(true);
         toast({
@@ -345,7 +343,7 @@ export default function NewLinkPage() {
       return;
     }
 
-    const recipient = sendMethod === "SMS" ? sendPhone.trim() : sendEmail.trim();
+    const recipient = sendMethod === "EMAIL" ? sendEmail.trim() : "clipboard";
     const res = await fetch(`/api/links/${created.id}/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -359,7 +357,7 @@ export default function NewLinkPage() {
     }
     setSendSuccess(true);
     toast({
-      title: sendMethod === "SMS" ? "SMS sent" : "Email sent",
+      title: sendMethod === "EMAIL" ? "Email sent" : "Link copied",
       description: "Link sent successfully.",
     });
   }
@@ -418,8 +416,8 @@ export default function NewLinkPage() {
 
             <div className="space-y-3">
               <Label className="text-xs text-muted-foreground block">Send to client</Label>
-              <div className="grid grid-cols-3 gap-1.5 p-1 bg-surface-2 rounded-lg">
-                {(["SMS", "EMAIL", "COPY"] as const).map((m) => (
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-surface-2 rounded-lg">
+                {(["EMAIL", "COPY"] as const).map((m) => (
                   <button
                     key={m}
                     type="button"
@@ -431,19 +429,11 @@ export default function NewLinkPage() {
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    {m === "SMS" ? "SMS" : m === "EMAIL" ? "Email" : "Copy text"}
+                    {m === "EMAIL" ? "Email" : "Copy text"}
                   </button>
                 ))}
               </div>
 
-              {sendMethod === "SMS" && (
-                <Input
-                  value={sendPhone}
-                  onChange={(e) => setSendPhone(e.target.value)}
-                  placeholder="+1 555-000-0000"
-                  type="tel"
-                />
-              )}
               {sendMethod === "EMAIL" && (
                 <Input
                   type="email"
@@ -467,7 +457,6 @@ export default function NewLinkPage() {
                     sending ||
                     sendSuccess ||
                     !sendMsg.trim() ||
-                    (sendMethod === "SMS" && !sendPhone.trim()) ||
                     (sendMethod === "EMAIL" && !sendEmail.trim())
                   }
                   className="flex-1 gap-1.5"
@@ -481,7 +470,7 @@ export default function NewLinkPage() {
                   )}
                   {sendSuccess ? "Sent!" : "Send now"}
                 </Button>
-                <Button variant="outline" onClick={copySmsText} className="gap-1.5 shrink-0">
+                <Button variant="outline" onClick={copyMessageText} className="gap-1.5 shrink-0">
                   {copiedSms ? <CheckCheck className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                   Copy
                 </Button>

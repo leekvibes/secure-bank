@@ -64,11 +64,26 @@ interface Props {
 export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], link }: Props) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [confirmValues, setConfirmValues] = useState<Record<string, string>>({});
-  const [consent, setConsent] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [routingLookups, setRoutingLookups] = useState<Record<string, string | null>>({});
+  const [routingChecking, setRoutingChecking] = useState<Record<string, boolean>>({});
+
+  async function lookupRouting(fieldId: string, value: string) {
+    if (value.length !== 9) { setRoutingLookups((p) => ({ ...p, [fieldId]: null })); return; }
+    setRoutingChecking((p) => ({ ...p, [fieldId]: true }));
+    try {
+      const res = await fetch(`/api/routing?number=${value}`);
+      const data = await res.json();
+      setRoutingLookups((p) => ({ ...p, [fieldId]: data.name ?? null }));
+    } catch {
+      setRoutingLookups((p) => ({ ...p, [fieldId]: null }));
+    } finally {
+      setRoutingChecking((p) => ({ ...p, [fieldId]: false }));
+    }
+  }
 
   function setValue(fieldId: string, value: string) {
     setValues((v) => ({ ...v, [fieldId]: value }));
@@ -82,7 +97,6 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!consent) return;
     setLoading(true);
     setError(null);
     setFieldErrors({});
@@ -135,13 +149,13 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-3">Submitted Securely</h1>
           <p className="text-gray-500 leading-relaxed mb-8">
-            Your information has been encrypted and delivered to {agent.displayName}. You can close this page.
+            Your information has been encrypted and securely submitted. You may now close this page.
           </p>
           <div className="bg-slate-50 rounded-2xl border border-gray-200 shadow-sm p-5 text-sm text-gray-600 text-left space-y-3">
             {[
               "Encrypted with AES-256 before storage",
               "Delivered only to your agent",
-              "Automatically deleted after the retention period",
+              "Protected with bank-level security",
             ].map((line) => (
               <div key={line} className="flex items-center gap-2.5">
                 <div className="w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
@@ -196,31 +210,20 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
                 confirmValue={confirmValues[field.id] ?? ""}
                 error={fieldErrors[field.id]}
                 confirmError={fieldErrors[`confirm_${field.id}`]}
-                onChange={(v) => setValue(field.id, v)}
+                onChange={(v) => {
+                  setValue(field.id, v);
+                  if (field.fieldType === "routing") lookupRouting(field.id, v.replace(/\D/g, "").slice(0, 9));
+                }}
                 onConfirmChange={(v) => setConfirmValue(field.id, v)}
+                routingInfo={routingLookups[field.id] ?? null}
+                routingChecking={routingChecking[field.id] ?? false}
               />
             ))}
-
-            <div className="pt-1">
-              <label className="flex items-start gap-3 cursor-pointer p-4 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={consent}
-                  onChange={(e) => setConsent(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-gray-300 bg-slate-50 accent-blue-500"
-                />
-                <span className="text-sm text-gray-600 leading-relaxed">
-                  I consent to share this information with {agent.displayName}
-                  {agent.agencyName ? ` (${agent.agencyName})` : ""} for the purpose of completing my application.
-                  I understand it will be encrypted, retained for a limited period, and deleted afterward.
-                </span>
-              </label>
-            </div>
 
             <Button
               type="submit"
               className="w-full h-12 text-base font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-              disabled={loading || !consent}
+              disabled={loading}
             >
               {loading ? "Submitting..." : "Submit Securely"}
             </Button>
@@ -255,9 +258,11 @@ interface DynamicFieldProps {
   confirmError?: string;
   onChange: (v: string) => void;
   onConfirmChange: (v: string) => void;
+  routingInfo: string | null;
+  routingChecking: boolean;
 }
 
-function DynamicField({ field, value, confirmValue, error, confirmError, onChange, onConfirmChange }: DynamicFieldProps) {
+function DynamicField({ field, value, confirmValue, error, confirmError, onChange, onConfirmChange, routingInfo, routingChecking }: DynamicFieldProps) {
   const [showVal, setShowVal] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -334,8 +339,14 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
   }
 
   if (field.fieldType === "routing") {
+    const routingHint = routingChecking ? "Looking up bank..." : routingInfo ? (
+      <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
+        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+        Verified — {routingInfo}
+      </span>
+    ) : (field.helpText ?? "9-digit number printed on your check");
     return (
-      <FieldWrapper label={field.label} required={field.required} error={error} hint={field.helpText ?? "9-digit number printed on your check"}>
+      <FieldWrapper label={field.label} required={field.required} error={error} hint={routingHint}>
         <Input
           type="text"
           inputMode="numeric"
@@ -519,7 +530,7 @@ function FieldWrapper({
   label: string;
   required: boolean;
   error?: string;
-  hint?: string;
+  hint?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -529,7 +540,7 @@ function FieldWrapper({
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </Label>
       {children}
-      {hint && !error && <p className="text-xs text-gray-400">{hint}</p>}
+      {hint && !error && <div className="text-xs text-gray-400">{hint}</div>}
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );

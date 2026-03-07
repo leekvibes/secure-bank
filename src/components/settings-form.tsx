@@ -471,23 +471,6 @@ export function SettingsForm({ user }: Props) {
                 Displays a badge on client forms. Only declare a status that is accurate.
               </p>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="dataRetentionDays">Default data retention</Label>
-              <select
-                id="dataRetentionDays"
-                value={form.dataRetentionDays}
-                onChange={(e) => setForm({ ...form, dataRetentionDays: parseInt(e.target.value) })}
-                className="flex h-11 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:border-primary/50"
-              >
-                <option value={30}>30 days</option>
-                <option value={60}>60 days</option>
-                <option value={90}>90 days</option>
-                <option value={-1}>Manual deletion</option>
-              </select>
-              <p className="text-xs text-muted-foreground">
-                How long submitted data is retained before automatic deletion.
-              </p>
-            </div>
             <Button type="submit" disabled={loading}>
               {loading ? "Saving..." : "Save changes"}
             </Button>

@@ -168,7 +168,6 @@ export function SubmissionViewer({
           <div className="flex items-center justify-between">
             <CardTitle className="ui-section-title">Submitted data</CardTitle>
             <span className="text-xs text-muted-foreground">
-              Deletes {formatDate(submission.deleteAt)}
             </span>
           </div>
           <CardDescription>

@@ -86,10 +86,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const url = `${baseUrl}/f/${token}`;
 
   const clientPart = clientName ? `Hi ${clientName.split(" ")[0]}, ` : "";
-  const smsText = `${clientPart}Please fill out this secure form for ${form.title}. Your information is encrypted and goes directly to your agent:\n\n${url}\n\nLet me know once you've submitted it.`;
+  const messageText = `${clientPart}Please fill out this secure form for ${form.title}. Your information is encrypted and goes directly to your agent:\n\n${url}\n\nLet me know once you've submitted it.`;
 
   return NextResponse.json(
-    { id: link.id, token, url, smsText, expiresAt: expiresAt.toISOString() },
+    { id: link.id, token, url, messageText, expiresAt: expiresAt.toISOString() },
     { status: 201, headers: NO_STORE_HEADERS }
   );
 }

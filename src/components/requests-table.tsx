@@ -59,7 +59,7 @@ const TYPE_META: Record<string, { icon: React.ComponentType<{ className?: string
 };
 
 const TYPE_TABS: { key: TypeTab; label: string }[] = [
-  { key: "ALL",          label: "All Requests" },
+  { key: "ALL",          label: "All Links" },
   { key: "BANKING_INFO", label: "Banking" },
   { key: "SSN_ONLY",     label: "Social Security" },
   { key: "FULL_INTAKE",  label: "Full Intake" },
@@ -76,10 +76,8 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
 
 export function RequestsTable({
   links,
-  twilioEnabled = false,
 }: {
   links: LinkData[];
-  twilioEnabled?: boolean;
 }) {
   const [typeTab, setTypeTab] = useState<TypeTab>("ALL");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
@@ -165,11 +163,11 @@ export function RequestsTable({
           <div className="w-10 h-10 bg-muted/60 rounded-xl flex items-center justify-center mx-auto mb-3 border border-border/40">
             <Link2 className="w-4 h-4 text-muted-foreground/50" />
           </div>
-          <p className="font-semibold text-foreground mb-1">No requests</p>
+          <p className="font-semibold text-foreground mb-1">No secure links</p>
           <p className="text-sm text-muted-foreground">
             {typeTab === "ALL"
-              ? "No requests match this filter."
-              : `No ${TYPE_TABS.find((t) => t.key === typeTab)?.label.toLowerCase()} requests found.`}
+              ? "No secure links match this filter."
+              : `No ${TYPE_TABS.find((t) => t.key === typeTab)?.label.toLowerCase()} links found.`}
           </p>
         </div>
       ) : (
@@ -184,7 +182,7 @@ export function RequestsTable({
 
           <div className="divide-y divide-border/30">
             {filtered.map((link) => (
-              <RequestRow key={link.id} link={link} twilioEnabled={twilioEnabled} />
+              <RequestRow key={link.id} link={link} />
             ))}
           </div>
         </div>
@@ -195,10 +193,8 @@ export function RequestsTable({
 
 function RequestRow({
   link,
-  twilioEnabled,
 }: {
   link: LinkData & { displayStatus: DisplayStatus };
-  twilioEnabled: boolean;
 }) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
@@ -360,7 +356,6 @@ function RequestRow({
         <SendPanel
           link={link}
           secureUrl={secureUrl}
-          twilioEnabled={twilioEnabled}
           onClose={() => setShowSend(false)}
           onSent={() => { setShowSend(false); router.refresh(); }}
         />
@@ -372,13 +367,11 @@ function RequestRow({
 function SendPanel({
   link,
   secureUrl,
-  twilioEnabled,
   onClose,
   onSent,
 }: {
   link: LinkData;
   secureUrl: string;
-  twilioEnabled: boolean;
   onClose: () => void;
   onSent: () => void;
 }) {
@@ -389,14 +382,11 @@ function SendPanel({
     url: secureUrl,
   });
 
-  const [method, setMethod] = useState<"SMS" | "EMAIL" | "COPY">(
+  const [method, setMethod] = useState<"EMAIL" | "COPY">(
     getInitialSendMethod({
-      twilioEnabled,
-      clientPhone: link.clientPhone,
       clientEmail: link.clientEmail,
     })
   );
-  const [smsTo, setSmsTo] = useState(link.clientPhone ?? "");
   const [emailTo, setEmailTo] = useState(link.clientEmail ?? "");
   const [message, setMessage] = useState(defaultMsg);
   const [sending, setSending] = useState(false);
@@ -407,7 +397,7 @@ function SendPanel({
     setSending(true);
     setError(null);
     const recipient =
-      method === "SMS" ? smsTo.trim() : method === "EMAIL" ? emailTo.trim() : "clipboard";
+      method === "EMAIL" ? emailTo.trim() : "clipboard";
     if (method === "COPY") {
       try {
         await navigator.clipboard.writeText(message);
@@ -432,7 +422,7 @@ function SendPanel({
     if (res.ok) {
       setSuccess(true);
       toast({
-        title: method === "SMS" ? "SMS sent" : method === "EMAIL" ? "Email sent" : "Link copied",
+        title: method === "EMAIL" ? "Email sent" : "Link copied",
         description: method === "COPY" ? "Message copied to clipboard." : "Link sent successfully.",
       });
       setTimeout(onSent, 1200);
@@ -468,19 +458,11 @@ function SendPanel({
                 : "bg-card border border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground"
             )}
           >
-            {m === "SMS" ? "SMS" : m === "EMAIL" ? "Email" : "Copy link"}
+            {m === "EMAIL" ? "Email" : "Copy link"}
           </button>
         ))}
       </div>
 
-      {method === "SMS" && (
-        <Input
-          value={smsTo}
-          onChange={(e) => setSmsTo(e.target.value)}
-          placeholder="+1 555-000-0000"
-          className="h-8 text-sm mb-2"
-        />
-      )}
       {method === "EMAIL" && (
         <Input
           value={emailTo}
@@ -508,7 +490,6 @@ function SendPanel({
             onClick={send}
             disabled={
               sending ||
-              (method === "SMS" && !smsTo.trim()) ||
               (method === "EMAIL" && !emailTo.trim()) ||
               !message.trim()
             }

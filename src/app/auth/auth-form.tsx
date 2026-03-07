@@ -56,6 +56,8 @@ export function AuthForm() {
         password: form.get("password"),
         displayName: form.get("displayName"),
         agencyName: form.get("agencyName"),
+        industry: form.get("industry") || undefined,
+        destinationLabel: form.get("destinationLabel") || undefined,
       };
 
       const res = await fetch("/api/register", {
@@ -189,6 +191,28 @@ export function AuthForm() {
                     id="agencyName"
                     name="agencyName"
                     placeholder="Rivera Financial Group"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="industry">
+                    Industry{" "}
+                    <span className="text-muted-foreground font-normal">(optional)</span>
+                  </Label>
+                  <Input
+                    id="industry"
+                    name="industry"
+                    placeholder="Life Insurance, Health Insurance, Medicare..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="destinationLabel">
+                    Where will client info be submitted?{" "}
+                    <span className="text-muted-foreground font-normal">(optional)</span>
+                  </Label>
+                  <Input
+                    id="destinationLabel"
+                    name="destinationLabel"
+                    placeholder="e.g. Mutual of Omaha, Aetna, Americo"
                   />
                 </div>
                 <div className="space-y-2">

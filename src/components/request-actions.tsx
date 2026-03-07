@@ -18,13 +18,11 @@ interface Props {
   linkToken: string;
   linkType: string;
   clientName: string | null;
-  clientPhone: string | null;
   clientEmail: string | null;
   destination: string | null;
   displayStatus: string;
   submissionId: string | null;
   idUploadId: string | null;
-  twilioEnabled: boolean;
 }
 
 export function RequestActions({
@@ -32,13 +30,11 @@ export function RequestActions({
   linkToken,
   linkType,
   clientName,
-  clientPhone,
   clientEmail,
   destination,
   displayStatus,
   submissionId,
   idUploadId,
-  twilioEnabled,
 }: Props) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
@@ -159,11 +155,9 @@ export function RequestActions({
           linkId={linkId}
           linkType={linkType}
           clientName={clientName}
-          clientPhone={clientPhone}
           clientEmail={clientEmail}
           destination={destination}
           secureUrl={secureUrl}
-          twilioEnabled={twilioEnabled}
           onClose={() => setShowSend(false)}
           onSent={() => { setShowSend(false); router.refresh(); }}
         />
@@ -176,22 +170,18 @@ function SendPanel({
   linkId,
   linkType,
   clientName,
-  clientPhone,
   clientEmail,
   destination,
   secureUrl,
-  twilioEnabled,
   onClose,
   onSent,
 }: {
   linkId: string;
   linkType: string;
   clientName: string | null;
-  clientPhone: string | null;
   clientEmail: string | null;
   destination: string | null;
   secureUrl: string;
-  twilioEnabled: boolean;
   onClose: () => void;
   onSent: () => void;
 }) {
@@ -202,14 +192,11 @@ function SendPanel({
     url: secureUrl,
   });
 
-  const [method, setMethod] = useState<"SMS" | "EMAIL" | "COPY">(
+  const [method, setMethod] = useState<"EMAIL" | "COPY">(
     getInitialSendMethod({
-      twilioEnabled,
-      clientPhone,
       clientEmail,
     })
   );
-  const [smsTo, setSmsTo] = useState(clientPhone ?? "");
   const [emailTo, setEmailTo] = useState(clientEmail ?? "");
   const [message, setMessage] = useState(defaultMsg);
   const [sending, setSending] = useState(false);
@@ -220,7 +207,7 @@ function SendPanel({
     setSending(true);
     setError(null);
     const recipient =
-      method === "SMS" ? smsTo.trim() : method === "EMAIL" ? emailTo.trim() : "clipboard";
+      method === "EMAIL" ? emailTo.trim() : "clipboard";
     if (method === "COPY") {
       try {
         await navigator.clipboard.writeText(message);
@@ -244,7 +231,7 @@ function SendPanel({
     if (res.ok) {
       setSuccess(true);
       toast({
-        title: method === "SMS" ? "SMS sent" : method === "EMAIL" ? "Email sent" : "Link copied",
+        title: method === "EMAIL" ? "Email sent" : "Link copied",
         description: method === "COPY" ? "Message copied to clipboard." : "Link sent successfully.",
       });
       setTimeout(onSent, 1200);
@@ -280,19 +267,11 @@ function SendPanel({
                 : "bg-card border border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground"
             )}
           >
-            {m === "SMS" ? "SMS" : m === "EMAIL" ? "Email" : "Copy"}
+            {m === "EMAIL" ? "Email" : "Copy"}
           </button>
         ))}
       </div>
 
-      {method === "SMS" && (
-        <Input
-          value={smsTo}
-          onChange={(e) => setSmsTo(e.target.value)}
-          placeholder="+1 555-000-0000"
-          className="h-8 text-sm mb-2"
-        />
-      )}
       {method === "EMAIL" && (
         <Input
           value={emailTo}
@@ -320,7 +299,6 @@ function SendPanel({
             onClick={send}
             disabled={
               sending ||
-              (method === "SMS" && !smsTo.trim()) ||
               (method === "EMAIL" && !emailTo.trim()) ||
               !message.trim()
             }

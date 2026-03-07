@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
-import { isTwilioConfigured } from "@/lib/sms";
 import Link from "next/link";
 import { Plus, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { RequestsTable } from "@/components/requests-table";
 
 export const metadata: Metadata = {
-  title: "Requests",
+  title: "Secure Links",
 };
 
 export default async function LinksPage({
@@ -43,8 +42,6 @@ export default async function LinksPage({
     },
     data: { status: "EXPIRED" },
   });
-
-  const twilioEnabled = isTwilioConfigured();
 
   let links: any[] = [];
   try {
@@ -80,7 +77,7 @@ export default async function LinksPage({
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="ui-page-title">Requests</h1>
+          <h1 className="ui-page-title">Secure Links</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {links.length} secure link{links.length !== 1 ? "s" : ""} -- click a row to view details.
           </p>
@@ -88,7 +85,7 @@ export default async function LinksPage({
         <Button asChild>
           <Link href="/dashboard/new">
             <Plus className="w-4 h-4" />
-            New request
+            Create Secure Link
           </Link>
         </Button>
       </div>
@@ -107,7 +104,7 @@ export default async function LinksPage({
           <div className="w-11 h-11 bg-muted/60 rounded-xl flex items-center justify-center mx-auto mb-3 border border-border/40">
             <Link2 className="w-5 h-5 text-muted-foreground/50" />
           </div>
-          <p className="font-semibold text-foreground mb-1">No requests yet</p>
+          <p className="font-semibold text-foreground mb-1">No secure links yet</p>
           <p className="text-sm text-muted-foreground mb-5">
             Create your first secure link to start collecting client data.
           </p>
@@ -116,7 +113,7 @@ export default async function LinksPage({
           </Button>
         </div>
       ) : (
-        <RequestsTable links={links} twilioEnabled={twilioEnabled} />
+        <RequestsTable links={links} />
       )}
     </div>
   );

@@ -15,6 +15,8 @@ export const signUpSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters").max(128),
   displayName: z.string().min(2, "Name required").max(80),
   agencyName: z.string().max(120).optional(),
+  industry: z.string().max(120).optional(),
+  destinationLabel: z.string().max(200).optional(),
 });
 export type SignUpInput = z.infer<typeof signUpSchema>;
 
