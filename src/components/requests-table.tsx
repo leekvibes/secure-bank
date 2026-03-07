@@ -392,9 +392,7 @@ function SendPanel({
     }
   }
 
-  const methods = (["SMS", "EMAIL", "COPY"] as const).filter(
-    (m) => m !== "SMS" || twilioEnabled
-  );
+  const methods = (["EMAIL", "COPY"] as const);
 
   return (
     <div className="border-t border-border/30 bg-surface-2/50 backdrop-blur-sm px-5 py-4">

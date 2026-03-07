@@ -10,7 +10,7 @@ A Next.js 14 application that lets agents generate secure, expiring links so cli
 - **Styling**: Tailwind CSS + Radix UI components
 - **Encryption**: AES-256-GCM for field-level encryption
 - **Email**: Resend (optional)
-- **SMS**: Twilio (optional)
+- **SMS**: Twilio (backend exists but UI disabled — users copy/paste links to text manually)
 - **Rate limiting**: Upstash Redis (optional, falls back to in-memory)
 
 ## Project Structure
@@ -91,6 +91,7 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 
 - Uses custom /api/login endpoint that bypasses NextAuth CSRF (needed for Replit iframe)
 - Sets JWT session cookie directly with SameSite=none; Secure
+- Sets BOTH `next-auth.session-token` and `__Secure-next-auth.session-token` cookies to handle both dev and production NextAuth cookie name expectations
 - Test account: test@example.com / TestPass123!
 
 ## Routing Number Lookup

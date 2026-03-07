@@ -163,17 +163,7 @@ export function LinkCard({ link, twilioEnabled = false }: LinkCardProps) {
               {copied ? "Copied" : "Copy"}
             </Button>
           )}
-          {canAct && twilioEnabled && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSms((v) => !v)}
-              className="text-xs"
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              SMS
-            </Button>
-          )}
+          
           {link.submission && (
             <Button asChild size="sm" variant="outline" className="text-xs">
               <Link href={`/dashboard/submissions/${link.submission.id}`}>

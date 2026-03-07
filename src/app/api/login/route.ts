@@ -38,13 +38,16 @@ export async function POST(req: NextRequest) {
 
     const response = NextResponse.json({ success: true });
 
-    response.cookies.set("next-auth.session-token", token, {
+    const cookieOptions = {
       httpOnly: true,
       secure: true,
-      sameSite: "none",
+      sameSite: "none" as const,
       path: "/",
       maxAge: 8 * 60 * 60,
-    });
+    };
+
+    response.cookies.set("next-auth.session-token", token, cookieOptions);
+    response.cookies.set("__Secure-next-auth.session-token", token, cookieOptions);
 
     return response;
   } catch (err) {

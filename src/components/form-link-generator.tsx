@@ -113,7 +113,7 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
               </div>
 
               <div className="space-y-2">
-                <Label>Pre-written SMS</Label>
+                <Label>Pre-written Message</Label>
                 <div className="bg-surface-2 rounded-lg p-3 border border-border/40">
                   <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{generated.smsText}</p>
                 </div>
@@ -124,7 +124,7 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
                   onClick={() => copy(generated.smsText, setCopiedSms)}
                 >
                   {copiedSms ? <CheckCheck className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                  {copiedSms ? "Copied SMS" : "Copy SMS text"}
+                  {copiedSms ? "Copied" : "Copy Message Text"}
                 </Button>
               </div>
 

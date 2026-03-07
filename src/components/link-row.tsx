@@ -275,18 +275,7 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
             active={copied}
           />
         )}
-        {canAct && twilioEnabled && (
-          <ActionBtn
-            icon={MessageSquare}
-            label="SMS"
-            onClick={() => {
-              setShowSend((open) => !open);
-              setSendMethod("SMS");
-              setSendMessage(defaultMessage);
-            }}
-            active={showSend && sendMethod === "SMS"}
-          />
-        )}
+        
         {canAct && (
           <ActionBtn
             icon={Mail}
