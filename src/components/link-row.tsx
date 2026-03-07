@@ -47,8 +47,7 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
   const [showSend, setShowSend] = useState(false);
-  const [sendMethod, setSendMethod] = useState<"SMS" | "EMAIL" | "COPY">("SMS");
-  const [smsTo, setSmsTo] = useState(link.clientPhone ?? "");
+  const [sendMethod, setSendMethod] = useState<"SMS" | "EMAIL" | "COPY">("EMAIL");
   const [emailTo, setEmailTo] = useState(link.clientEmail ?? "");
   const [sendMessage, setSendMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -104,9 +103,7 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
     setSendError(null);
 
     const recipient =
-      sendMethod === "SMS"
-        ? smsTo.trim()
-        : sendMethod === "EMAIL"
+      sendMethod === "EMAIL"
         ? emailTo.trim()
         : "clipboard";
 
@@ -307,18 +304,9 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
         <div className="border-t border-border/30 px-5 py-3.5 bg-surface-2/50 backdrop-blur-sm rounded-b-xl">
           <p className="text-xs font-medium text-muted-foreground mb-2">Send secure link</p>
           <div className="flex gap-1.5 mb-2">
-            <Button size="sm" variant={sendMethod === "SMS" ? "default" : "outline"} className="h-8" onClick={() => setSendMethod("SMS")}>SMS</Button>
             <Button size="sm" variant={sendMethod === "EMAIL" ? "default" : "outline"} className="h-8" onClick={() => setSendMethod("EMAIL")}>Email</Button>
             <Button size="sm" variant={sendMethod === "COPY" ? "default" : "outline"} className="h-8" onClick={() => setSendMethod("COPY")}>Copy link</Button>
           </div>
-          {sendMethod === "SMS" && (
-            <Input
-              value={smsTo}
-              onChange={(e) => setSmsTo(e.target.value)}
-              placeholder="+1 555-000-0000"
-              className="h-8 text-sm mb-2"
-            />
-          )}
           {sendMethod === "EMAIL" && (
             <Input
               value={emailTo}
@@ -344,7 +332,6 @@ export function LinkRow({ link, twilioEnabled = false }: LinkRowProps) {
               onClick={sendNow}
               disabled={
                 sending ||
-                (sendMethod === "SMS" && !smsTo.trim()) ||
                 (sendMethod === "EMAIL" && !emailTo.trim()) ||
                 !sendMessage.trim()
               }

@@ -32,7 +32,8 @@ interface LinkData {
 }
 
 type DisplayStatus = "DRAFT" | "SENT" | "OPENED" | "SUBMITTED" | "EXPIRED";
-type FilterTab = "ALL" | "SENT" | "OPENED" | "SUBMITTED" | "EXPIRED";
+type TypeTab = "ALL" | "BANKING_INFO" | "SSN_ONLY" | "FULL_INTAKE" | "ID_UPLOAD";
+type StatusFilter = "ALL" | "SENT" | "OPENED" | "SUBMITTED" | "EXPIRED";
 
 function getDisplayStatus(link: LinkData): DisplayStatus {
   if (link.status === "SUBMITTED") return "SUBMITTED";
@@ -57,7 +58,15 @@ const TYPE_META: Record<string, { icon: React.ComponentType<{ className?: string
   ID_UPLOAD:    { icon: Camera,        bg: "bg-orange-500/10 text-orange-500" },
 };
 
-const FILTERS: { key: FilterTab; label: string }[] = [
+const TYPE_TABS: { key: TypeTab; label: string }[] = [
+  { key: "ALL",          label: "All Requests" },
+  { key: "BANKING_INFO", label: "Banking" },
+  { key: "SSN_ONLY",     label: "Social Security" },
+  { key: "FULL_INTAKE",  label: "Full Intake" },
+  { key: "ID_UPLOAD",    label: "Document Upload" },
+];
+
+const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: "ALL",       label: "All" },
   { key: "SENT",      label: "Sent" },
   { key: "OPENED",    label: "Opened" },
@@ -72,31 +81,68 @@ export function RequestsTable({
   links: LinkData[];
   twilioEnabled?: boolean;
 }) {
-  const [filter, setFilter] = useState<FilterTab>("ALL");
+  const [typeTab, setTypeTab] = useState<TypeTab>("ALL");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
 
   const enriched = links.map((l) => ({ ...l, displayStatus: getDisplayStatus(l) }));
 
-  const filtered =
-    filter === "ALL" ? enriched : enriched.filter((l) => l.displayStatus === filter);
+  const byType =
+    typeTab === "ALL" ? enriched : enriched.filter((l) => l.linkType === typeTab);
 
-  const counts = FILTERS.reduce((acc, { key }) => {
-    acc[key] =
-      key === "ALL"
-        ? enriched.length
-        : enriched.filter((l) => l.displayStatus === key).length;
+  const filtered =
+    statusFilter === "ALL" ? byType : byType.filter((l) => l.displayStatus === statusFilter);
+
+  const typeCounts = TYPE_TABS.reduce((acc, { key }) => {
+    acc[key] = key === "ALL" ? enriched.length : enriched.filter((l) => l.linkType === key).length;
     return acc;
-  }, {} as Record<FilterTab, number>);
+  }, {} as Record<TypeTab, number>);
+
+  const statusCounts = STATUS_FILTERS.reduce((acc, { key }) => {
+    acc[key] = key === "ALL" ? byType.length : byType.filter((l) => l.displayStatus === key).length;
+    return acc;
+  }, {} as Record<StatusFilter, number>);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      <div className="border-b border-border/50">
+        <nav className="flex gap-0 overflow-x-auto scrollbar-none -mb-px">
+          {TYPE_TABS.map(({ key, label }) => {
+            const isActive = typeTab === key;
+            const count = typeCounts[key];
+            return (
+              <button
+                key={key}
+                onClick={() => { setTypeTab(key); setStatusFilter("ALL"); }}
+                className={cn(
+                  "relative px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors duration-200 border-b-2",
+                  isActive
+                    ? "text-primary border-primary"
+                    : "text-muted-foreground border-transparent hover:text-foreground hover:border-border"
+                )}
+              >
+                {label}
+                {count > 0 && (
+                  <span className={cn(
+                    "ml-2 text-xs tabular-nums",
+                    isActive ? "text-primary" : "text-muted-foreground/60"
+                  )}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
       <div className="flex items-center gap-1.5 flex-wrap">
-        {FILTERS.map(({ key, label }) => (
+        {STATUS_FILTERS.map(({ key, label }) => (
           <button
             key={key}
-            onClick={() => setFilter(key)}
+            onClick={() => setStatusFilter(key)}
             className={cn(
               "inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-200",
-              filter === key
+              statusFilter === key
                 ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
                 : "bg-card text-muted-foreground border border-border/60 hover:border-primary/30 hover:text-foreground"
             )}
@@ -105,10 +151,10 @@ export function RequestsTable({
             <span
               className={cn(
                 "inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-xs font-semibold px-1",
-                filter === key ? "bg-slate-50/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+                statusFilter === key ? "bg-slate-50/20 text-primary-foreground" : "bg-muted text-muted-foreground"
               )}
             >
-              {counts[key]}
+              {statusCounts[key]}
             </span>
           </button>
         ))}
@@ -120,7 +166,11 @@ export function RequestsTable({
             <Link2 className="w-4 h-4 text-muted-foreground/50" />
           </div>
           <p className="font-semibold text-foreground mb-1">No requests</p>
-          <p className="text-sm text-muted-foreground">No requests match this filter.</p>
+          <p className="text-sm text-muted-foreground">
+            {typeTab === "ALL"
+              ? "No requests match this filter."
+              : `No ${TYPE_TABS.find((t) => t.key === typeTab)?.label.toLowerCase()} requests found.`}
+          </p>
         </div>
       ) : (
         <div className="ui-table-wrap">

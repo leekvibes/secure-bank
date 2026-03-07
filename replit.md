@@ -87,11 +87,19 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 - Displayed on client-facing secure forms via `client-trust-header.tsx`
 - Falls back to initials avatar when no photo is set
 
+## Requests Page
+
+- Link-type tabs at top: All Requests, Banking, Social Security, Full Intake, Document Upload
+- Underline-style navigation (active = blue text + blue bottom border, inactive = gray text)
+- Status filter pills below tabs: All, Sent, Opened, Submitted, Expired
+- Selecting a type tab resets the status filter to "All"
+- Status counts are scoped to the currently selected type tab
+
 ## Auth Notes
 
 - Uses custom /api/login endpoint that bypasses NextAuth CSRF (needed for Replit iframe)
 - Sets JWT session cookie directly with SameSite=none; Secure
-- Sets BOTH `next-auth.session-token` and `__Secure-next-auth.session-token` cookies to handle both dev and production NextAuth cookie name expectations
+- Cookie name dynamically determined: uses `__Secure-` prefix when NEXTAUTH_URL is https
 - Test account: test@example.com / TestPass123!
 
 ## Routing Number Lookup
