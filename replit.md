@@ -113,7 +113,15 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 - Lists all ID uploads for the current user at `/dashboard/uploads`
 - Shows client name, email, upload date, and viewed/new status
 - Searchable by client name
+- Each row has a download button (downloads front ID image via `/api/id-uploads/[id]?side=front&download=1`)
 - Each row links to the upload detail viewer at `/dashboard/uploads/[id]`
+
+## Export/Download
+
+- Legacy submissions: JSON and TXT export via `/api/submissions/[id]/export?format=json|text` (buttons in `submission-viewer.tsx`)
+- Custom form submissions: JSON and TXT export via `/api/forms/[id]/submissions/[sid]/export?format=json|text` (buttons on form submission detail page)
+- ID uploads: Direct download via `/api/id-uploads/[id]?side=front|back&download=1` (buttons on upload detail page and uploads list)
+- All exports are audited (EXPORTED event), rate-limited, and include no-cache headers
 
 ## Auth Notes
 

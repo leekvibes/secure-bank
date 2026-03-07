@@ -3,7 +3,7 @@ import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Lock, Eye } from "lucide-react";
+import { ArrowLeft, Lock, Eye, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { decrypt } from "@/lib/crypto";
@@ -54,15 +54,31 @@ export default async function FormSubmissionPage({
 
   return (
     <div className="max-w-xl space-y-6 animate-fade-in">
-      <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-4">
-          <Link href={`/dashboard/forms/${params.id}`}>
-            <ArrowLeft className="w-4 h-4" />
-            Back to form
-          </Link>
-        </Button>
-        <h1 className="ui-page-title">Submission</h1>
-        <p className="text-sm text-muted-foreground mt-1">{form.title}</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <Button variant="ghost" size="sm" asChild className="-ml-2 mb-4">
+            <Link href={`/dashboard/forms/${params.id}`}>
+              <ArrowLeft className="w-4 h-4" />
+              Back to form
+            </Link>
+          </Button>
+          <h1 className="ui-page-title">Submission</h1>
+          <p className="text-sm text-muted-foreground mt-1">{form.title}</p>
+        </div>
+        <div className="flex items-center gap-2 mt-8">
+          <Button variant="outline" size="sm" asChild>
+            <a href={`/api/forms/${params.id}/submissions/${params.sid}/export?format=json`} download>
+              <Download className="w-3.5 h-3.5" />
+              JSON
+            </a>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <a href={`/api/forms/${params.id}/submissions/${params.sid}/export?format=text`} download>
+              <Download className="w-3.5 h-3.5" />
+              TXT
+            </a>
+          </Button>
+        </div>
       </div>
 
       {(submission.formLink.clientName || submission.formLink.clientEmail || submission.formLink.clientPhone) && (
