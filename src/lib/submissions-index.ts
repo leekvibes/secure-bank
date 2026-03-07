@@ -28,14 +28,30 @@ export type IdUploadRow = {
   };
 };
 
+export type SubmissionCategory =
+  | "BANKING_INFO"
+  | "SSN_ONLY"
+  | "FULL_INTAKE"
+  | "ID_UPLOAD"
+  | "CUSTOM_FORM";
+
 export type SubmissionIndexEntry = {
   id: string;
   clientName: string | null;
   type: "FORM_SUBMISSION" | "LEGACY_SECURE_SUBMISSION" | "ID_UPLOAD";
+  category: SubmissionCategory;
   typeLabel: string;
   createdAt: Date;
   viewedAt: Date | null;
   href: string;
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  BANKING_INFO: "Banking Info",
+  SSN_ONLY: "Social Security",
+  FULL_INTAKE: "Full Intake",
+  ID_UPLOAD: "Document Upload",
+  CUSTOM_FORM: "Custom Form",
 };
 
 export function buildSubmissionsIndex(
@@ -47,7 +63,10 @@ export function buildSubmissionsIndex(
     id: row.id,
     clientName: row.link.clientName,
     type: "LEGACY_SECURE_SUBMISSION",
-    typeLabel: "Legacy secure submission",
+    category: (["BANKING_INFO", "SSN_ONLY", "FULL_INTAKE", "ID_UPLOAD"].includes(row.link.linkType)
+      ? row.link.linkType
+      : "FULL_INTAKE") as SubmissionCategory,
+    typeLabel: CATEGORY_LABELS[row.link.linkType] ?? "Secure Submission",
     createdAt: row.createdAt,
     viewedAt: row.revealedAt,
     href: `/dashboard/submissions/${row.id}`,
@@ -57,7 +76,8 @@ export function buildSubmissionsIndex(
     id: row.id,
     clientName: row.formLink.clientName,
     type: "FORM_SUBMISSION",
-    typeLabel: "Form submission",
+    category: "CUSTOM_FORM" as SubmissionCategory,
+    typeLabel: row.form.title,
     createdAt: row.createdAt,
     viewedAt: row.viewedAt,
     href: `/dashboard/forms/${row.formId}/submissions/${row.id}`,
@@ -67,7 +87,8 @@ export function buildSubmissionsIndex(
     id: row.id,
     clientName: row.link.clientName,
     type: "ID_UPLOAD",
-    typeLabel: "ID upload",
+    category: "ID_UPLOAD" as SubmissionCategory,
+    typeLabel: "Document Upload",
     createdAt: row.createdAt,
     viewedAt: row.viewedAt,
     href: `/dashboard/uploads/${row.id}`,

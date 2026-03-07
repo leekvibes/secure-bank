@@ -24,6 +24,7 @@ export const LINK_TYPES = {
   SSN_ONLY: "Social Security Number",
   FULL_INTAKE: "Full Intake Form",
   ID_UPLOAD: "Photo ID Upload",
+  CUSTOM_FORM: "Custom Form",
 } as const;
 
 export type LinkType = keyof typeof LINK_TYPES;

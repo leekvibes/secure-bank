@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Copy, CheckCheck, Send, Eye, Trash2, Loader2,
-  CreditCard, Shield, ClipboardList, Camera, X, Link2,
+  CreditCard, Shield, ClipboardList, Camera, X, Link2, FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,10 +29,13 @@ interface LinkData {
   idUpload: { id: string; viewedAt: Date | null } | null;
   sends?: { method: string; recipient: string; createdAt: Date }[];
   _count?: { sends: number };
+  formId?: string;
+  formTitle?: string;
+  isFormLink?: boolean;
 }
 
 type DisplayStatus = "DRAFT" | "SENT" | "OPENED" | "SUBMITTED" | "EXPIRED";
-type TypeTab = "ALL" | "BANKING_INFO" | "SSN_ONLY" | "FULL_INTAKE" | "ID_UPLOAD";
+type TypeTab = "ALL" | "BANKING_INFO" | "SSN_ONLY" | "FULL_INTAKE" | "ID_UPLOAD" | "CUSTOM_FORM";
 type StatusFilter = "ALL" | "SENT" | "OPENED" | "SUBMITTED" | "EXPIRED";
 
 function getDisplayStatus(link: LinkData): DisplayStatus {
@@ -56,6 +59,7 @@ const TYPE_META: Record<string, { icon: React.ComponentType<{ className?: string
   SSN_ONLY:     { icon: Shield,        bg: "bg-violet-500/10 text-violet-500" },
   FULL_INTAKE:  { icon: ClipboardList, bg: "bg-emerald-500/10 text-emerald-500" },
   ID_UPLOAD:    { icon: Camera,        bg: "bg-orange-500/10 text-orange-500" },
+  CUSTOM_FORM:  { icon: FileText,      bg: "bg-violet-500/10 text-violet-500" },
 };
 
 const TYPE_TABS: { key: TypeTab; label: string }[] = [
@@ -64,6 +68,7 @@ const TYPE_TABS: { key: TypeTab; label: string }[] = [
   { key: "SSN_ONLY",     label: "Social Security" },
   { key: "FULL_INTAKE",  label: "Full Intake" },
   { key: "ID_UPLOAD",    label: "Document Upload" },
+  { key: "CUSTOM_FORM",  label: "Forms" },
 ];
 
 const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
@@ -203,8 +208,11 @@ function RequestRow({
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const isIdUpload = link.linkType === "ID_UPLOAD";
+  const isFormLink = link.isFormLink === true;
   const viewHref =
-    isIdUpload && link.idUpload
+    isFormLink && link.submission
+      ? `/dashboard/forms/${link.formId}/submissions/${link.submission.id}`
+      : isIdUpload && link.idUpload
       ? `/dashboard/uploads/${link.idUpload.id}`
       : link.submission
       ? `/dashboard/submissions/${link.submission.id}`
@@ -215,10 +223,15 @@ function RequestRow({
   const TypeIcon = typeMeta.icon;
   const statusCfg = STATUS_CONFIG[link.displayStatus];
 
+  const linkPath = isFormLink ? `/f/${link.token}` : `/secure/${link.token}`;
   const secureUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}/secure/${link.token}`
-      : `/secure/${link.token}`;
+      ? `${window.location.origin}${linkPath}`
+      : linkPath;
+
+  const rowHref = isFormLink
+    ? `/dashboard/forms/${link.formId}`
+    : `/dashboard/links/${link.id}`;
 
   function copyLink(e: React.MouseEvent) {
     e.stopPropagation();
@@ -265,7 +278,7 @@ function RequestRow({
     <div>
       <div
         className="group flex sm:grid sm:grid-cols-[2fr_1.2fr_120px_160px_auto] gap-4 px-5 py-3.5 items-center transition-all duration-200 cursor-pointer ui-table-row"
-        onClick={() => router.push(`/dashboard/links/${link.id}`)}
+        onClick={() => router.push(rowHref)}
       >
         <div className="flex items-center gap-3 min-w-0 flex-1 sm:flex-none">
           <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", typeMeta.bg)}>
@@ -278,13 +291,13 @@ function RequestRow({
               )}
             </p>
             <p className="text-xs text-muted-foreground truncate">
-              {link.clientEmail ?? LINK_TYPES[link.linkType as LinkType] ?? link.linkType}
+              {link.clientEmail ?? (isFormLink && link.formTitle ? link.formTitle : LINK_TYPES[link.linkType as LinkType] ?? link.linkType)}
             </p>
           </div>
         </div>
 
         <div className="hidden sm:block text-sm text-muted-foreground truncate">
-          {LINK_TYPES[link.linkType as LinkType] ?? link.linkType}
+          {isFormLink && link.formTitle ? link.formTitle : LINK_TYPES[link.linkType as LinkType] ?? link.linkType}
         </div>
 
         <div className="shrink-0">
@@ -302,7 +315,7 @@ function RequestRow({
           className="flex items-center gap-0.5 shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
-          {canAct && (
+          {canAct && !isFormLink && (
             <RowAction
               icon={Send}
               label="Send"

@@ -90,13 +90,30 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 ## Secure Links Page
 
 - Sidebar label: "Secure Links" (renamed from "Requests")
-- Link-type tabs at top: All Links, Banking, Social Security, Full Intake, Document Upload
+- Link-type tabs at top: All Links, Banking, Social Security, Full Intake, Document Upload, Forms
+- Forms tab shows FormLink records merged with SecureLink records, sorted by date
+- Form link rows navigate to `/dashboard/forms/[formId]`; form link URLs use `/f/[token]` path
 - Underline-style navigation (active = blue text + blue bottom border, inactive = gray text)
 - Status filter pills below tabs: All, Sent, Opened, Submitted, Expired
 - Selecting a type tab resets the status filter to "All"
 - Status counts are scoped to the currently selected type tab
 - Create button: "Create Secure Link"
 - No SMS buttons anywhere — only Email and Copy options in send panels
+
+## Submissions Page
+
+- Category tabs at top: All Submissions, Banking, Social Security, Full Intake, Document Upload, Forms
+- Status filter pills: All, New, Viewed
+- Uses `SubmissionsTable` client component (`src/components/submissions-table.tsx`)
+- `buildSubmissionsIndex` in `src/lib/submissions-index.ts` merges legacy submissions, form submissions, and ID uploads
+- Each submission carries a `category` field for tab filtering (BANKING_INFO, SSN_ONLY, FULL_INTAKE, ID_UPLOAD, CUSTOM_FORM)
+
+## Uploads Page
+
+- Lists all ID uploads for the current user at `/dashboard/uploads`
+- Shows client name, email, upload date, and viewed/new status
+- Searchable by client name
+- Each row links to the upload detail viewer at `/dashboard/uploads/[id]`
 
 ## Auth Notes
 
