@@ -144,48 +144,60 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
           ) : (
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label htmlFor="gl-dest">Where will this be submitted?</Label>
-                <select
+                <Label htmlFor="gl-dest">
+                  Where is this information going?{" "}
+                  <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+                </Label>
+                <Input
                   id="gl-dest"
                   value={form.destination}
                   onChange={(e) => setForm({ ...form, destination: e.target.value })}
-                  className="flex h-11 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:border-primary/50"
-                >
-                  <option value="">Select destination</option>
-                  <option>Mutual of Omaha</option>
-                  <option>Americo</option>
-                  <option>Aetna</option>
-                  <option>Internal processing</option>
-                </select>
+                  placeholder="e.g. Mutual of Omaha, your company name, a mortgage lender..."
+                />
+                <p className="text-xs text-muted-foreground">
+                  Your client sees this so they know who receives their information
+                </p>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="gl-name">Client name (optional)</Label>
+                <Label htmlFor="gl-name">
+                  Client name{" "}
+                  <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+                </Label>
                 <Input
                   id="gl-name"
                   value={form.clientName}
                   onChange={(e) => setForm({ ...form, clientName: e.target.value })}
-                  placeholder="John Smith"
+                  placeholder="e.g. John Smith"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Helps you identify whose submission this is
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="gl-phone">Client phone</Label>
+                  <Label htmlFor="gl-phone">
+                    Phone{" "}
+                    <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+                  </Label>
                   <Input
                     id="gl-phone"
                     type="tel"
                     value={form.clientPhone}
                     onChange={(e) => setForm({ ...form, clientPhone: e.target.value })}
-                    placeholder="555-000-0000"
+                    placeholder="e.g. (555) 123-4567"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="gl-email">Client email</Label>
+                  <Label htmlFor="gl-email">
+                    Email{" "}
+                    <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+                  </Label>
                   <Input
                     id="gl-email"
                     type="email"
                     value={form.clientEmail}
                     onChange={(e) => setForm({ ...form, clientEmail: e.target.value })}
-                    placeholder="client@email.com"
+                    placeholder="e.g. client@email.com"
                   />
                 </div>
               </div>
