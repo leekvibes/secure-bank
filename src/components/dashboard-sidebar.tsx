@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
 import {
-  Lock, LayoutDashboard, FileText, Inbox,
+  Lock, LayoutDashboard, Inbox,
   Upload, Settings, LogOut, Link2, Menu, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,6 @@ interface Props {
 const NAV = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/links", label: "Secure Links", icon: Link2, exact: false },
-  { href: "/dashboard/forms", label: "Forms", icon: FileText },
   { href: "/dashboard/submissions", label: "Submissions", icon: Inbox },
   { href: "/dashboard/uploads", label: "Uploads", icon: Upload },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
@@ -37,7 +36,7 @@ export function DashboardSidebar({ user }: Props) {
   function isActive(href: string, exact?: boolean) {
     if (exact) return pathname === href;
     if (href === "/dashboard/links")
-      return pathname.startsWith("/dashboard/links") || pathname === "/dashboard/new";
+      return pathname.startsWith("/dashboard/links") || pathname === "/dashboard/new" || pathname.startsWith("/dashboard/forms");
     return pathname.startsWith(href);
   }
 

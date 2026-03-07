@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import Link from "next/link";
-import { Plus, Link2, Clock, CheckCircle2, FileText, ArrowRight, Activity } from "lucide-react";
+import { Plus, Link2, Clock, CheckCircle2, FileText, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LinkRow } from "@/components/link-row";
 
@@ -112,13 +112,13 @@ export default async function DashboardPage() {
       sub: "Data received",
     },
     {
-      label: "Active Forms",
+      label: "Custom Forms",
       value: formCount,
       icon: FileText,
       gradient: "from-violet-500/10 to-violet-600/5",
       iconColor: "text-violet-500",
       borderAccent: "border-violet-500/20",
-      sub: "Custom forms",
+      sub: "Active forms",
     },
   ];
 
@@ -162,26 +162,6 @@ export default async function DashboardPage() {
           </div>
         ))}
       </div>
-
-      {formCount > 0 && (
-        <div className="flex items-center justify-between px-5 py-4 rounded-xl border border-violet-500/20 bg-gradient-to-r from-violet-500/5 to-transparent">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
-              <FileText className="w-4 h-4 text-violet-500" />
-            </div>
-            <span className="text-sm font-medium text-foreground">
-              {formCount} active custom form{formCount !== 1 ? "s" : ""} — collect custom data securely.
-            </span>
-          </div>
-          <Link
-            href="/dashboard/forms"
-            className="flex items-center gap-1.5 text-xs text-violet-600 hover:text-violet-500 font-semibold whitespace-nowrap transition-colors"
-          >
-            View forms
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      )}
 
       <div>
         <div className="flex items-center justify-between mb-4">

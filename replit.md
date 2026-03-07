@@ -113,8 +113,13 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 - No API key required — works offline for common banks
 - Green "Verified" checkmark appears next to bank name after successful lookup
 
-## Custom Forms
+## Custom Forms (Merged into Secure Links)
 
+- Custom Forms is now the 5th link type on the Create Secure Link page (`/dashboard/new`) — no separate "Forms" tab in sidebar
+- Selecting "Custom Form" type shows inline form picker with existing forms, or "Build new form" link
+- Link generation for custom forms uses `POST /api/forms/[id]/link` (different from regular links API)
+- `/dashboard/forms` redirects to `/dashboard/links`; form detail and builder pages remain accessible
+- Form detail page (`/dashboard/forms/[id]`) has "Generate secure link" button that links to `/dashboard/new?formId=[id]`
 - Form builder at `/dashboard/forms/new` — starts with template selection (Client Contact Info, Banking Details, Full Application) or "Start from scratch"
 - Templates pre-fill fields with smart defaults (labels, placeholders, help text, encryption, confirmation settings)
 - Field types: text, email, phone, address, date, dropdown (multiple choice), SSN, routing, bank account, signature

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Copy, CheckCheck, Shield, Loader2, CreditCard,
   Camera, ClipboardList, Clock, Send, Star, ChevronDown,
   Lock, Building2, Users, Plus, X, Trash2, RotateCcw,
+  FileText, ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,17 @@ import { buildTrustMessage } from "@/lib/link-message";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 
-type LinkType = "BANKING_INFO" | "SSN_ONLY" | "FULL_INTAKE" | "ID_UPLOAD";
+import { useSearchParams } from "next/navigation";
+
+type LinkType = "BANKING_INFO" | "SSN_ONLY" | "FULL_INTAKE" | "ID_UPLOAD" | "CUSTOM_FORM";
+
+interface ApiForm {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  _count: { fields: number; submissions: number; links: number };
+}
 
 interface ApiTemplate {
   id: string;
@@ -111,12 +122,34 @@ const TYPE_META: Record<
     infoText: "Your client takes or uploads a photo of their ID. You choose the document type and whether both sides are needed.",
     accentHsl: "35 90% 55%",
   },
+  CUSTOM_FORM: {
+    icon: FileText,
+    gradient: "from-violet-500/20 to-violet-600/10",
+    iconColor: "text-violet-500",
+    borderActive: "border-violet-500/50 ring-1 ring-violet-500/20 bg-violet-500/5",
+    title: "Custom Form",
+    subtitle: "Build your own secure intake form with custom fields",
+    defaultExpiry: 24,
+    previewFields: ["Your custom fields appear here"],
+    infoText: "Create a form with exactly the fields you need. Select an existing form or build a new one.",
+    accentHsl: "260 80% 60%",
+  },
 };
 
-export default function NewLinkPage() {
-  const router = useRouter();
+export default function NewLinkPageWrapper() {
+  return (
+    <Suspense fallback={<div className="animate-fade-in p-8 text-center text-muted-foreground">Loading...</div>}>
+      <NewLinkPage />
+    </Suspense>
+  );
+}
 
-  const [linkType, setLinkType] = useState<LinkType>("BANKING_INFO");
+function NewLinkPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const preselectedFormId = searchParams.get("formId");
+
+  const [linkType, setLinkType] = useState<LinkType>(preselectedFormId ? "CUSTOM_FORM" : "BANKING_INFO");
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [clientEmail, setClientEmail] = useState("");
@@ -127,6 +160,10 @@ export default function NewLinkPage() {
 
   const [idBothSides, setIdBothSides] = useState(false);
   const [idDocumentType, setIdDocumentType] = useState("DRIVERS_LICENSE");
+
+  const [customForms, setCustomForms] = useState<ApiForm[]>([]);
+  const [formsLoading, setFormsLoading] = useState(false);
+  const [selectedFormId, setSelectedFormId] = useState<string | null>(preselectedFormId);
 
   const [templates, setTemplates] = useState<ApiTemplate[]>([]);
   const [activeTemplateId, setActiveTemplateId] = useState("");
@@ -164,6 +201,19 @@ export default function NewLinkPage() {
       .then((d) => { if (d.templates) setTemplates(d.templates); })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (linkType === "CUSTOM_FORM" && customForms.length === 0 && !formsLoading) {
+      setFormsLoading(true);
+      fetch("/api/forms")
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.forms) setCustomForms(d.forms.filter((f: ApiForm) => f.status === "ACTIVE"));
+        })
+        .catch(() => {})
+        .finally(() => setFormsLoading(false));
+    }
+  }, [linkType, customForms.length, formsLoading]);
 
   function applyTemplate(t: ApiTemplate) {
     const type = t.linkType as LinkType;
@@ -236,6 +286,40 @@ export default function NewLinkPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    if (linkType === "CUSTOM_FORM") {
+      if (!selectedFormId) {
+        setError("Please select a form first.");
+        setLoading(false);
+        return;
+      }
+
+      const res = await fetch(`/api/forms/${selectedFormId}/link`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          destination: effectiveDest || undefined,
+          clientName: clientName || undefined,
+          clientPhone: clientPhone || undefined,
+          clientEmail: clientEmail || undefined,
+          expirationHours,
+          assetIds: selectedAssetIds,
+        }),
+      });
+
+      const data = await res.json();
+      setLoading(false);
+
+      if (!res.ok) {
+        setError(data.error ?? "Something went wrong.");
+        return;
+      }
+
+      setCreated(data);
+      setSendMsg(data.messageText ?? message);
+      setSendEmail(clientEmail);
+      return;
+    }
 
     const options: Record<string, unknown> = {};
     if (linkType === "ID_UPLOAD") {
@@ -371,6 +455,7 @@ export default function NewLinkPage() {
     setSendError(null);
     setCopied(false);
     setCopiedSms(false);
+    if (linkType === "CUSTOM_FORM") setSelectedFormId(null);
   }
 
   if (created) {
@@ -494,9 +579,12 @@ export default function NewLinkPage() {
   }
 
   const meta = TYPE_META[linkType];
+  const selectedForm = customForms.find((f) => f.id === selectedFormId);
   const previewFields =
     linkType === "ID_UPLOAD" && idBothSides
       ? ["Front of ID (required)", "Back of ID (required)"]
+      : linkType === "CUSTOM_FORM" && selectedForm
+      ? [`${selectedForm._count.fields} custom field${selectedForm._count.fields !== 1 ? "s" : ""}`]
       : meta.previewFields;
 
   const expiryLabel =
@@ -522,76 +610,78 @@ export default function NewLinkPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="relative">
-            <select
-              value={activeTemplateId}
-              onChange={(e) => {
-                const t = templates.find((t) => t.id === e.target.value);
-                if (t) applyTemplate(t);
-              }}
-              className={cn(
-                "h-9 pl-3 pr-8 text-sm border rounded-lg bg-card appearance-none focus:outline-none focus:ring-2 focus:ring-ring/30 transition-colors",
-                activeTemplateId
-                  ? "border-primary/40 text-primary"
-                  : "border-border/50 text-muted-foreground"
-              )}
-            >
-              <option value="">
-                {templates.length === 0 ? "No templates yet" : "Apply template..."}
-              </option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-          </div>
-
-          {showSaveName ? (
-            <div className="flex items-center gap-1.5">
-              <Input
-                value={newTemplateName}
-                onChange={(e) => setNewTemplateName(e.target.value)}
-                placeholder="Template name"
-                className="h-9 w-40 text-sm"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") saveAsTemplate();
-                  if (e.key === "Escape") setShowSaveName(false);
+        {linkType !== "CUSTOM_FORM" && (
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="relative">
+              <select
+                value={activeTemplateId}
+                onChange={(e) => {
+                  const t = templates.find((t) => t.id === e.target.value);
+                  if (t) applyTemplate(t);
                 }}
-                autoFocus
-              />
-              <Button
-                size="sm"
-                onClick={saveAsTemplate}
-                disabled={savingTemplate || !newTemplateName.trim()}
-                className="h-9 px-3"
+                className={cn(
+                  "h-9 pl-3 pr-8 text-sm border rounded-lg bg-card appearance-none focus:outline-none focus:ring-2 focus:ring-ring/30 transition-colors",
+                  activeTemplateId
+                    ? "border-primary/40 text-primary"
+                    : "border-border/50 text-muted-foreground"
+                )}
               >
-                {savingTemplate ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setShowSaveName(false)}
-                className="h-9 px-2"
-              >
-                <X className="w-3.5 h-3.5" />
-              </Button>
+                <option value="">
+                  {templates.length === 0 ? "No templates yet" : "Apply template..."}
+                </option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
             </div>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSaveName(true)}
-              className="h-9 gap-1.5"
-            >
-              <Star className="w-3.5 h-3.5" />
-              Save
-            </Button>
-          )}
-        </div>
+
+            {showSaveName ? (
+              <div className="flex items-center gap-1.5">
+                <Input
+                  value={newTemplateName}
+                  onChange={(e) => setNewTemplateName(e.target.value)}
+                  placeholder="Template name"
+                  className="h-9 w-40 text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveAsTemplate();
+                    if (e.key === "Escape") setShowSaveName(false);
+                  }}
+                  autoFocus
+                />
+                <Button
+                  size="sm"
+                  onClick={saveAsTemplate}
+                  disabled={savingTemplate || !newTemplateName.trim()}
+                  className="h-9 px-3"
+                >
+                  {savingTemplate ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowSaveName(false)}
+                  className="h-9 px-2"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSaveName(true)}
+                className="h-9 gap-1.5"
+              >
+                <Star className="w-3.5 h-3.5" />
+                Save
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -607,7 +697,7 @@ export default function NewLinkPage() {
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                 Link type
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 {(Object.entries(TYPE_META) as [LinkType, typeof meta][]).map(
                   ([type, c]) => {
                     const Icon = c.icon;
@@ -706,6 +796,85 @@ export default function NewLinkPage() {
                       )}
                     </div>
                   )}
+
+                  {linkType === "CUSTOM_FORM" && (
+                    <div className="mt-3 pt-3 border-t border-border/30 space-y-3">
+                      <p className="text-xs font-medium text-foreground mb-2">Select a form</p>
+                      {formsLoading ? (
+                        <div className="flex items-center gap-2 py-4 justify-center text-muted-foreground">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="text-xs">Loading forms...</span>
+                        </div>
+                      ) : customForms.length === 0 ? (
+                        <div className="text-center py-4">
+                          <p className="text-xs text-muted-foreground mb-3">
+                            You don't have any forms yet. Build one to get started.
+                          </p>
+                          <Button asChild size="sm" variant="outline">
+                            <Link href="/dashboard/forms/new">
+                              <Plus className="w-3.5 h-3.5" />
+                              Build new form
+                            </Link>
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {customForms.map((f) => (
+                            <button
+                              key={f.id}
+                              type="button"
+                              onClick={() => setSelectedFormId(f.id)}
+                              className={cn(
+                                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-all duration-200",
+                                selectedFormId === f.id
+                                  ? "border-violet-500/40 bg-violet-500/5 ring-1 ring-violet-500/20"
+                                  : "border-border/30 hover:border-border/60 hover:bg-card/80"
+                              )}
+                            >
+                              <div className={cn(
+                                "w-7 h-7 rounded-md flex items-center justify-center shrink-0",
+                                selectedFormId === f.id
+                                  ? "bg-violet-500/10 border border-violet-500/20"
+                                  : "bg-surface-2 border border-border/40"
+                              )}>
+                                <FileText className={cn(
+                                  "w-3.5 h-3.5",
+                                  selectedFormId === f.id ? "text-violet-500" : "text-muted-foreground"
+                                )} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-foreground truncate">{f.title}</p>
+                                <p className="text-[11px] text-muted-foreground">
+                                  {f._count.fields} field{f._count.fields !== 1 ? "s" : ""}
+                                  {" · "}
+                                  {f._count.submissions} submission{f._count.submissions !== 1 ? "s" : ""}
+                                </p>
+                              </div>
+                              {selectedFormId === f.id && (
+                                <CheckCheck className="w-4 h-4 text-violet-500 shrink-0" />
+                              )}
+                            </button>
+                          ))}
+                          <div className="flex items-center gap-2 pt-1">
+                            <Button asChild size="sm" variant="outline" className="text-xs h-8">
+                              <Link href="/dashboard/forms/new">
+                                <Plus className="w-3 h-3" />
+                                Build new form
+                              </Link>
+                            </Button>
+                            {selectedFormId && (
+                              <Button asChild size="sm" variant="ghost" className="text-xs h-8">
+                                <Link href={`/dashboard/forms/${selectedFormId}`}>
+                                  <ExternalLink className="w-3 h-3" />
+                                  Edit form
+                                </Link>
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -765,63 +934,67 @@ export default function NewLinkPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-border/40 bg-card p-5 space-y-3">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Submission destination
-              </p>
-              <div>
-                <Label className="text-foreground text-sm">
-                  Where is this information going?{" "}
-                  <span className="text-muted-foreground font-normal text-xs">(optional)</span>
-                </Label>
-                <Input
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  placeholder="e.g. Mutual of Omaha, your company name, Aetna, a mortgage lender..."
-                  className="mt-1.5"
-                />
-                <p className="text-xs text-muted-foreground mt-1.5">
-                  Your client will see this so they know who is receiving their information. Leave blank if not needed.
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-border/40 bg-card p-5 space-y-3">
-              <div className="flex items-center justify-between">
+            {linkType !== "CUSTOM_FORM" && (
+              <div className="rounded-xl border border-border/40 bg-card p-5 space-y-3">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Client message
+                  Submission destination
                 </p>
-                <button
-                  type="button"
-                  onClick={regenerateMessage}
-                  className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  Regenerate
-                </button>
+                <div>
+                  <Label className="text-foreground text-sm">
+                    Where is this information going?{" "}
+                    <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+                  </Label>
+                  <Input
+                    value={destination}
+                    onChange={(e) => setDestination(e.target.value)}
+                    placeholder="e.g. Mutual of Omaha, your company name, Aetna, a mortgage lender..."
+                    className="mt-1.5"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Your client will see this so they know who is receiving their information. Leave blank if not needed.
+                  </p>
+                </div>
               </div>
-              <textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value.slice(0, MESSAGE_MAX_CHARS))}
-                rows={5}
-                maxLength={MESSAGE_MAX_CHARS}
-                placeholder="Auto-generated message will appear here..."
-                className="w-full rounded-xl border border-border/50 bg-surface-2 px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 resize-none transition-colors"
-              />
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                Edit freely. This message is sent alongside the link.
-                </p>
-                <p
-                  className={cn(
-                    "text-xs tabular-nums",
-                    message.length >= MESSAGE_WARN_CHARS ? "text-amber-500" : "text-muted-foreground"
-                  )}
-                >
-                  {message.length}/{MESSAGE_MAX_CHARS}
-                </p>
+            )}
+
+            {linkType !== "CUSTOM_FORM" && (
+              <div className="rounded-xl border border-border/40 bg-card p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Client message
+                  </p>
+                  <button
+                    type="button"
+                    onClick={regenerateMessage}
+                    className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Regenerate
+                  </button>
+                </div>
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value.slice(0, MESSAGE_MAX_CHARS))}
+                  rows={5}
+                  maxLength={MESSAGE_MAX_CHARS}
+                  placeholder="Auto-generated message will appear here..."
+                  className="w-full rounded-xl border border-border/50 bg-surface-2 px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 resize-none transition-colors"
+                />
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                  Edit freely. This message is sent alongside the link.
+                  </p>
+                  <p
+                    className={cn(
+                      "text-xs tabular-nums",
+                      message.length >= MESSAGE_WARN_CHARS ? "text-amber-500" : "text-muted-foreground"
+                    )}
+                  >
+                    {message.length}/{MESSAGE_MAX_CHARS}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="rounded-xl border border-border/40 bg-card p-5 space-y-4">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -860,7 +1033,7 @@ export default function NewLinkPage() {
               </div>
             </div>
 
-            {templates.length > 0 && (
+            {linkType !== "CUSTOM_FORM" && templates.length > 0 && (
               <div className="rounded-xl border border-border/40 bg-card p-5">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                   Saved templates
@@ -924,7 +1097,7 @@ export default function NewLinkPage() {
               type="submit"
               size="lg"
               className="w-full gap-2"
-              disabled={loading}
+              disabled={loading || (linkType === "CUSTOM_FORM" && !selectedFormId)}
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -991,7 +1164,7 @@ function LivePreview({
         <div className="flex-1 bg-surface-2 rounded-md px-2.5 py-1 flex items-center gap-1.5">
           <Lock className="w-3 h-3 text-emerald-500 shrink-0" />
           <span className="text-[11px] text-muted-foreground font-mono">
-            agentsecurelinks.com/secure/...
+            mysecurelink.co/{linkType === "CUSTOM_FORM" ? "f" : "secure"}/...
           </span>
         </div>
       </div>

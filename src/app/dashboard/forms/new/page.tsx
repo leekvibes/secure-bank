@@ -321,9 +321,9 @@ export default function NewFormPage() {
       <div className="animate-fade-in max-w-2xl">
         <div className="mb-5">
           <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
-            <Link href="/dashboard/forms">
+            <Link href="/dashboard/new">
               <ArrowLeft className="w-4 h-4" />
-              All forms
+              Create Secure Link
             </Link>
           </Button>
         </div>
@@ -385,9 +385,9 @@ export default function NewFormPage() {
     <div className={`animate-fade-in ${showPreview ? "max-w-[1200px]" : "max-w-2xl"}`}>
       <div className="mb-5">
         <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
-          <Link href="/dashboard/forms">
+          <Link href="/dashboard/new">
             <ArrowLeft className="w-4 h-4" />
-            All forms
+            Create Secure Link
           </Link>
         </Button>
       </div>
@@ -675,7 +675,7 @@ export default function NewFormPage() {
 
         <div className="flex gap-3 pt-2">
           <Button type="button" variant="outline" asChild className="flex-1">
-            <Link href="/dashboard/forms">Cancel</Link>
+            <Link href="/dashboard/new">Cancel</Link>
           </Button>
           <Button type="submit" className="flex-1" disabled={loading}>
             {loading ? "Creating..." : "Create Form"}
