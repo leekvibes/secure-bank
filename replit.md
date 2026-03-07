@@ -87,21 +87,11 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 - Displayed on client-facing secure forms via `client-trust-header.tsx`
 - Falls back to initials avatar when no photo is set
 
-## Dashboard Overview
-
-- Twilio-inspired layout: greeting banner, stat cards, quick action cards, alert banners, tabular recent activity
-- Stat cards: Total Links, Pending, Submitted, Active Forms (color-coded: blue, amber, emerald, violet)
-- Quick action cards: Create Secure Link, View Submissions, Manage Forms
-- Alert banners: unviewed submissions (blue), expired links (amber) — contextual, only shown when relevant
-- Recent activity: tabular layout with client/type, created, expires, status columns; links to detail pages
-
 ## Auth Notes
 
 - Uses custom /api/login endpoint that bypasses NextAuth CSRF (needed for Replit iframe)
 - Sets JWT session cookie directly with SameSite=none; Secure
-- Cookie name dynamically determined by NEXTAUTH_URL: uses `__Secure-` prefix when URL is HTTPS
-- Both auth options and login route share the same cookie-name logic for consistency
-- `suppressHydrationWarning` on `<html>` and `<body>` tags to handle Replit iframe hydration
+- Sets BOTH `next-auth.session-token` and `__Secure-next-auth.session-token` cookies to handle both dev and production NextAuth cookie name expectations
 - Test account: test@example.com / TestPass123!
 
 ## Routing Number Lookup
