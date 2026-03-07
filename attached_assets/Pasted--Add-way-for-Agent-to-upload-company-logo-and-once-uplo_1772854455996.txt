@@ -1,0 +1,55 @@
+- Add way for Agent to upload company logo and once uploaded it can be 
+- There needs to be a way for agent to edit whatever form they are sending. Give option to access all fields and add some if he wants. 
+- Only need ssn. not ssn and dob
+- During account set for agent we should ask questions like what industry are you going to be using this for, what carriers do you work with.where do you want your clients info submitted etc. but it should be them entering info so when the links are generated its matched to them. so when they send the link its saying this link will be submitted to Americo or wherever its going so they don’t think the agent is getting there info type deal. 
+- Always make them enter account number twice and make sure it matches. 
+- I understand its early but UI looks extremely boring and outdated on both agent side and links
+- Create way for client to send sms directly from site without having to copy and paste into iMessage to make easier for all users and systems
+- Create send lincese to client which lets them upload there current id and if they don’t have something that can generate an ID for them that incudes whatever they want on it. Can connect open ai for this but only allow them one id make an every two weeks. 
+- Take away view once mode
+- Create cleaner UI for links, submissions, social, banking, id etc. 
+
+
+
+- Make agent info somewhere on top right. Maybe picuture of agent. ID number for company or whatever, phone number, email. ID Verifed check if he’s verifed. Instead of having there info in the top middle like it is now. That’s where the logos should go that they upload later. 
+- Current system allows user to upload one photo in settings and it shows up on banking or whatever link they send. They should be able to upload as many as they like and when sending the link choose which ones they want to include and allow to include multiple. 
+
+
+- When a client goes in and wants to create a new link, it should ask them where is this? Client's info going to be submitted so when the form gets sent it could say something like hello John Smith please submit the form below securely your banking information your Mutual of Omaha or Aetna or America policy set up. Requires the following details whatever the case is wherever it's going to be that we should be asking our agents and after we ask them, we should have something that auto generate some sort of message for them and they can edit it as needs or it could have like a pre-generated message to show what it's gonna show on the whole banking field like a preview before it sends over to them and they can edit it as needed so it says the correct things because this is all about the client feeling comfortable.
+- Field where it asked them on the banking is the middle initial listed on your bank account and they can toggle yes or no and if they click yes they have to put the middle initial.
+- I need to implement an idea where they can directly send the link from the website/app instead of having to send it to their phone and then send it to them. They could also do that, but they should be able to do that directly from there if it's possible to connect the phone number and send it as well as an email.
+- Future idea, have agency account or enterprise accounts where we can create an account for an agency or a company upload all whatever they need and then their agents under their agency can come and just sign up under them and have access to everything they uploaded so they're ready to go so as they upload or bring on downlines it's easier for all of them and they can all just use our app. 
+
+- At the top of banking page it should say something more along of lines of enter ur information below to secure submit your personal information but leave the agents name out. That makes it seem weird, if anything what they type. 
+- Informs we forms we have to go through every field type and make sure it actually makes sense and like date as easy to select and put in and everything that whatever field type the agent chooses does the correct thing we need to look into it and make sure. Almost modeled this off of Google forms, but let's make it more high-tech Fintech looking not so old looking kind of the same way we have the form that's getting sent to the client. It looks more advanced. Everything should look advanced on the agent site as well.
+- For ID photo submission make sure agent is able to download the ID so they can easily upload it to the application right now you're not able to download it at all
+- Photo ID also didn't pop up in the submissions tab or page it only showed at the bottom of the links
+
+
+- Save Templete button doesn’t work. And there should also be some way for users to quickly access there saved tempts
+- User cant upload logo from link page unless they have a logo uploaded in settings. Allow users to upload logos directly from links/requests 
+- When link is used and someone try to go back to it should display a message like. Link Unavailable
+* 
+* This link has already been used
+* This banking submission link is no longer active. It may have already been used or expired. Please contact us if you need a new link.
+* 
+* Call us for assistance
+* 202-302-4129
+- 
+- When person puts in routing number it should be using some sort of api to search all routing numbers in usa from all banks big or small and validate the routing number and automaitlly display the relevant bank name its not currently doing it. 
+- Turn off auto delete and take feature away for the submissions, don’t delete any users info ever unless they do it. 
+- Scam message after someone comes back to see there link. Said something like if you believe or feel like someone is trying to scam you with the information that you submitted please contact this number or email
+- For upload section make sure on agent side they're able to choose multiple different documents whether they are requesting a passport ID pass card, etc. and then make sure whatever they choose the corresponding correct things are sent in the client link so do research if you need to. 
+- For submission destination, and all fields, I want the question to be where would you like your client to know this is being submitted or however, it would be worded correctly and professionally, and then they can type it in. 
+- Remove consent box on all forms and links at bottom of forms and links at end. 
+- Search client name inside of requests, and submissions. 
+Kinda finished,
+ 
+- Only tried to go back to the link, displayed the fraud, warning message if someone tries to go back to the link after submitting and visiting after submitting for the first time, the only thing that should pop up is submitted securely and the other box that's been popping up
+- Maybe in the future add a way for when someone sends a link via email or SMS and allows the client to reply as well and if it's a email there's a place in our email Wood go and for SMS like we can open up like a chat box that opens up and allows him to talk
+- Add verified check after someone puts routing in and the bank is found and  it’s verified. 
+- Make name on form required on all tabs that involve ssn. So the ssn a full intake option if prompted for social in form. 
+- There should be some sort of messaging actually on the link and form pages that is a short introduction to the client with their name what they're filling out and where it's going
+- In request page instead of organizing everything and just one long row, let's have users be able to choose from banking information, social fall intake, and documents upload, and then when they click on the respective one, it uploads all of the links that they've created. 
+- Change request tab name to secure links and one user clicks on the tab it should say create secure link or whatever is supposed to be there would fit correct. 
+
