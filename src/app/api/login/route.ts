@@ -3,6 +3,11 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { encode } from "next-auth/jwt";
 
+const useSecureCookies = (process.env.NEXTAUTH_URL ?? "").startsWith("https://");
+const SESSION_COOKIE = useSecureCookies
+  ? "__Secure-next-auth.session-token"
+  : "next-auth.session-token";
+
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json();
@@ -46,8 +51,7 @@ export async function POST(req: NextRequest) {
       maxAge: 8 * 60 * 60,
     };
 
-    response.cookies.set("next-auth.session-token", token, cookieOptions);
-    response.cookies.set("__Secure-next-auth.session-token", token, cookieOptions);
+    response.cookies.set(SESSION_COOKIE, token, cookieOptions);
 
     return response;
   } catch (err) {
