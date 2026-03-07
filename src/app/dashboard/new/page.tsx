@@ -69,10 +69,10 @@ const TYPE_META: Record<
     iconColor: "text-blue-500",
     borderActive: "border-blue-500/50 ring-1 ring-blue-500/20 bg-blue-500/5",
     title: "Banking Information",
-    subtitle: "Routing, account number, draft date",
+    subtitle: "Collect bank routing and account numbers securely",
     defaultExpiry: 24,
     previewFields: ["Full name", "Routing number", "Bank name", "Account number (+ confirm)", "Draft date"],
-    infoText: "Account number confirmation is always required for fraud prevention.",
+    infoText: "Your client enters their routing number, account number, and draft date. Account number confirmation is built in to prevent typos.",
     accentHsl: "210 100% 60%",
   },
   SSN_ONLY: {
@@ -81,10 +81,10 @@ const TYPE_META: Record<
     iconColor: "text-violet-500",
     borderActive: "border-violet-500/50 ring-1 ring-violet-500/20 bg-violet-500/5",
     title: "Social Security Number",
-    subtitle: "SSN with masked entry and confirmation",
+    subtitle: "Collect a Social Security Number with masked entry",
     defaultExpiry: 168,
     previewFields: ["First name", "Last name", "SSN (masked + confirm)"],
-    infoText: "SSN links default to 7-day expiration for compliance.",
+    infoText: "Your client enters their SSN with masked input and confirmation. Defaults to a longer expiration since SSN collection often takes more time.",
     accentHsl: "260 80% 60%",
   },
   FULL_INTAKE: {
@@ -93,10 +93,10 @@ const TYPE_META: Record<
     iconColor: "text-emerald-500",
     borderActive: "border-emerald-500/50 ring-1 ring-emerald-500/20 bg-emerald-500/5",
     title: "Full Intake Form",
-    subtitle: "SSN, banking, address, and beneficiary",
+    subtitle: "Collect everything at once: SSN, banking, address, and more",
     defaultExpiry: 48,
     previewFields: ["Full name", "Date of birth", "SSN", "Address", "Phone + email", "Beneficiary", "Banking info"],
-    infoText: "Most comprehensive intake -- use for new policy applications.",
+    infoText: "The all-in-one option. Collects personal details, SSN, banking information, beneficiary, and more in one form.",
     accentHsl: "155 70% 45%",
   },
   ID_UPLOAD: {
@@ -105,10 +105,10 @@ const TYPE_META: Record<
     iconColor: "text-amber-500",
     borderActive: "border-amber-500/50 ring-1 ring-amber-500/20 bg-amber-500/5",
     title: "Photo ID Upload",
-    subtitle: "Government-issued ID photo submission",
+    subtitle: "Have your client photograph and upload their ID",
     defaultExpiry: 24,
     previewFields: ["Front of ID (required)", "Back of ID (optional)"],
-    infoText: "Accepted: JPG, PNG, WebP, HEIC -- max 10 MB per file.",
+    infoText: "Your client takes or uploads a photo of their ID. You choose the document type and whether both sides are needed.",
     accentHsl: "35 90% 55%",
   },
 };
@@ -728,34 +728,37 @@ export default function NewLinkPage() {
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
                   required={linkType === "SSN_ONLY"}
-                  placeholder="John Smith"
+                  placeholder="e.g. John Smith"
                   className="mt-1.5"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Helps you identify whose submission this is
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="clientPhone" className="text-foreground text-sm">
-                    Phone
+                    Phone <span className="text-muted-foreground font-normal text-xs">(optional)</span>
                   </Label>
                   <Input
                     id="clientPhone"
                     type="tel"
                     value={clientPhone}
                     onChange={(e) => setClientPhone(e.target.value)}
-                    placeholder="555-000-0000"
+                    placeholder="e.g. (555) 123-4567"
                     className="mt-1.5"
                   />
                 </div>
                 <div>
                   <Label htmlFor="clientEmail" className="text-foreground text-sm">
-                    Email
+                    Email <span className="text-muted-foreground font-normal text-xs">(optional)</span>
                   </Label>
                   <Input
                     id="clientEmail"
                     type="email"
                     value={clientEmail}
                     onChange={(e) => setClientEmail(e.target.value)}
-                    placeholder="client@email.com"
+                    placeholder="e.g. client@email.com"
                     className="mt-1.5"
                   />
                 </div>
@@ -768,16 +771,17 @@ export default function NewLinkPage() {
               </p>
               <div>
                 <Label className="text-foreground text-sm">
-                  Where would you like your client to know their information is being submitted?
+                  Where is this information going?{" "}
+                  <span className="text-muted-foreground font-normal text-xs">(optional)</span>
                 </Label>
                 <Input
                   value={destination}
                   onChange={(e) => setDestination(e.target.value)}
-                  placeholder="e.g. Mutual of Omaha, Aetna, Internal processing…"
+                  placeholder="e.g. Mutual of Omaha, your company name, Aetna, a mortgage lender..."
                   className="mt-1.5"
                 />
                 <p className="text-xs text-muted-foreground mt-1.5">
-                  This is shown to your client so they understand who is receiving their information.
+                  Your client will see this so they know who is receiving their information. Leave blank if not needed.
                 </p>
               </div>
             </div>

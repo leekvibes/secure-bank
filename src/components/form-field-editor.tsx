@@ -214,7 +214,7 @@ export function FormFieldEditor({ formId, initialFields }: FormFieldEditorProps)
             <Input
               value={field.label}
               onChange={(e) => updateField(field.id, { label: e.target.value })}
-              placeholder="Field label"
+              placeholder="e.g. Full Name, Email, Phone Number"
               className="h-8 text-sm flex-1"
             />
             <select
@@ -241,20 +241,20 @@ export function FormFieldEditor({ formId, initialFields }: FormFieldEditorProps)
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label className="text-xs text-muted-foreground">Placeholder</Label>
+              <Label className="text-xs text-muted-foreground">Example text inside the field</Label>
               <Input
                 value={field.placeholder}
                 onChange={(e) => updateField(field.id, { placeholder: e.target.value })}
-                placeholder="Optional"
+                placeholder="e.g. Enter your full name"
                 className="h-8 text-xs"
               />
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Help text</Label>
+              <Label className="text-xs text-muted-foreground">Hint shown below the field</Label>
               <Input
                 value={field.helpText}
                 onChange={(e) => updateField(field.id, { helpText: e.target.value })}
-                placeholder="Optional"
+                placeholder="e.g. As it appears on your bank statement"
                 className="h-8 text-xs"
               />
             </div>
@@ -273,21 +273,21 @@ export function FormFieldEditor({ formId, initialFields }: FormFieldEditorProps)
           )}
 
           <div className="flex flex-wrap gap-3 text-xs">
-            <label className="flex items-center gap-1.5 cursor-pointer">
+            <label className="flex items-center gap-1.5 cursor-pointer" title="Client must fill this out">
               <input type="checkbox" checked={field.required} onChange={(e) => updateField(field.id, { required: e.target.checked })} className="rounded" />
               Required
             </label>
-            <label className="flex items-center gap-1.5 cursor-pointer">
+            <label className="flex items-center gap-1.5 cursor-pointer" title="Extra protection for sensitive data">
               <input type="checkbox" checked={field.encrypted} onChange={(e) => updateField(field.id, { encrypted: e.target.checked })} className="rounded" />
-              <Lock className="w-3 h-3" /> Encrypted
+              <Lock className="w-3 h-3" /> Encrypt
             </label>
-            <label className="flex items-center gap-1.5 cursor-pointer">
+            <label className="flex items-center gap-1.5 cursor-pointer" title="Shows dots instead of characters while typing">
               <input type="checkbox" checked={field.maskInput} onChange={(e) => updateField(field.id, { maskInput: e.target.checked })} className="rounded" />
-              {field.maskInput ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />} Mask
+              {field.maskInput ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />} Hide input
             </label>
-            <label className="flex items-center gap-1.5 cursor-pointer">
+            <label className="flex items-center gap-1.5 cursor-pointer" title="Client enters value twice to avoid typos">
               <input type="checkbox" checked={field.confirmField} onChange={(e) => updateField(field.id, { confirmField: e.target.checked })} className="rounded" />
-              Confirm
+              Enter twice
             </label>
           </div>
         </div>

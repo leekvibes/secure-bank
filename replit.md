@@ -115,8 +115,13 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 
 ## Custom Forms
 
-- Form builder at `/dashboard/forms/new` — create custom encrypted forms with drag-and-drop field ordering
-- Field types: text, email, phone, address, date, dropdown, SSN, routing, bank account, signature
+- Form builder at `/dashboard/forms/new` — starts with template selection (Client Contact Info, Banking Details, Full Application) or "Start from scratch"
+- Templates pre-fill fields with smart defaults (labels, placeholders, help text, encryption, confirmation settings)
+- Field types: text, email, phone, address, date, dropdown (multiple choice), SSN, routing, bank account, signature
+- Fields show as compact cards with Edit/Close toggle to show advanced settings
+- User-friendly labels: "What type of information?", "Field name (what your client sees)", "Example text inside the field", "Hint shown below the field"
+- Toggle labels: "Required", "Encrypt", "Hide input", "Enter twice" (no jargon)
+- Quick-add buttons at bottom: grid of field type icons for one-click adding
 - Form fields can be edited after creation via "Edit Fields" button on form detail page
 - PATCH `/api/forms/[id]` accepts field updates in a DB transaction for atomic saves
 - No consent checkbox on any form type
