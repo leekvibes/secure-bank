@@ -96,7 +96,12 @@ export function RequestActions({
 
   return (
     <div className="glass-card rounded-xl p-5">
-      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Actions</h3>
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+        <span className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center">
+          <Send className="w-3 h-3 text-primary" />
+        </span>
+        Actions
+      </h3>
       <div className="space-y-2">
         {canAct && (
           <ActionButton
@@ -117,9 +122,11 @@ export function RequestActions({
         {viewHref && (
           <Link
             href={viewHref}
-            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-all duration-200 shadow-sm shadow-primary/20"
+            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary to-primary/90 text-primary-foreground text-sm font-medium hover:from-primary/90 hover:to-primary/80 transition-all duration-200 shadow-md shadow-primary/20 ring-1 ring-primary/20"
           >
-            <Eye className="w-4 h-4 shrink-0" />
+            <span className="w-6 h-6 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
+              <Eye className="w-3.5 h-3.5" />
+            </span>
             {idUploadId ? "View ID upload" : "Reveal submission"}
           </Link>
         )}
@@ -127,14 +134,14 @@ export function RequestActions({
           <div className="flex gap-2 pt-1">
             <button
               onClick={() => setDeleteConfirm(false)}
-              className="flex-1 px-3 py-2 rounded-lg border border-border/60 text-muted-foreground text-sm font-medium hover:bg-accent transition-colors"
+              className="flex-1 px-3 py-2 rounded-xl border border-border/60 text-muted-foreground text-sm font-medium hover:bg-accent transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={deleteRequest}
               disabled={deleting}
-              className="flex-1 px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-1.5"
+              className="flex-1 px-3 py-2 rounded-xl bg-gradient-to-r from-red-600 to-red-500 text-white text-sm font-medium hover:from-red-700 hover:to-red-600 disabled:opacity-60 transition-all duration-200 shadow-sm shadow-red-500/20 flex items-center justify-center gap-1.5"
             >
               {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
               {deleting ? "Deleting..." : "Confirm delete"}
@@ -244,30 +251,33 @@ function SendPanel({
   const methods = (["EMAIL", "COPY"] as const);
 
   return (
-    <div className="mt-4 pt-4 border-t border-border/30">
+    <div className="mt-4 pt-4 border-t border-border/30 bg-gradient-to-b from-surface-2/40 to-transparent rounded-b-xl">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Send secure link</p>
+        <div className="flex items-center gap-2">
+          <Send className="w-3.5 h-3.5 text-primary" />
+          <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Share Secure Link</p>
+        </div>
         <button
           onClick={onClose}
-          className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors hover:bg-accent/60"
+          className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-accent/60 transition-colors"
         >
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      <div className="flex gap-1.5 mb-3">
+      <div className="grid grid-cols-2 gap-1 p-1 bg-surface-2 rounded-xl border border-border/30 mb-3">
         {methods.map((m) => (
           <button
             key={m}
             onClick={() => setMethod(m)}
             className={cn(
-              "px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200",
+              "py-1.5 text-xs font-medium rounded-lg transition-all duration-200",
               method === m
-                ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
-                : "bg-card border border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                ? "bg-card text-foreground shadow-sm ring-1 ring-border/40"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
-            {m === "EMAIL" ? "Email" : "Copy"}
+            {m === "EMAIL" ? "Email" : "Copy Message"}
           </button>
         ))}
       </div>
@@ -277,7 +287,7 @@ function SendPanel({
           value={emailTo}
           onChange={(e) => setEmailTo(e.target.value)}
           placeholder="client@email.com"
-          className="h-8 text-sm mb-2"
+          className="h-9 text-sm mb-2 rounded-lg"
         />
       )}
 
@@ -285,15 +295,18 @@ function SendPanel({
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         rows={4}
-        className="w-full rounded-lg border border-border/60 bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary/50 resize-none transition-colors"
+        className="w-full rounded-xl border border-border/40 bg-surface-2 px-3.5 py-2.5 text-sm text-foreground leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 resize-none transition-all"
       />
 
       {success ? (
-        <p className="mt-2 text-xs text-emerald-500 font-medium flex items-center gap-1.5">
-          <CheckCheck className="w-3.5 h-3.5" /> Sent successfully
-        </p>
+        <div className="mt-3 flex items-center gap-2 py-2 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+          <CheckCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+          <p className="text-xs font-medium text-emerald-600">
+            {method === "EMAIL" ? "Email sent successfully" : "Message copied to clipboard"}
+          </p>
+        </div>
       ) : (
-        <div className="mt-2 flex gap-2">
+        <div className="mt-3 flex gap-2">
           <Button
             size="sm"
             onClick={send}
@@ -302,16 +315,25 @@ function SendPanel({
               (method === "EMAIL" && !emailTo.trim()) ||
               !message.trim()
             }
-            className="h-8"
+            className="h-9 gap-1.5 rounded-lg flex-1"
           >
-            {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : method === "COPY" ? "Copy" : "Send now"}
+            {sending ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Send className="w-3.5 h-3.5" />
+            )}
+            {method === "EMAIL" ? "Send Email" : "Copy Message"}
           </Button>
-          <Button size="sm" variant="outline" onClick={onClose} className="h-8">
+          <Button size="sm" variant="outline" onClick={onClose} className="h-9 rounded-lg">
             Cancel
           </Button>
         </div>
       )}
-      {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
+      {error && (
+        <div className="mt-2 flex items-center gap-2 py-2 px-3 rounded-xl bg-red-500/10 border border-red-500/20">
+          <p className="text-xs text-red-500">{error}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -338,16 +360,25 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex items-center gap-3 w-full px-4 py-2.5 rounded-lg border text-sm font-medium transition-all duration-200",
+        "flex items-center gap-3 w-full px-4 py-2.5 rounded-xl border text-sm font-medium transition-all duration-200 group/action",
         disabled && "opacity-50 pointer-events-none",
         danger
-          ? "border-border/60 text-red-500 hover:bg-red-500/10 hover:border-red-500/30"
+          ? "border-border/60 text-red-500 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-transparent hover:border-red-500/30 hover:shadow-sm hover:shadow-red-500/10"
           : active
-          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600"
-          : "border-border/60 text-foreground hover:bg-accent hover:border-primary/20"
+          ? "border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 to-transparent text-emerald-600 shadow-sm shadow-emerald-500/10"
+          : "border-border/60 text-foreground hover:bg-gradient-to-r hover:from-accent hover:to-transparent hover:border-primary/20 hover:shadow-sm"
       )}
     >
-      <Icon className={cn("w-4 h-4 shrink-0", spinIcon && "animate-spin")} />
+      <span className={cn(
+        "w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-200",
+        danger
+          ? "bg-red-500/10 group-hover/action:bg-red-500/20"
+          : active
+          ? "bg-emerald-500/15"
+          : "bg-muted/60 group-hover/action:bg-primary/10"
+      )}>
+        <Icon className={cn("w-3.5 h-3.5", spinIcon && "animate-spin")} />
+      </span>
       {label}
     </button>
   );

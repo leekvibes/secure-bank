@@ -3,11 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Eye, EyeOff, Shield, Clock, Download, Trash2, Share2, CheckCheck } from "lucide-react";
+import {
+  ArrowLeft, Eye, EyeOff, Shield, Clock, Download, Trash2, Share2,
+  CheckCheck, Lock, Send, Plus, CheckCircle2, AlertCircle, Calendar,
+  CreditCard, ClipboardList, Camera,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { LINK_TYPES, formatDate, type LinkType } from "@/lib/utils";
+import { cn, LINK_TYPES, formatDate, type LinkType } from "@/lib/utils";
 import { shareLink } from "@/lib/share";
 
 interface SubmissionViewerProps {
@@ -35,18 +37,33 @@ interface SubmissionViewerProps {
   maskedSsn?: string | null;
 }
 
-const EVENT_LABELS: Record<string, string> = {
-  LINK_CREATED: "Link created",
-  LINK_SENT: "Link sent to client",
-  LINK_OPENED: "Link opened by client",
-  SUBMITTED: "Client submitted form",
-  REVEALED: "Agent revealed data",
-  SSN_OPENED: "SSN link opened by client",
-  SSN_SUBMITTED: "SSN form submitted",
-  SSN_REVEALED: "Agent revealed SSN data",
-  EXPORTED: "Data exported",
-  DELETED: "Submission deleted",
-  EXPIRED: "Link expired",
+const EVENT_CONFIG: Record<string, {
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  iconBg: string;
+  iconColor: string;
+}> = {
+  LINK_CREATED:  { label: "Link created",             icon: Plus,         iconBg: "bg-slate-500/10",   iconColor: "text-slate-500" },
+  LINK_SENT:     { label: "Link sent to client",      icon: Send,         iconBg: "bg-blue-500/10",    iconColor: "text-blue-500" },
+  LINK_OPENED:   { label: "Link opened by client",    icon: Eye,          iconBg: "bg-amber-500/10",   iconColor: "text-amber-600" },
+  SUBMITTED:     { label: "Client submitted form",    icon: CheckCircle2, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-600" },
+  REVEALED:      { label: "Agent revealed data",      icon: Eye,          iconBg: "bg-blue-500/10",    iconColor: "text-blue-600" },
+  SSN_OPENED:    { label: "SSN link opened by client", icon: Eye,         iconBg: "bg-amber-500/10",   iconColor: "text-amber-600" },
+  SSN_SUBMITTED: { label: "SSN form submitted",       icon: CheckCircle2, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-600" },
+  SSN_REVEALED:  { label: "Agent revealed SSN data",  icon: Eye,          iconBg: "bg-blue-500/10",    iconColor: "text-blue-600" },
+  EXPORTED:      { label: "Data exported",            icon: Download,     iconBg: "bg-blue-500/10",    iconColor: "text-blue-600" },
+  DELETED:       { label: "Submission deleted",       icon: Trash2,       iconBg: "bg-red-500/10",     iconColor: "text-red-500" },
+  EXPIRED:       { label: "Link expired",             icon: AlertCircle,  iconBg: "bg-red-500/10",     iconColor: "text-red-500" },
+};
+
+const TYPE_META: Record<string, {
+  icon: React.ComponentType<{ className?: string }>;
+  bg: string; iconColor: string; border: string; gradient: string;
+}> = {
+  BANKING_INFO: { icon: CreditCard,    bg: "bg-blue-500/10",    iconColor: "text-blue-500",    border: "border-blue-500/20",    gradient: "from-blue-500/5 via-primary/5 to-transparent" },
+  SSN_ONLY:     { icon: Shield,        bg: "bg-violet-500/10",  iconColor: "text-violet-500",  border: "border-violet-500/20",  gradient: "from-violet-500/5 via-primary/5 to-transparent" },
+  FULL_INTAKE:  { icon: ClipboardList, bg: "bg-emerald-500/10", iconColor: "text-emerald-500", border: "border-emerald-500/20", gradient: "from-emerald-500/5 via-primary/5 to-transparent" },
+  ID_UPLOAD:    { icon: Camera,        bg: "bg-orange-500/10",  iconColor: "text-orange-500",  border: "border-orange-500/20",  gradient: "from-orange-500/5 via-primary/5 to-transparent" },
 };
 
 export function SubmissionViewer({
@@ -63,6 +80,9 @@ export function SubmissionViewer({
   const [shared, setShared] = useState(false);
 
   const alreadyRevealed = submission.revealedAt !== null;
+  const typeMeta = TYPE_META[submission.link.linkType] ?? TYPE_META.FULL_INTAKE;
+  const TypeIcon = typeMeta.icon;
+  const typeLabel = LINK_TYPES[submission.link.linkType as LinkType] ?? submission.link.linkType;
 
   async function handleDelete() {
     if (!confirm("Permanently delete this submission and its link? This cannot be undone.")) return;
@@ -117,82 +137,141 @@ export function SubmissionViewer({
   }
 
   return (
-    <div className="max-w-2xl animate-fade-in">
-      <div className="mb-6 flex items-center justify-between">
-        <Button variant="ghost" size="sm" asChild className="-ml-2">
-          <Link href="/dashboard/links">
-            <ArrowLeft className="w-4 h-4" />
-            Back to requests
-          </Link>
-        </Button>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleShare}>
-            {shared ? <CheckCheck className="w-3.5 h-3.5 text-emerald-500" /> : <Share2 className="w-3.5 h-3.5" />}
-            {shared ? "Shared" : "Share"}
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <a href={exportUrl("json")} download>
-              <Download className="w-3.5 h-3.5" />
-              JSON
-            </a>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <a href={exportUrl("text")} download>
-              <Download className="w-3.5 h-3.5" />
-              TXT
-            </a>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="text-red-500 hover:bg-red-500/10 hover:border-red-500/30"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            Delete
-          </Button>
+    <div className="max-w-3xl animate-fade-in space-y-6">
+
+      <Link
+        href="/dashboard/links"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="w-3.5 h-3.5" />
+        Back to requests
+      </Link>
+
+      <div className={cn(
+        "bg-card rounded-xl border border-border shadow-sm p-6 bg-gradient-to-br",
+        typeMeta.gradient
+      )}>
+        <div className="flex items-start gap-4">
+          <div className={cn(
+            "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border",
+            typeMeta.bg, typeMeta.border
+          )}>
+            <TypeIcon className={cn("w-6 h-6", typeMeta.iconColor)} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-xl font-bold text-foreground leading-tight">Submission</h1>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ring-1 bg-emerald-500/10 text-emerald-600 ring-emerald-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                Submitted
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ring-1 bg-primary/10 text-primary ring-primary/20">
+                <Lock className="w-3 h-3" />
+                Encrypted
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">{typeLabel}</p>
+            {submission.link.clientName && (
+              <p className="text-xs text-muted-foreground/70 mt-0.5">{submission.link.clientName}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-x-6 gap-y-2 mt-5 pt-5 border-t border-border">
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Calendar className="w-3.5 h-3.5 shrink-0" />
+            <span>Submitted {formatDate(submission.createdAt)}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Clock className="w-3.5 h-3.5 shrink-0" />
+            <span>Expires {formatDate(submission.deleteAt)}</span>
+          </div>
+          {submission.revealCount > 0 && (
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Eye className="w-3.5 h-3.5 shrink-0" />
+              <span>Revealed {submission.revealCount} time{submission.revealCount > 1 ? "s" : ""}</span>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="mb-6">
-        <h1 className="ui-page-title">Submission</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {LINK_TYPES[submission.link.linkType as LinkType]}{" "}
-          {submission.link.clientName && `· ${submission.link.clientName}`}
-        </p>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleShare}
+          className="rounded-xl"
+        >
+          {shared ? <CheckCheck className="w-3.5 h-3.5 text-emerald-500" /> : <Share2 className="w-3.5 h-3.5" />}
+          {shared ? "Shared" : "Share link"}
+        </Button>
+        <Button variant="outline" size="sm" asChild className="rounded-xl">
+          <a href={exportUrl("json")} download>
+            <Download className="w-3.5 h-3.5" />
+            Export JSON
+          </a>
+        </Button>
+        <Button variant="outline" size="sm" asChild className="rounded-xl">
+          <a href={exportUrl("text")} download>
+            <Download className="w-3.5 h-3.5" />
+            Export TXT
+          </a>
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDelete}
+          disabled={deleting}
+          className="rounded-xl text-red-500 hover:bg-red-500/10 hover:border-red-500/30 ml-auto"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          {deleting ? "Deleting…" : "Delete"}
+        </Button>
       </div>
 
-      <Card className="mb-4">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="ui-section-title">Submitted data</CardTitle>
-            <span className="text-xs text-muted-foreground">
-            </span>
-          </div>
-          <CardDescription>
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent">
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+            <Shield className="w-3.5 h-3.5" />
+            Submitted data
+          </h2>
+          <p className="text-xs text-muted-foreground/70 mt-1">
             Submitted {formatDate(submission.createdAt)}
             {submission.revealCount > 0 &&
               ` · Revealed ${submission.revealCount} time${submission.revealCount > 1 ? "s" : ""}`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </div>
+        <div className="p-6">
           {maskedSsn && !revealed && (
-            <div className="mb-4 rounded-lg border border-border/40 bg-surface-2 p-3 text-sm">
-              <span className="text-muted-foreground">SSN (masked): </span>
-              <span className="font-mono text-foreground">{maskedSsn}</span>
+            <div className="mb-4 rounded-xl border border-border/40 bg-surface-2 p-3.5 text-sm flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+                <Shield className="w-4 h-4 text-violet-500" />
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground uppercase tracking-wide">SSN (masked)</span>
+                <p className="font-mono text-foreground text-sm">{maskedSsn}</p>
+              </div>
             </div>
           )}
           {revealed && fields ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2.5 text-sm">
-                <Eye className="w-4 h-4 shrink-0" />
-                <span>Data decrypted successfully.</span>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2.5 text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-sm">
+                <div className="w-7 h-7 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
+                  <Eye className="w-3.5 h-3.5" />
+                </div>
+                <span className="font-medium">Data decrypted successfully</span>
               </div>
-              <div className="space-y-2">
-                {Object.entries(fields).map(([key, value]) => (
-                  <div key={key} className="flex gap-3 py-2 border-b border-border/30 last:border-0">
-                    <span className="text-sm text-muted-foreground w-40 shrink-0 capitalize">
+              <div className="rounded-xl border border-border/50 overflow-hidden">
+                {Object.entries(fields).map(([key, value], i) => (
+                  <div
+                    key={key}
+                    className={cn(
+                      "flex gap-4 px-4 py-3",
+                      i % 2 === 0 ? "bg-surface-2/50" : "bg-transparent",
+                      i < Object.entries(fields).length - 1 && "border-b border-border/30"
+                    )}
+                  >
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide w-40 shrink-0 pt-0.5">
                       {key.replace(/([A-Z])/g, " $1").trim()}
                     </span>
                     <span className="text-sm font-mono text-foreground break-all">
@@ -205,64 +284,84 @@ export function SubmissionViewer({
                 variant="outline"
                 size="sm"
                 onClick={() => { setRevealed(false); setFields(null); }}
-                className="mt-2"
+                className="rounded-xl"
               >
                 <EyeOff className="w-4 h-4" />
                 Hide data
               </Button>
             </div>
           ) : (
-            <div className="flex flex-col items-center text-center py-6 gap-3">
-              <div className="w-12 h-12 bg-surface-2 rounded-xl flex items-center justify-center border border-border/40">
-                <Shield className="w-6 h-6 text-muted-foreground" />
+            <div className="flex flex-col items-center text-center py-8 gap-4">
+              <div className="w-14 h-14 bg-primary/5 rounded-2xl flex items-center justify-center border border-primary/10 ring-4 ring-primary/5">
+                <Lock className="w-7 h-7 text-primary/60" />
               </div>
               <div>
-                <p className="font-medium text-foreground">Data is encrypted</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Click to decrypt and reveal the submitted information.
+                <p className="font-semibold text-foreground">Data is encrypted</p>
+                <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                  Click below to decrypt and reveal the submitted information securely.
                 </p>
               </div>
               {error && (
-                <p className="text-sm text-red-500">{error}</p>
+                <div className="text-sm text-red-500 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2">
+                  {error}
+                </div>
               )}
-              <Button onClick={revealData} disabled={loading}>
+              <Button onClick={revealData} disabled={loading} className="rounded-xl px-6">
                 <Eye className="w-4 h-4" />
-                {loading ? "Decrypting..." : "Reveal submission"}
+                {loading ? "Decrypting…" : "Reveal submission"}
               </Button>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="ui-section-title flex items-center gap-2">
-            <Clock className="w-4 h-4" />
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent">
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+            <Clock className="w-3.5 h-3.5" />
             Activity log
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          </h2>
+        </div>
+        <div className="p-6">
           {auditLogs.length === 0 ? (
             <p className="text-sm text-muted-foreground">No activity recorded.</p>
           ) : (
-            <div className="space-y-0">
-              {auditLogs.map((log, i) => (
-                <div key={log.id}>
-                  <div className="flex items-center justify-between py-2.5">
-                    <span className="text-sm text-foreground">
-                      {EVENT_LABELS[log.event] ?? log.event}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDate(log.createdAt)}
-                    </span>
+            <div>
+              {auditLogs.map((log, i) => {
+                const cfg = EVENT_CONFIG[log.event];
+                const EventIcon = cfg?.icon ?? Clock;
+                const label = cfg?.label ?? log.event;
+                const iconBg = cfg?.iconBg ?? "bg-slate-500/10";
+                const iconColor = cfg?.iconColor ?? "text-slate-500";
+
+                return (
+                  <div key={log.id} className="flex gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className={cn(
+                        "w-8 h-8 rounded-full flex items-center justify-center shrink-0 z-10",
+                        iconBg
+                      )}>
+                        <EventIcon className={cn("w-3.5 h-3.5", iconColor)} />
+                      </div>
+                      {i < auditLogs.length - 1 && (
+                        <div className="w-px flex-1 min-h-[20px] bg-border my-1" />
+                      )}
+                    </div>
+                    <div className={cn("min-w-0", i < auditLogs.length - 1 ? "pb-5" : "pb-0")}>
+                      <p className="text-sm font-semibold text-foreground mt-1.5 leading-none">
+                        {label}
+                      </p>
+                      <p className="text-xs text-muted-foreground/70 mt-1 tabular-nums">
+                        {formatDate(log.createdAt)}
+                      </p>
+                    </div>
                   </div>
-                  {i < auditLogs.length - 1 && <Separator />}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
