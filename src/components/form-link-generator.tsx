@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, CheckCheck, Link2, Loader2 } from "lucide-react";
+import { Copy, CheckCheck, Link2, Loader2, Shield, Lock, Clock, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BrandingSelector } from "@/components/branding-selector";
+import { cn } from "@/lib/utils";
 
 interface Props {
   formId: string;
@@ -88,57 +89,73 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
           )}
 
           {generated ? (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Secure link</Label>
+            <div className="space-y-5">
+              <div className="rounded-xl bg-gradient-to-br from-emerald-500/5 via-primary/5 to-transparent p-4 border border-border/30">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-9 h-9 bg-emerald-500/10 rounded-xl flex items-center justify-center ring-1 ring-emerald-500/20 shrink-0">
+                    <Shield className="w-4.5 h-4.5 text-emerald-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground">Secure link ready</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
+                        <Lock className="w-2.5 h-2.5" />
+                        Encrypted
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <Clock className="w-2.5 h-2.5" />
+                        Expires {new Date(generated.expiresAt).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex gap-2">
-                  <input
-                    readOnly
-                    value={generated.url}
-                    className="flex-1 h-11 px-3 text-sm bg-surface-2 border border-border/40 rounded-lg font-mono text-muted-foreground focus:outline-none"
-                  />
+                  <div className="flex-1 flex items-center h-10 px-3 bg-surface-2 border border-border/40 rounded-xl overflow-hidden">
+                    <span className="text-xs font-mono text-foreground/80 truncate select-all">{generated.url}</span>
+                  </div>
                   <Button
-                    variant="outline"
+                    variant={copied ? "default" : "outline"}
                     size="sm"
                     onClick={() => copy(generated.url, setCopied)}
-                    className="shrink-0"
+                    className={cn("shrink-0 gap-1.5 h-10 px-3 rounded-xl transition-all duration-300", copied && "bg-emerald-500 hover:bg-emerald-600 border-emerald-500")}
                   >
-                    {copied ? <CheckCheck className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                    {copied ? <CheckCheck className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                     {copied ? "Copied" : "Copy"}
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Expires {new Date(generated.expiresAt).toLocaleString()}
-                </p>
               </div>
 
-              <div className="space-y-2">
-                <Label>Pre-written Message</Label>
-                <div className="bg-surface-2 rounded-lg p-3 border border-border/40">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Send className="w-3 h-3 text-primary" />
+                  <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Client Message</p>
+                </div>
+                <div className="bg-surface-2 rounded-xl p-4 border border-border/30">
                   <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{generated.messageText}</p>
                 </div>
                 <Button
-                  variant="outline"
+                  variant={copiedSms ? "default" : "outline"}
                   size="sm"
-                  className="w-full"
+                  className={cn("w-full gap-1.5 h-10 rounded-xl transition-all duration-300", copiedSms && "bg-emerald-500 hover:bg-emerald-600 border-emerald-500")}
                   onClick={() => copy(generated.messageText, setCopiedSms)}
                 >
-                  {copiedSms ? <CheckCheck className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                  {copiedSms ? "Copied" : "Copy Message Text"}
+                  {copiedSms ? <CheckCheck className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copiedSms ? "Copied" : "Copy Message"}
                 </Button>
               </div>
 
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full"
+                className="w-full h-10 rounded-xl"
                 onClick={() => {
                   setGenerated(null);
                   setSelectedAssetIds([]);
                   setForm({ destination: "", clientName: "", clientPhone: "", clientEmail: "", expirationHours: 24 });
                 }}
               >
-                Generate another
+                Generate Another Link
               </Button>
             </div>
           ) : (

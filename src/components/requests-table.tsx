@@ -448,30 +448,33 @@ function SendPanel({
   const methods = (["EMAIL", "COPY"] as const);
 
   return (
-    <div className="border-t border-border/30 bg-surface-2/50 backdrop-blur-sm px-5 py-4">
+    <div className="border-t border-border/30 bg-gradient-to-r from-surface-2/60 via-card to-surface-2/60 backdrop-blur-sm px-5 py-4">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-semibold text-foreground uppercase tracking-wide">Send secure link</p>
+        <div className="flex items-center gap-2">
+          <Send className="w-3.5 h-3.5 text-primary" />
+          <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Share Secure Link</p>
+        </div>
         <button
           onClick={onClose}
-          className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-accent/60 transition-colors"
+          className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-accent/60 transition-colors"
         >
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      <div className="flex gap-1.5 mb-3">
+      <div className="grid grid-cols-2 gap-1 p-1 bg-surface-2 rounded-xl border border-border/30 mb-3">
         {methods.map((m) => (
           <button
             key={m}
             onClick={() => setMethod(m)}
             className={cn(
-              "px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200",
+              "py-1.5 text-xs font-medium rounded-lg transition-all duration-200",
               method === m
-                ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
-                : "bg-card border border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                ? "bg-card text-foreground shadow-sm ring-1 ring-border/40"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
-            {m === "EMAIL" ? "Email" : "Copy link"}
+            {m === "EMAIL" ? "Email" : "Copy Message"}
           </button>
         ))}
       </div>
@@ -481,7 +484,7 @@ function SendPanel({
           value={emailTo}
           onChange={(e) => setEmailTo(e.target.value)}
           placeholder="client@email.com"
-          className="h-8 text-sm mb-2"
+          className="h-9 text-sm mb-2 rounded-lg"
         />
       )}
 
@@ -489,15 +492,18 @@ function SendPanel({
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         rows={4}
-        className="w-full rounded-lg border border-border/60 bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary/50 resize-none transition-colors"
+        className="w-full rounded-xl border border-border/40 bg-surface-2 px-3.5 py-2.5 text-sm text-foreground leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 resize-none transition-all"
       />
 
       {success ? (
-        <p className="mt-2 text-xs text-emerald-500 font-medium flex items-center gap-1.5">
-          <CheckCheck className="w-3.5 h-3.5" /> Sent successfully
-        </p>
+        <div className="mt-3 flex items-center gap-2 py-2 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+          <CheckCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+          <p className="text-xs font-medium text-emerald-600">
+            {method === "EMAIL" ? "Email sent successfully" : "Message copied to clipboard"}
+          </p>
+        </div>
       ) : (
-        <div className="mt-2 flex gap-2">
+        <div className="mt-3 flex gap-2">
           <Button
             size="sm"
             onClick={send}
@@ -506,22 +512,25 @@ function SendPanel({
               (method === "EMAIL" && !emailTo.trim()) ||
               !message.trim()
             }
-            className="h-8"
+            className="h-9 gap-1.5 rounded-lg flex-1"
           >
             {sending ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : method === "COPY" ? (
-              "Copy"
             ) : (
-              "Send now"
+              <Send className="w-3.5 h-3.5" />
             )}
+            {method === "EMAIL" ? "Send Email" : "Copy Message"}
           </Button>
-          <Button size="sm" variant="outline" onClick={onClose} className="h-8">
+          <Button size="sm" variant="outline" onClick={onClose} className="h-9 rounded-lg">
             Cancel
           </Button>
         </div>
       )}
-      {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
+      {error && (
+        <div className="mt-2 flex items-center gap-2 py-2 px-3 rounded-lg bg-red-500/10 border border-red-500/20">
+          <p className="text-xs text-red-500">{error}</p>
+        </div>
+      )}
     </div>
   );
 }

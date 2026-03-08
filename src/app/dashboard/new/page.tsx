@@ -468,53 +468,62 @@ function NewLinkPage() {
           </Link>
         </Button>
 
-        <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
-          <div className="px-6 pt-6 pb-5 border-b border-border/40">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center ring-1 ring-emerald-500/20 shrink-0">
-                <Shield className="w-5 h-5 text-emerald-500" />
+        <div className="rounded-2xl border border-border/40 bg-card shadow-lg shadow-primary/5 overflow-hidden">
+          <div className="relative px-6 pt-7 pb-6 bg-gradient-to-br from-emerald-500/5 via-primary/5 to-transparent">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center ring-1 ring-emerald-500/20 shrink-0">
+                <Shield className="w-6 h-6 text-emerald-500" />
               </div>
-              <div>
-                <h2 className="text-base font-semibold text-foreground">Link created</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Expires {new Date(created.expiresAt).toLocaleString()}
-                </p>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg font-semibold text-foreground">Secure link ready</h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="inline-flex items-center gap-1 text-xs text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                    <Lock className="w-3 h-3" />
+                    Encrypted
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <Clock className="w-3 h-3" />
+                    Expires {new Date(created.expiresAt).toLocaleString()}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="px-6 py-5 space-y-5">
+          <div className="px-6 py-6 space-y-6">
             <div>
-              <Label className="text-xs text-muted-foreground mb-1.5 block">Secure URL</Label>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Secure URL</p>
               <div className="flex gap-2">
-                <input
-                  readOnly
-                  value={created.url}
-                  className="flex-1 h-10 px-3 text-sm bg-surface-2 border border-border/50 rounded-lg font-mono text-foreground focus:outline-none"
-                />
-                <Button onClick={copyLink} variant="outline" size="sm" className="shrink-0 gap-1.5">
-                  {copied ? <CheckCheck className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                <div className="flex-1 flex items-center h-11 px-3.5 bg-surface-2 border border-border/40 rounded-xl overflow-hidden">
+                  <span className="text-sm font-mono text-foreground/80 truncate select-all">{created.url}</span>
+                </div>
+                <Button onClick={copyLink} variant={copied ? "default" : "outline"} size="sm" className={cn("shrink-0 gap-1.5 h-11 px-4 rounded-xl transition-all duration-300", copied && "bg-emerald-500 hover:bg-emerald-600 border-emerald-500")}>
+                  {copied ? <CheckCheck className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   {copied ? "Copied" : "Copy"}
                 </Button>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <Label className="text-xs text-muted-foreground block">Send to client</Label>
-              <div className="grid grid-cols-2 gap-1.5 p-1 bg-surface-2 rounded-lg">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Send className="w-3.5 h-3.5 text-primary" />
+                <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Share with client</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-1 p-1 bg-surface-2 rounded-xl border border-border/30">
                 {(["EMAIL", "COPY"] as const).map((m) => (
                   <button
                     key={m}
                     type="button"
                     onClick={() => setSendMethod(m)}
                     className={cn(
-                      "py-1.5 text-xs font-medium rounded-md transition-all duration-200",
+                      "py-2 text-sm font-medium rounded-lg transition-all duration-200",
                       sendMethod === m
-                        ? "bg-card text-foreground shadow-sm"
+                        ? "bg-card text-foreground shadow-sm ring-1 ring-border/40"
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    {m === "EMAIL" ? "Email" : "Copy text"}
+                    {m === "EMAIL" ? "Email" : "Copy Message"}
                   </button>
                 ))}
               </div>
@@ -525,51 +534,64 @@ function NewLinkPage() {
                   value={sendEmail}
                   onChange={(e) => setSendEmail(e.target.value)}
                   placeholder="client@email.com"
+                  className="h-11 rounded-xl"
                 />
               )}
 
-              <textarea
-                value={sendMsg}
-                onChange={(e) => setSendMsg(e.target.value)}
-                rows={5}
-                className="w-full rounded-xl border border-border/50 bg-surface-2 px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/30 resize-none transition-colors"
-              />
-
-              <div className="flex gap-2">
-                <Button
-                  onClick={sendNow}
-                  disabled={
-                    sending ||
-                    sendSuccess ||
-                    !sendMsg.trim() ||
-                    (sendMethod === "EMAIL" && !sendEmail.trim())
-                  }
-                  className="flex-1 gap-1.5"
-                >
-                  {sending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : sendSuccess ? (
-                    <CheckCheck className="w-4 h-4" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                  {sendSuccess ? "Sent!" : "Send now"}
-                </Button>
-                <Button variant="outline" onClick={copyMessageText} className="gap-1.5 shrink-0">
-                  {copiedSms ? <CheckCheck className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                  Copy
-                </Button>
+              <div className="relative">
+                <textarea
+                  value={sendMsg}
+                  onChange={(e) => setSendMsg(e.target.value)}
+                  rows={5}
+                  className="w-full rounded-xl border border-border/40 bg-surface-2 px-4 py-3 text-sm text-foreground leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 resize-none transition-all"
+                />
               </div>
 
-              {sendError && <p className="text-xs text-destructive">{sendError}</p>}
+              {sendSuccess ? (
+                <div className="flex items-center gap-2 py-3 px-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <CheckCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <p className="text-sm font-medium text-emerald-600">
+                    {sendMethod === "EMAIL" ? "Email sent successfully" : "Message copied to clipboard"}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={sendNow}
+                    disabled={
+                      sending ||
+                      !sendMsg.trim() ||
+                      (sendMethod === "EMAIL" && !sendEmail.trim())
+                    }
+                    className="flex-1 gap-2 h-11 rounded-xl"
+                  >
+                    {sending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                    {sendMethod === "EMAIL" ? "Send Email" : "Copy Message"}
+                  </Button>
+                  <Button variant="outline" onClick={copyMessageText} className="gap-1.5 shrink-0 h-11 rounded-xl">
+                    {copiedSms ? <CheckCheck className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+                </div>
+              )}
+
+              {sendError && (
+                <div className="flex items-center gap-2 py-2.5 px-3.5 rounded-xl bg-red-500/10 border border-red-500/20">
+                  <p className="text-xs text-red-500">{sendError}</p>
+                </div>
+              )}
             </div>
 
-            <div className="flex gap-2 pt-1 border-t border-border/40">
-              <Button onClick={createAnother} variant="outline" className="flex-1">
-                Create another
+            <div className="flex gap-3 pt-2 border-t border-border/30">
+              <Button onClick={createAnother} variant="outline" className="flex-1 h-11 rounded-xl">
+                <Plus className="w-4 h-4" />
+                Create Another
               </Button>
-              <Button onClick={() => router.push("/dashboard")} className="flex-1">
-                Dashboard
+              <Button onClick={() => router.push("/dashboard/links")} variant="outline" className="flex-1 h-11 rounded-xl">
+                View All Links
               </Button>
             </div>
           </div>
