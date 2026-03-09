@@ -80,7 +80,6 @@ export default async function SecurePage({ params }: Props) {
     : await db.agentAsset.findMany({
         where: { userId: link.agent.id, type: "LOGO" },
         orderBy: { createdAt: "desc" },
-        take: 1,
       });
   const renderedAssets = (
     await Promise.all(selectedAssets.map(toAssetRenderEntry))

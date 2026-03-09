@@ -35,6 +35,13 @@ interface Props {
   expiresAt: string;
 }
 
+const LINK_TYPE_LABELS: Record<string, string> = {
+  BANKING_INFO: "banking information",
+  SSN_ONLY: "identity verification details",
+  FULL_INTAKE: "personal and financial information",
+  ID_UPLOAD: "identification document",
+};
+
 export function SecureFormClient({
   token,
   linkType,
@@ -197,18 +204,21 @@ export function SecureFormClient({
       submitLockRef.current = false;
       return;
     }
-    const formData = new FormData();
-    formData.append("front", frontFile);
-    if (backFile) formData.append("back", backFile);
+
+    const fd = new FormData();
+    fd.append("front", frontFile);
+    if (backFile) fd.append("back", backFile);
 
     const res = await fetch(`/api/id-uploads?token=${token}`, {
       method: "POST",
-      body: formData,
+      body: fd,
     });
 
     const data = await res.json();
 
     if (!res.ok) {
+      const parsedFieldErrors = getFieldErrors(data);
+      if (Object.keys(parsedFieldErrors).length > 0) setFieldErrors(parsedFieldErrors);
       setError(getErrorMessage(data, "Upload failed. Please try again."));
       setLoading(false);
       submitLockRef.current = false;
@@ -217,14 +227,14 @@ export function SecureFormClient({
     setSubmitted(true);
   }
 
-  function validateUploadSelection(file: File | null): string | null {
-    if (!file) return null;
-    if (file.size > MAX_UPLOAD_SIZE_BYTES) return "File exceeds 5MB limit.";
-    if (!ALLOWED_UPLOAD_MIMES.has(file.type)) {
-      return "Only JPG, PNG, or PDF files are allowed.";
-    }
-    return null;
+  function validateUploadSelection(file: File | null): string | undefined {
+    if (!file) return undefined;
+    if (!ALLOWED_UPLOAD_MIMES.has(file.type)) return "Only JPG, PNG, and PDF files are accepted.";
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) return "File must be under 5 MB.";
+    return undefined;
   }
+
+  const typeLabel = LINK_TYPE_LABELS[linkType] ?? "information";
 
   const sectionTitle =
     linkType === "BANKING_INFO" ? "Secure Banking Information" :
@@ -232,9 +242,17 @@ export function SecureFormClient({
     linkType === "ID_UPLOAD" ? "Secure ID Upload" :
     "Secure Client Intake";
 
+  const greetingLine = clientName
+    ? `Hello, ${clientName}. `
+    : "";
+  const destinationLine = agent.destinationLabel
+    ? ` Your ${agent.destinationLabel} setup requires the following details.`
+    : "";
+  const greetingMessage = `${greetingLine}Please complete the form below to securely submit your ${typeLabel}.${destinationLine}`;
+
   if (submitted) {
     return (
-      <main className="min-h-screen bg-gradient-to-b from-[hsl(210,25%,97%)] to-[hsl(210,20%,94%)] flex items-center justify-center px-4 py-12">
+      <main className="min-h-screen bg-gradient-to-b from-blue-50/80 via-slate-50 to-white flex items-center justify-center px-4 py-12">
         <div className="max-w-sm w-full text-center animate-fade-in">
           <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-1 ring-emerald-200">
             <CheckCircle2 className="w-8 h-8 text-emerald-500" />
@@ -243,11 +261,11 @@ export function SecureFormClient({
           <p className="text-gray-500 leading-relaxed mb-8">
             Your information has been encrypted and securely submitted. You may now close this page.
           </p>
-          <div className="bg-slate-50 rounded-2xl border border-gray-200 shadow-sm p-5 text-sm text-gray-600 text-left space-y-3">
+          <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-5 text-sm text-gray-600 text-left space-y-3">
             {[
               "Encrypted with AES-256 before storage",
-              "Delivered only to your authorized agent",
-              "Securely stored and accessible only to your agent",
+              "Delivered only to your authorized representative",
+              "Securely stored and accessible only to your representative",
             ].map((line) => (
               <div key={line} className="flex items-center gap-2.5">
                 <div className="w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
@@ -258,11 +276,11 @@ export function SecureFormClient({
             ))}
           </div>
 
-          <div className="bg-red-50 rounded-2xl border border-red-200 p-4 text-left">
+          <div className="mt-4 bg-red-50 rounded-2xl border border-red-200 p-4 text-left">
             <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-1">Fraud warning</p>
             <p className="text-sm text-red-600 leading-relaxed">
               If you believe someone tried to scam you using this link or the information you submitted, call us immediately at{" "}
-              <a href="tel:2023024129" className="font-bold underline">202-302-4129</a>.
+              <a href={`tel:${agent.phone ?? "2023024129"}`} className="font-bold underline">{agent.phone ?? "202-302-4129"}</a>.
             </p>
           </div>
         </div>
@@ -271,199 +289,63 @@ export function SecureFormClient({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[hsl(210,25%,97%)] to-[hsl(210,20%,94%)] flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50/80 via-slate-50 to-white flex flex-col">
       <ClientTrustHeader logoUrls={logoUrls} agent={agent} expiresAt={expiresAt} isViewOnce />
 
-      <main className="flex-1 px-4 py-10">
-        <div className="max-w-md mx-auto animate-fade-in space-y-5">
+      <main className="flex-1 px-3 sm:px-4 py-6 sm:py-10">
+        <div className="max-w-md mx-auto animate-fade-in space-y-4 sm:space-y-5">
 
-          <div className="flex items-center justify-center gap-6 flex-wrap">
+          <div className="flex items-center justify-center gap-3 sm:gap-6 flex-wrap">
             <TrustIndicator icon={Shield} label="Bank-Level Security" />
             <TrustIndicator icon={Lock} label="256-Bit Encryption" />
             <TrustIndicator icon={ShieldCheck} label="Private & Secure" />
           </div>
 
-          <div className="bg-slate-50 rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                <Shield className="w-5 h-5 text-blue-500" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">{sectionTitle}</h2>
-                <p className="text-sm text-gray-500">Your data is end-to-end encrypted</p>
+          <div className="rounded-2xl border border-blue-100 shadow-sm overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-5 sm:px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                  <Shield className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-semibold text-white">{sectionTitle}</h2>
+                  <p className="text-xs sm:text-sm text-blue-100">End-to-end encrypted</p>
+                </div>
               </div>
             </div>
 
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
-                {error}
-              </div>
-            )}
+            <div className="bg-white px-5 sm:px-6 py-5 sm:py-6">
+              <p className="text-sm text-gray-600 leading-relaxed mb-5 pb-4 border-b border-gray-100">
+                {greetingMessage}
+              </p>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {linkType === "SSN_ONLY" && (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="First Name" error={fieldErrors.firstName} required>
-                      <Input value={fields.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="First" autoComplete="given-name" />
-                    </Field>
-                    <Field label="Last Name" error={fieldErrors.lastName} required>
-                      <Input value={fields.lastName} onChange={(e) => set("lastName", e.target.value)} placeholder="Last" autoComplete="family-name" />
-                    </Field>
-                  </div>
-                  <Field label="Social Security Number" error={fieldErrors.ssn} required hint="Formats automatically as XXX-XX-XXXX">
-                    <Input
-                      type={showSsn ? "text" : "password"}
-                      inputMode="numeric"
-                      value={fields.ssn}
-                      onChange={(e) => set("ssn", fmtSsn(e.target.value))}
-                      placeholder="XXX-XX-XXXX"
-                      maxLength={11}
-                      autoComplete="off"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowSsn((v) => !v)}
-                      className="text-xs text-gray-400 hover:text-blue-500 mt-1 transition-colors"
-                    >
-                      {showSsn ? "Hide SSN" : "Show SSN"}
-                    </button>
-                  </Field>
-                  <Field
-                    label="Confirm SSN"
-                    error={fieldErrors.confirmSsn ?? (ssnMismatch ? "SSN values do not match." : undefined)}
-                    required
-                  >
-                    <Input
-                      type={showConfirmSsn ? "text" : "password"}
-                      inputMode="numeric"
-                      value={fields.confirmSsn}
-                      onChange={(e) => set("confirmSsn", fmtSsn(e.target.value))}
-                      placeholder="Re-enter SSN"
-                      maxLength={11}
-                      autoComplete="off"
-                      className={ssnMismatch ? "border-red-300 focus-visible:ring-red-300" : ""}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmSsn((v) => !v)}
-                      className="text-xs text-gray-400 hover:text-blue-500 mt-1 transition-colors"
-                    >
-                      {showConfirmSsn ? "Hide SSN" : "Show SSN"}
-                    </button>
-                  </Field>
-                </>
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
+                  {error}
+                </div>
               )}
 
-              {linkType === "BANKING_INFO" && (
-                <>
-                  <Field label="Full Name" error={fieldErrors.fullName} required>
-                    <Input value={fields.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Your full legal name" autoComplete="name" />
-                  </Field>
-                  {middleInitialEnabled && (
-                    <Field label="Middle Initial" error={fieldErrors.middleInitial} required hint="Single letter (A–Z)">
-                      <Input
-                        value={fields.middleInitial}
-                        onChange={(e) =>
-                          set(
-                            "middleInitial",
-                            e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 1).toUpperCase()
-                          )
-                        }
-                        placeholder="A"
-                        autoComplete="additional-name"
-                        maxLength={1}
-                      />
-                    </Field>
-                  )}
-                  <Field
-                    label="Routing Number"
-                    error={fieldErrors.routingNumber}
-                    required
-                    hint={checkingRouting ? "Looking up bank..." : routingInfo ? (
-                      <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                        Verified — {routingInfo}
-                      </span>
-                    ) : "9-digit number found on your check"}
-                  >
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      value={fields.routingNumber}
-                      onChange={(e) => {
-                        const v = e.target.value.replace(/\D/g, "").slice(0, 9);
-                        set("routingNumber", v);
-                        lookupRouting(v);
-                      }}
-                      placeholder="021000021"
-                      maxLength={9}
-                      autoComplete="off"
-                    />
-                  </Field>
-                  <Field label="Bank Name" error={fieldErrors.bankName}>
-                    <Input value={fields.bankName} onChange={(e) => set("bankName", e.target.value)} placeholder="Auto-filled from routing number" autoComplete="off" />
-                  </Field>
-                  <Field label="Account Number" error={fieldErrors.accountNumber} required>
-                    <Input
-                      type={showAccount ? "text" : "password"}
-                      inputMode="numeric"
-                      value={fields.accountNumber}
-                      onChange={(e) => set("accountNumber", e.target.value.replace(/\D/g, ""))}
-                      placeholder="Your account number"
-                      autoComplete="off"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowAccount((v) => !v)}
-                      className="text-xs text-gray-400 hover:text-blue-500 mt-1 transition-colors"
-                    >
-                      {showAccount ? "Hide account number" : "Show account number"}
-                    </button>
-                  </Field>
-                  <Field
-                    label="Confirm Account Number"
-                    error={fieldErrors.confirmAccountNumber ?? (accountMismatch ? "Account numbers do not match." : undefined)}
-                    required
-                  >
-                    <Input
-                      type={showConfirmAccount ? "text" : "password"}
-                      inputMode="numeric"
-                      value={fields.confirmAccountNumber}
-                      onChange={(e) => set("confirmAccountNumber", e.target.value.replace(/\D/g, ""))}
-                      placeholder="Re-enter account number"
-                      autoComplete="off"
-                      className={accountMismatch ? "border-red-300 focus-visible:ring-red-300" : ""}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmAccount((v) => !v)}
-                      className="text-xs text-gray-400 hover:text-blue-500 mt-1 transition-colors"
-                    >
-                      {showConfirmAccount ? "Hide account number" : "Show account number"}
-                    </button>
-                  </Field>
-                  <Field label="Preferred Draft Date" error={fieldErrors.preferredDraftDate} required hint="Day of month for automatic payments (e.g. 1st, 15th)">
-                    <Input value={fields.preferredDraftDate} onChange={(e) => set("preferredDraftDate", e.target.value)} placeholder="e.g. 1st, 15th, or any day" />
-                  </Field>
-                </>
-              )}
-
-              {linkType === "FULL_INTAKE" && (
-                <>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 pt-1">
-                      <span className="text-sm font-semibold text-gray-700">Personal Information</span>
-                      <div className="flex-1 h-px bg-gray-200" />
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {linkType === "SSN_ONLY" && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="First Name" error={fieldErrors.firstName} required>
+                        <Input value={fields.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="First" autoComplete="given-name" />
+                      </Field>
+                      <Field label="Last Name" error={fieldErrors.lastName} required>
+                        <Input value={fields.lastName} onChange={(e) => set("lastName", e.target.value)} placeholder="Last" autoComplete="family-name" />
+                      </Field>
                     </div>
-                    <Field label="Full Name" error={fieldErrors.fullName} required>
-                      <Input value={fields.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Your full legal name" autoComplete="name" />
-                    </Field>
-                    <Field label="Date of Birth" error={fieldErrors.dateOfBirth} required>
-                      <Input type="date" value={fields.dateOfBirth} onChange={(e) => set("dateOfBirth", e.target.value)} max={new Date().toISOString().split("T")[0]} />
-                    </Field>
                     <Field label="Social Security Number" error={fieldErrors.ssn} required hint="Formats automatically as XXX-XX-XXXX">
-                      <Input type={showSsn ? "text" : "password"} inputMode="numeric" value={fields.ssn} onChange={(e) => set("ssn", fmtSsn(e.target.value))} placeholder="XXX-XX-XXXX" maxLength={11} autoComplete="off" />
+                      <Input
+                        type={showSsn ? "text" : "password"}
+                        inputMode="numeric"
+                        value={fields.ssn}
+                        onChange={(e) => set("ssn", fmtSsn(e.target.value))}
+                        placeholder="XXX-XX-XXXX"
+                        maxLength={11}
+                        autoComplete="off"
+                      />
                       <button
                         type="button"
                         onClick={() => setShowSsn((v) => !v)}
@@ -472,50 +354,90 @@ export function SecureFormClient({
                         {showSsn ? "Hide SSN" : "Show SSN"}
                       </button>
                     </Field>
-                    <Field label="Address" error={fieldErrors.address} required>
-                      <Input value={fields.address} onChange={(e) => set("address", e.target.value)} placeholder="123 Main St, City, State 00000" autoComplete="street-address" />
+                    <Field
+                      label="Confirm SSN"
+                      error={fieldErrors.confirmSsn ?? (ssnMismatch ? "SSN values do not match." : undefined)}
+                      required
+                    >
+                      <Input
+                        type={showConfirmSsn ? "text" : "password"}
+                        inputMode="numeric"
+                        value={fields.confirmSsn}
+                        onChange={(e) => set("confirmSsn", fmtSsn(e.target.value))}
+                        placeholder="Re-enter SSN"
+                        maxLength={11}
+                        autoComplete="off"
+                        className={ssnMismatch ? "border-red-300 focus-visible:ring-red-300" : ""}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmSsn((v) => !v)}
+                        className="text-xs text-gray-400 hover:text-blue-500 mt-1 transition-colors"
+                      >
+                        {showConfirmSsn ? "Hide SSN" : "Show SSN"}
+                      </button>
                     </Field>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Phone" error={fieldErrors.phone} required>
-                        <Input type="tel" value={fields.phone} onChange={(e) => set("phone", fmtPhone(e.target.value))} placeholder="(555) 000-0000" autoComplete="tel" />
-                      </Field>
-                      <Field label="Email" error={fieldErrors.email} required>
-                        <Input type="email" value={fields.email} onChange={(e) => set("email", e.target.value)} placeholder="you@email.com" autoComplete="email" />
-                      </Field>
-                    </div>
-                  </div>
+                  </>
+                )}
 
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 pt-2">
-                      <span className="text-sm font-semibold text-gray-700">Beneficiary Details</span>
-                      <div className="flex-1 h-px bg-gray-200" />
-                    </div>
-                    <Field label="Beneficiary Name" error={fieldErrors.beneficiaryName}>
-                      <Input value={fields.beneficiaryName} onChange={(e) => set("beneficiaryName", e.target.value)} placeholder="Full name (optional)" />
+                {linkType === "BANKING_INFO" && (
+                  <>
+                    <Field label="Full Name" error={fieldErrors.fullName} required>
+                      <Input value={fields.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Your full legal name" autoComplete="name" />
                     </Field>
-                    <Field label="Beneficiary Relationship" error={fieldErrors.beneficiaryRelationship}>
-                      <Input value={fields.beneficiaryRelationship} onChange={(e) => set("beneficiaryRelationship", e.target.value)} placeholder="e.g. Spouse, Child (optional)" />
-                    </Field>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 pt-2">
-                      <span className="text-sm font-semibold text-gray-700">Banking Information</span>
-                      <div className="flex-1 h-px bg-gray-200" />
-                    </div>
-                    <Field label="Routing Number" error={fieldErrors.routingNumber} required hint={checkingRouting ? "Looking up bank..." : routingInfo ? (
-                      <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                        Verified — {routingInfo}
-                      </span>
-                    ) : "9-digit number found on your check"}>
-                      <Input type="text" inputMode="numeric" value={fields.routingNumber} onChange={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 9); set("routingNumber", v); lookupRouting(v); }} placeholder="021000021" maxLength={9} autoComplete="off" />
+                    {middleInitialEnabled && (
+                      <Field label="Middle Initial" error={fieldErrors.middleInitial} required hint="Single letter (A–Z)">
+                        <Input
+                          value={fields.middleInitial}
+                          onChange={(e) =>
+                            set(
+                              "middleInitial",
+                              e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 1).toUpperCase()
+                            )
+                          }
+                          placeholder="A"
+                          autoComplete="additional-name"
+                          maxLength={1}
+                        />
+                      </Field>
+                    )}
+                    <Field
+                      label="Routing Number"
+                      error={fieldErrors.routingNumber}
+                      required
+                      hint={checkingRouting ? "Looking up bank..." : routingInfo ? (
+                        <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                          Verified — {routingInfo}
+                        </span>
+                      ) : "9-digit number found on your check"}
+                    >
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        value={fields.routingNumber}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\D/g, "").slice(0, 9);
+                          set("routingNumber", v);
+                          lookupRouting(v);
+                        }}
+                        placeholder="021000021"
+                        maxLength={9}
+                        autoComplete="off"
+                      />
                     </Field>
                     <Field label="Bank Name" error={fieldErrors.bankName}>
                       <Input value={fields.bankName} onChange={(e) => set("bankName", e.target.value)} placeholder="Auto-filled from routing number" autoComplete="off" />
                     </Field>
                     <Field label="Account Number" error={fieldErrors.accountNumber} required>
-                      <Input type={showAccount ? "text" : "password"} inputMode="numeric" value={fields.accountNumber} onChange={(e) => set("accountNumber", e.target.value.replace(/\D/g, ""))} placeholder="Your account number" autoComplete="off" />
+                      <Input
+                        type={showAccount ? "text" : "password"}
+                        inputMode="numeric"
+                        value={fields.accountNumber}
+                        onChange={(e) => set("accountNumber", e.target.value.replace(/\D/g, ""))}
+                        placeholder="Your account number"
+                        autoComplete="off"
+                      />
                       <button
                         type="button"
                         onClick={() => setShowAccount((v) => !v)}
@@ -524,8 +446,20 @@ export function SecureFormClient({
                         {showAccount ? "Hide account number" : "Show account number"}
                       </button>
                     </Field>
-                    <Field label="Confirm Account Number" error={fieldErrors.confirmAccountNumber ?? (accountMismatch ? "Account numbers do not match." : undefined)} required>
-                      <Input type={showConfirmAccount ? "text" : "password"} inputMode="numeric" value={fields.confirmAccountNumber} onChange={(e) => set("confirmAccountNumber", e.target.value.replace(/\D/g, ""))} placeholder="Re-enter account number" autoComplete="off" className={accountMismatch ? "border-red-300 focus-visible:ring-red-300" : ""} />
+                    <Field
+                      label="Confirm Account Number"
+                      error={fieldErrors.confirmAccountNumber ?? (accountMismatch ? "Account numbers do not match." : undefined)}
+                      required
+                    >
+                      <Input
+                        type={showConfirmAccount ? "text" : "password"}
+                        inputMode="numeric"
+                        value={fields.confirmAccountNumber}
+                        onChange={(e) => set("confirmAccountNumber", e.target.value.replace(/\D/g, ""))}
+                        placeholder="Re-enter account number"
+                        autoComplete="off"
+                        className={accountMismatch ? "border-red-300 focus-visible:ring-red-300" : ""}
+                      />
                       <button
                         type="button"
                         onClick={() => setShowConfirmAccount((v) => !v)}
@@ -534,174 +468,266 @@ export function SecureFormClient({
                         {showConfirmAccount ? "Hide account number" : "Show account number"}
                       </button>
                     </Field>
-                    <Field label="Preferred Draft Date" error={fieldErrors.preferredDraftDate} required>
-                      <Input value={fields.preferredDraftDate} onChange={(e) => set("preferredDraftDate", e.target.value)} placeholder="e.g. 1st, 15th" />
+                    <Field label="Preferred Draft Date" error={fieldErrors.preferredDraftDate} required hint="Day of month for automatic payments (e.g. 1st, 15th)">
+                      <Input value={fields.preferredDraftDate} onChange={(e) => set("preferredDraftDate", e.target.value)} placeholder="e.g. 1st, 15th, or any day" />
                     </Field>
-                  </div>
-                </>
-              )}
-
-              {linkType === "ID_UPLOAD" && (
-                <>
-                  <div className="space-y-3">
-                    <IdUploadInstructions documentType={String(linkOptions?.documentType ?? "DRIVERS_LICENSE")} requireBack={Boolean(linkOptions?.requireBack)} />
-
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1.5">
-                        {(ID_DOC_CONFIG[String(linkOptions?.documentType ?? "DRIVERS_LICENSE")] ?? ID_DOC_CONFIG.DRIVERS_LICENSE).frontLabel}{" "}
-                        <span className="text-red-500">*</span>
-                      </p>
-                      {frontFile ? (
-                        <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                          <div className="min-w-0">
-                            <span className="text-sm text-gray-800 truncate block">{frontFile.name}</span>
-                            <span className="text-xs text-gray-500">{(frontFile.size / 1024 / 1024).toFixed(2)} MB</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFrontFile(null);
-                              setFieldErrors((prev) => {
-                                const next = { ...prev };
-                                delete next.front;
-                                return next;
-                              });
-                            }}
-                            className="ml-auto text-gray-400 hover:text-gray-600 transition-colors"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => frontRef.current?.click()}
-                          className="w-full flex flex-col items-center gap-2 p-5 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
-                        >
-                          <Upload className="w-5 h-5 text-gray-400" />
-                          <span className="text-sm text-gray-600">Tap to select front of ID</span>
-                          <span className="text-xs text-gray-400">JPG, PNG, PDF - max 5 MB</span>
-                        </button>
-                      )}
-                      <input
-                        ref={frontRef}
-                        type="file"
-                        accept="image/jpeg,image/png,application/pdf"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] ?? null;
-                          const uploadError = validateUploadSelection(file);
-                          if (uploadError) {
-                            setFieldErrors((prev) => ({ ...prev, front: uploadError }));
-                            setFrontFile(null);
-                            return;
-                          }
-                          setFieldErrors((prev) => {
-                            const next = { ...prev };
-                            delete next.front;
-                            return next;
-                          });
-                          setFrontFile(file);
-                        }}
-                      />
-                      {fieldErrors.front && <p className="text-xs text-red-500 mt-1">{fieldErrors.front}</p>}
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1.5">
-                        Back of ID{" "}
-                        {linkOptions?.requireBack
-                          ? <span className="text-red-500">*</span>
-                          : <span className="text-gray-400">(optional)</span>}
-                      </p>
-                      {backFile ? (
-                        <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                          <div className="min-w-0">
-                            <span className="text-sm text-gray-800 truncate block">{backFile.name}</span>
-                            <span className="text-xs text-gray-500">{(backFile.size / 1024 / 1024).toFixed(2)} MB</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setBackFile(null);
-                              setFieldErrors((prev) => {
-                                const next = { ...prev };
-                                delete next.back;
-                                return next;
-                              });
-                            }}
-                            className="ml-auto text-gray-400 hover:text-gray-600 transition-colors"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => backRef.current?.click()}
-                          className="w-full flex items-center justify-center gap-2 p-4 border border-dashed border-gray-300 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
-                        >
-                          <Upload className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600">Add back of ID</span>
-                        </button>
-                      )}
-                      <input
-                        ref={backRef}
-                        type="file"
-                        accept="image/jpeg,image/png,application/pdf"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] ?? null;
-                          const uploadError = validateUploadSelection(file);
-                          if (uploadError) {
-                            setFieldErrors((prev) => ({ ...prev, back: uploadError }));
-                            setBackFile(null);
-                            return;
-                          }
-                          setFieldErrors((prev) => {
-                            const next = { ...prev };
-                            delete next.back;
-                            return next;
-                          });
-                          setBackFile(file);
-                        }}
-                      />
-                      {fieldErrors.back && <p className="text-xs text-red-500 mt-1">{fieldErrors.back}</p>}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              <Button
-                type="submit"
-                className="w-full h-12 text-base font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-md"
-                disabled={loading || ssnMismatch || accountMismatch}
-              >
-                {loading ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Submitting...
-                  </span>
-                ) : (
-                  "Submit Securely"
+                  </>
                 )}
-              </Button>
 
-              <p className="text-xs text-gray-400 text-center leading-relaxed">
-                This is a single-use secure link. Your information is encrypted end-to-end and delivered only to your authorized agent.
-              </p>
-            </form>
+                {linkType === "FULL_INTAKE" && (
+                  <>
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 pt-1">
+                        <span className="text-sm font-semibold text-gray-700">Personal Information</span>
+                        <div className="flex-1 h-px bg-blue-100" />
+                      </div>
+                      <Field label="Full Name" error={fieldErrors.fullName} required>
+                        <Input value={fields.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Your full legal name" autoComplete="name" />
+                      </Field>
+                      <Field label="Date of Birth" error={fieldErrors.dateOfBirth} required>
+                        <Input type="date" value={fields.dateOfBirth} onChange={(e) => set("dateOfBirth", e.target.value)} max={new Date().toISOString().split("T")[0]} />
+                      </Field>
+                      <Field label="Social Security Number" error={fieldErrors.ssn} required hint="Formats automatically as XXX-XX-XXXX">
+                        <Input type={showSsn ? "text" : "password"} inputMode="numeric" value={fields.ssn} onChange={(e) => set("ssn", fmtSsn(e.target.value))} placeholder="XXX-XX-XXXX" maxLength={11} autoComplete="off" />
+                        <button
+                          type="button"
+                          onClick={() => setShowSsn((v) => !v)}
+                          className="text-xs text-gray-400 hover:text-blue-500 mt-1 transition-colors"
+                        >
+                          {showSsn ? "Hide SSN" : "Show SSN"}
+                        </button>
+                      </Field>
+                      <Field label="Address" error={fieldErrors.address} required>
+                        <Input value={fields.address} onChange={(e) => set("address", e.target.value)} placeholder="123 Main St, City, State 00000" autoComplete="street-address" />
+                      </Field>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="Phone" error={fieldErrors.phone} required>
+                          <Input type="tel" value={fields.phone} onChange={(e) => set("phone", fmtPhone(e.target.value))} placeholder="(555) 000-0000" autoComplete="tel" />
+                        </Field>
+                        <Field label="Email" error={fieldErrors.email} required>
+                          <Input type="email" value={fields.email} onChange={(e) => set("email", e.target.value)} placeholder="you@email.com" autoComplete="email" />
+                        </Field>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 pt-2">
+                        <span className="text-sm font-semibold text-gray-700">Beneficiary Details</span>
+                        <div className="flex-1 h-px bg-blue-100" />
+                      </div>
+                      <Field label="Beneficiary Name" error={fieldErrors.beneficiaryName}>
+                        <Input value={fields.beneficiaryName} onChange={(e) => set("beneficiaryName", e.target.value)} placeholder="Full name (optional)" />
+                      </Field>
+                      <Field label="Beneficiary Relationship" error={fieldErrors.beneficiaryRelationship}>
+                        <Input value={fields.beneficiaryRelationship} onChange={(e) => set("beneficiaryRelationship", e.target.value)} placeholder="e.g. Spouse, Child (optional)" />
+                      </Field>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 pt-2">
+                        <span className="text-sm font-semibold text-gray-700">Banking Information</span>
+                        <div className="flex-1 h-px bg-blue-100" />
+                      </div>
+                      <Field label="Routing Number" error={fieldErrors.routingNumber} required hint={checkingRouting ? "Looking up bank..." : routingInfo ? (
+                        <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                          Verified — {routingInfo}
+                        </span>
+                      ) : "9-digit number found on your check"}>
+                        <Input type="text" inputMode="numeric" value={fields.routingNumber} onChange={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 9); set("routingNumber", v); lookupRouting(v); }} placeholder="021000021" maxLength={9} autoComplete="off" />
+                      </Field>
+                      <Field label="Bank Name" error={fieldErrors.bankName}>
+                        <Input value={fields.bankName} onChange={(e) => set("bankName", e.target.value)} placeholder="Auto-filled from routing number" autoComplete="off" />
+                      </Field>
+                      <Field label="Account Number" error={fieldErrors.accountNumber} required>
+                        <Input type={showAccount ? "text" : "password"} inputMode="numeric" value={fields.accountNumber} onChange={(e) => set("accountNumber", e.target.value.replace(/\D/g, ""))} placeholder="Your account number" autoComplete="off" />
+                        <button
+                          type="button"
+                          onClick={() => setShowAccount((v) => !v)}
+                          className="text-xs text-gray-400 hover:text-blue-500 mt-1 transition-colors"
+                        >
+                          {showAccount ? "Hide account number" : "Show account number"}
+                        </button>
+                      </Field>
+                      <Field label="Confirm Account Number" error={fieldErrors.confirmAccountNumber ?? (accountMismatch ? "Account numbers do not match." : undefined)} required>
+                        <Input type={showConfirmAccount ? "text" : "password"} inputMode="numeric" value={fields.confirmAccountNumber} onChange={(e) => set("confirmAccountNumber", e.target.value.replace(/\D/g, ""))} placeholder="Re-enter account number" autoComplete="off" className={accountMismatch ? "border-red-300 focus-visible:ring-red-300" : ""} />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmAccount((v) => !v)}
+                          className="text-xs text-gray-400 hover:text-blue-500 mt-1 transition-colors"
+                        >
+                          {showConfirmAccount ? "Hide account number" : "Show account number"}
+                        </button>
+                      </Field>
+                      <Field label="Preferred Draft Date" error={fieldErrors.preferredDraftDate} required>
+                        <Input value={fields.preferredDraftDate} onChange={(e) => set("preferredDraftDate", e.target.value)} placeholder="e.g. 1st, 15th" />
+                      </Field>
+                    </div>
+                  </>
+                )}
+
+                {linkType === "ID_UPLOAD" && (
+                  <>
+                    <div className="space-y-3">
+                      <IdUploadInstructions documentType={String(linkOptions?.documentType ?? "DRIVERS_LICENSE")} requireBack={Boolean(linkOptions?.requireBack)} />
+
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1.5">
+                          {(ID_DOC_CONFIG[String(linkOptions?.documentType ?? "DRIVERS_LICENSE")] ?? ID_DOC_CONFIG.DRIVERS_LICENSE).frontLabel}{" "}
+                          <span className="text-red-500">*</span>
+                        </p>
+                        {frontFile ? (
+                          <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                            <div className="min-w-0">
+                              <span className="text-sm text-gray-800 truncate block">{frontFile.name}</span>
+                              <span className="text-xs text-gray-500">{(frontFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFrontFile(null);
+                                setFieldErrors((prev) => {
+                                  const next = { ...prev };
+                                  delete next.front;
+                                  return next;
+                                });
+                              }}
+                              className="ml-auto text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => frontRef.current?.click()}
+                            className="w-full flex flex-col items-center gap-2 p-5 border-2 border-dashed border-blue-200 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
+                          >
+                            <Upload className="w-5 h-5 text-blue-400" />
+                            <span className="text-sm text-gray-600">Tap to select front of ID</span>
+                            <span className="text-xs text-gray-400">JPG, PNG, PDF - max 5 MB</span>
+                          </button>
+                        )}
+                        <input
+                          ref={frontRef}
+                          type="file"
+                          accept="image/jpeg,image/png,application/pdf"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] ?? null;
+                            const uploadError = validateUploadSelection(file);
+                            if (uploadError) {
+                              setFieldErrors((prev) => ({ ...prev, front: uploadError }));
+                              setFrontFile(null);
+                              return;
+                            }
+                            setFieldErrors((prev) => {
+                              const next = { ...prev };
+                              delete next.front;
+                              return next;
+                            });
+                            setFrontFile(file);
+                          }}
+                        />
+                        {fieldErrors.front && <p className="text-xs text-red-500 mt-1">{fieldErrors.front}</p>}
+                      </div>
+
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1.5">
+                          Back of ID{" "}
+                          {linkOptions?.requireBack
+                            ? <span className="text-red-500">*</span>
+                            : <span className="text-gray-400">(optional)</span>}
+                        </p>
+                        {backFile ? (
+                          <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                            <div className="min-w-0">
+                              <span className="text-sm text-gray-800 truncate block">{backFile.name}</span>
+                              <span className="text-xs text-gray-500">{(backFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBackFile(null);
+                                setFieldErrors((prev) => {
+                                  const next = { ...prev };
+                                  delete next.back;
+                                  return next;
+                                });
+                              }}
+                              className="ml-auto text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => backRef.current?.click()}
+                            className="w-full flex items-center justify-center gap-2 p-4 border border-dashed border-blue-200 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
+                          >
+                            <Upload className="w-4 h-4 text-blue-400" />
+                            <span className="text-sm text-gray-600">Add back of ID</span>
+                          </button>
+                        )}
+                        <input
+                          ref={backRef}
+                          type="file"
+                          accept="image/jpeg,image/png,application/pdf"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] ?? null;
+                            const uploadError = validateUploadSelection(file);
+                            if (uploadError) {
+                              setFieldErrors((prev) => ({ ...prev, back: uploadError }));
+                              setBackFile(null);
+                              return;
+                            }
+                            setFieldErrors((prev) => {
+                              const next = { ...prev };
+                              delete next.back;
+                              return next;
+                            });
+                            setBackFile(file);
+                          }}
+                        />
+                        {fieldErrors.back && <p className="text-xs text-red-500 mt-1">{fieldErrors.back}</p>}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <Button
+                  type="submit"
+                  className="w-full h-12 text-base font-semibold bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md rounded-xl"
+                  disabled={loading || ssnMismatch || accountMismatch}
+                >
+                  {loading ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Submitting...
+                    </span>
+                  ) : (
+                    "Submit Securely"
+                  )}
+                </Button>
+
+                <p className="text-xs text-gray-400 text-center leading-relaxed">
+                  This is a single-use secure link. Your information is encrypted end-to-end and delivered only to your authorized representative.
+                </p>
+              </form>
+            </div>
           </div>
 
           {agent.phone && (
-            <div className="text-center py-4">
+            <div className="text-center py-2">
               <p className="text-sm text-gray-500">
                 Questions about this request?{" "}
                 <a href={`tel:${agent.phone}`} className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium transition-colors">
                   <Phone className="w-3.5 h-3.5" />
-                  Contact {agent.displayName} at {agent.phone}
+                  Contact {agent.displayName}
                 </a>
               </p>
             </div>
@@ -715,7 +741,7 @@ export function SecureFormClient({
 function TrustIndicator({ icon: Icon, label }: { icon: React.ComponentType<{ className?: string }>; label: string }) {
   return (
     <div className="flex items-center gap-1.5 text-xs text-gray-500">
-      <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+      <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center shrink-0 ring-1 ring-blue-100">
         <Icon className="w-3.5 h-3.5 text-blue-500" />
       </div>
       <span className="font-medium">{label}</span>

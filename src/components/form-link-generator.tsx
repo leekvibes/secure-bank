@@ -169,7 +169,7 @@ export function FormLinkGenerator({ formId, formTitle, agentName }: Props) {
                   id="gl-dest"
                   value={form.destination}
                   onChange={(e) => setForm({ ...form, destination: e.target.value })}
-                  placeholder="e.g. Mutual of Omaha, your company name, a mortgage lender..."
+                  placeholder="e.g. Your company, a partner firm, a mortgage lender..."
                 />
                 <p className="text-xs text-muted-foreground">
                   Your client sees this so they know who receives their information

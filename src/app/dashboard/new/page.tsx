@@ -50,10 +50,10 @@ interface CreatedLink {
 }
 
 const DESTINATIONS = [
-  "Mutual of Omaha",
-  "Americo",
-  "Aetna",
   "Internal processing",
+  "Partner firm",
+  "Client onboarding",
+  "Compliance review",
 ];
 
 const MESSAGE_MAX_CHARS = 4000;
@@ -969,7 +969,7 @@ function NewLinkPage() {
                   <Input
                     value={destination}
                     onChange={(e) => setDestination(e.target.value)}
-                    placeholder="e.g. Mutual of Omaha, your company name, Aetna, a mortgage lender..."
+                    placeholder="e.g. Your company, a partner firm, a mortgage lender..."
                     className="mt-1.5"
                   />
                   <p className="text-xs text-muted-foreground mt-1.5">

@@ -114,7 +114,7 @@ export function ResetForm() {
                       required
                       value={requestEmail}
                       onChange={(e) => setRequestEmail(e.target.value)}
-                      placeholder="you@agency.com"
+                      placeholder="you@company.com"
                     />
                   </div>
                   <Button type="submit" className="w-full h-11 font-medium" disabled={requestLoading}>

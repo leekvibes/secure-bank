@@ -197,7 +197,7 @@ export default function FirstRequestPage() {
               <Input
                 id="destination"
                 name="destination"
-                placeholder="e.g. Mutual of Omaha, Internal processing"
+                placeholder="e.g. Your company, a partner firm, internal processing"
                 className="h-10 rounded-xl"
               />
             </div>

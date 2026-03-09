@@ -76,7 +76,6 @@ export default async function FormPage({ params }: Props) {
     : await db.agentAsset.findMany({
         where: { userId: link.form.agent.id, type: "LOGO" },
         orderBy: { createdAt: "desc" },
-        take: 1,
       });
   const renderedAssets = (
     await Promise.all(selectedAssets.map(toAssetRenderEntry))

@@ -27,8 +27,8 @@ interface Props {
 }
 
 const VERIFICATION = {
-  LICENSED: { label: "Licensed Agent", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  CERTIFIED: { label: "Certified Agent", cls: "bg-blue-50 text-blue-700 border-blue-200" },
+  LICENSED: { label: "Licensed Professional", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  CERTIFIED: { label: "Certified Professional", cls: "bg-blue-50 text-blue-700 border-blue-200" },
   REGULATED: { label: "Regulated Professional", cls: "bg-violet-50 text-violet-700 border-violet-200" },
 } as const;
 
@@ -53,7 +53,7 @@ export function ClientTrustHeader({ logoUrls, agent, expiresAt, isViewOnce }: Pr
     .join(" · ");
 
   return (
-    <header className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-xl border-b border-gray-200 shadow-sm">
+    <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-xl border-b border-blue-100 shadow-sm">
 
       <div className="hidden sm:block">
         <div className="max-w-screen-md mx-auto px-4">
@@ -72,15 +72,15 @@ export function ClientTrustHeader({ logoUrls, agent, expiresAt, isViewOnce }: Pr
         </div>
       </div>
 
-      <div className="sm:hidden relative flex items-center h-14 px-4">
+      <div className="sm:hidden relative flex items-center h-14 px-3">
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-14">
           <LogoStrip logoUrls={logoUrls} />
         </div>
         <button
           onClick={() => setAgentOpen((v) => !v)}
-          className="ml-auto relative z-10 flex items-center gap-1.5 pl-2 pr-1 py-1.5 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors"
+          className="ml-auto relative z-10 flex items-center gap-1.5 pl-2 pr-1 py-1.5 rounded-xl hover:bg-blue-50 active:bg-blue-100 transition-colors"
           aria-expanded={agentOpen}
-          aria-label="View agent details"
+          aria-label="View sender details"
         >
           <Avatar initials={initials} photoUrl={agent.photoUrl} size="sm" />
           {verification && <BadgeCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
@@ -91,7 +91,7 @@ export function ClientTrustHeader({ logoUrls, agent, expiresAt, isViewOnce }: Pr
       </div>
 
       {agentOpen && (
-        <div className="sm:hidden border-t border-gray-200 bg-slate-50/95 backdrop-blur-xl px-4 py-4 shadow-lg">
+        <div className="sm:hidden border-t border-blue-100 bg-white/95 backdrop-blur-xl px-4 py-4 shadow-lg">
           <AgentCardDrawer
             agent={agent}
             initials={initials}
@@ -102,25 +102,25 @@ export function ClientTrustHeader({ logoUrls, agent, expiresAt, isViewOnce }: Pr
         </div>
       )}
 
-      <div className="border-t border-gray-100 bg-gray-50/80">
-        <div className="max-w-screen-md mx-auto px-4 h-7 flex items-center justify-center gap-4 overflow-x-auto scrollbar-none">
+      <div className="border-t border-blue-50 bg-gradient-to-r from-blue-50/60 via-slate-50/40 to-blue-50/60">
+        <div className="max-w-screen-md mx-auto px-3 py-1.5 flex items-center justify-center gap-2 sm:gap-4 flex-wrap">
           <TrustPill icon={Lock} label="AES-256" />
-          <Divider />
+          <Dot />
           <TrustPill icon={Shield} label="Private" />
-          <Divider />
-          <TrustPill icon={Clock} label={`Expires ${expiresDate}`} />
+          <Dot />
+          <TrustPill icon={Clock} label={`Exp. ${expiresDate}`} />
           {isViewOnce && (
             <>
-              <Divider />
-              <TrustPill icon={Shield} label="One-time link" />
+              <Dot />
+              <TrustPill icon={Shield} label="Single-use" />
             </>
           )}
           {agent.destinationLabel && (
             <>
-              <Divider />
-              <span className="text-xs text-gray-400 whitespace-nowrap shrink-0">
-                Submitted to:{" "}
-                <span className="text-gray-700 font-medium">{agent.destinationLabel}</span>
+              <Dot className="hidden sm:block" />
+              <span className="hidden sm:inline text-xs text-gray-400 whitespace-nowrap shrink-0">
+                To:{" "}
+                <span className="text-gray-600 font-medium">{agent.destinationLabel}</span>
               </span>
             </>
           )}
@@ -131,9 +131,16 @@ export function ClientTrustHeader({ logoUrls, agent, expiresAt, isViewOnce }: Pr
 }
 
 function LogoStrip({ logoUrls }: { logoUrls: string[] }) {
+  const secureLinkBrand = (
+    <span className="text-[11px] font-medium tracking-tight text-gray-400 whitespace-nowrap flex items-center gap-1">
+      <Lock className="w-3 h-3 text-blue-400" />
+      <span><span className="text-blue-500">Secure</span> Link</span>
+    </span>
+  );
+
   if (logoUrls.length === 0) {
     return (
-      <div className="flex items-center justify-center">
+      <div className="flex flex-col items-center justify-center gap-0.5">
         <span className="text-base font-bold tracking-tight text-gray-900 whitespace-nowrap">
           <span className="text-blue-600">Secure</span> Link
         </span>
@@ -142,16 +149,19 @@ function LogoStrip({ logoUrls }: { logoUrls: string[] }) {
   }
 
   return (
-    <div className="flex items-center justify-center gap-4 overflow-x-auto scrollbar-none max-w-[260px]">
-      {logoUrls.map((url, i) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          key={i}
-          src={url}
-          alt="Logo"
-          className="h-8 max-h-8 max-w-[120px] w-auto object-contain shrink-0"
-        />
-      ))}
+    <div className="flex flex-col items-center gap-1">
+      <div className="flex items-center justify-center gap-3 overflow-x-auto scrollbar-none max-w-[280px]">
+        {logoUrls.map((url, i) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={i}
+            src={url}
+            alt="Logo"
+            className="h-8 max-h-8 max-w-[120px] w-auto object-contain shrink-0"
+          />
+        ))}
+      </div>
+      {secureLinkBrand}
     </div>
   );
 }
@@ -167,7 +177,7 @@ function Avatar({ initials, photoUrl, size = "md" }: { initials: string; photoUr
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={photoUrl}
-        alt="Agent photo"
+        alt="Photo"
         className={`${cls} rounded-full object-cover shrink-0 ring-2 ring-blue-100`}
       />
     );
@@ -189,7 +199,7 @@ function AgentCardDesktop({
   companyLine: string;
 }) {
   return (
-    <div className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 max-w-[260px]">
+    <div className="flex items-start gap-3 bg-blue-50/50 border border-blue-100 rounded-xl px-3 py-2.5 max-w-[260px]">
       <Avatar initials={initials} photoUrl={agent.photoUrl} />
       <div className="min-w-0 space-y-0.5">
         <p className="text-sm font-semibold text-gray-900 leading-tight truncate">
@@ -270,7 +280,7 @@ function AgentCardDrawer({
         <button
           onClick={onClose}
           className="text-gray-400 hover:text-gray-600 p-1 shrink-0 mt-0.5"
-          aria-label="Close agent details"
+          aria-label="Close details"
         >
           <X className="w-4 h-4" />
         </button>
@@ -325,6 +335,6 @@ function TrustPill({ icon: Icon, label }: { icon: React.ComponentType<{ classNam
   );
 }
 
-function Divider() {
-  return <span className="text-gray-300 select-none shrink-0">·</span>;
+function Dot({ className }: { className?: string }) {
+  return <span className={`text-blue-300 select-none shrink-0 ${className ?? ""}`}>·</span>;
 }

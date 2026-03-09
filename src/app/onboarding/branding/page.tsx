@@ -2,15 +2,17 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, Camera, User, ArrowRight, ArrowLeft, Loader2, Shield, Lock, Check } from "lucide-react";
+import { Upload, Camera, User, ArrowRight, ArrowLeft, Loader2, Shield, Lock, Check, X } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { InfoTip } from "@/components/info-tip";
 import { OnboardingShell } from "../onboarding-shell";
 
+const MAX_LOGOS = 5;
+
 export default function BrandingPage() {
   const router = useRouter();
-  const [logo, setLogo] = useState<string | null>(null);
+  const [logos, setLogos] = useState<{ id: string; url: string }[]>([]);
   const [photo, setPhoto] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -18,31 +20,79 @@ export default function BrandingPage() {
   const logoRef = useRef<HTMLInputElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
 
-  async function uploadFile(file: File, type: "logo" | "photo") {
-    const setter = type === "logo" ? setLogo : setPhoto;
-    const loadingSetter = type === "logo" ? setUploadingLogo : setUploadingPhoto;
-    loadingSetter(true);
+  async function uploadLogo(file: File) {
+    if (file.size > 512 * 1024) {
+      setError("File must be under 512 KB.");
+      return;
+    }
+    if (logos.length >= MAX_LOGOS) {
+      setError(`You can upload up to ${MAX_LOGOS} logos.`);
+      return;
+    }
+    setUploadingLogo(true);
     setError(null);
 
     try {
-      if (file.size > 512 * 1024) {
-        setError("File must be under 512 KB.");
-        loadingSetter(false);
-        return;
-      }
-
       const formData = new FormData();
-      formData.append(type, file);
+      formData.append("logo", file);
 
-      const res = await fetch(`/api/agent/${type}`, {
+      const res = await fetch("/api/agent/logo", {
         method: "POST",
         body: formData,
       });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error ?? `Failed to upload ${type}.`);
-        loadingSetter(false);
+        setError(data.error ?? "Failed to upload logo.");
+        setUploadingLogo(false);
+        return;
+      }
+
+      const data = await res.json();
+      const reader = new FileReader();
+      const dataUri = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      setLogos((prev) => [...prev, { id: data.assetId, url: dataUri }]);
+    } catch {
+      setError("Failed to upload logo. Please try again.");
+    } finally {
+      setUploadingLogo(false);
+    }
+  }
+
+  async function deleteLogo(id: string) {
+    try {
+      await fetch(`/api/agent/logo?id=${id}`, { method: "DELETE" });
+      setLogos((prev) => prev.filter((l) => l.id !== id));
+    } catch {
+      setError("Failed to remove logo.");
+    }
+  }
+
+  async function uploadPhoto(file: File) {
+    if (file.size > 512 * 1024) {
+      setError("File must be under 512 KB.");
+      return;
+    }
+    setUploadingPhoto(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("photo", file);
+
+      const res = await fetch("/api/agent/photo", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "Failed to upload photo.");
+        setUploadingPhoto(false);
         return;
       }
 
@@ -52,11 +102,11 @@ export default function BrandingPage() {
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      setter(dataUri);
+      setPhoto(dataUri);
     } catch {
-      setError(`Failed to upload ${type}. Please try again.`);
+      setError("Failed to upload photo. Please try again.");
     } finally {
-      loadingSetter(false);
+      setUploadingPhoto(false);
     }
   }
 
@@ -66,7 +116,7 @@ export default function BrandingPage() {
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Add your branding</h1>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Your photo and logo build trust with clients. Here's how they'll appear on your secure requests.
+            Your photo and logos build trust with clients. Here's how they'll appear on your secure requests.
           </p>
         </div>
 
@@ -81,28 +131,48 @@ export default function BrandingPage() {
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <Upload className="w-3.5 h-3.5" />
-                Company Logo
-                <InfoTip text="Your company logo appears at the top of every secure request your clients receive. It helps them instantly recognize who the request is from." />
+                Company Logos (up to {MAX_LOGOS})
+                <InfoTip text="Your company logos appear at the top of every secure request your clients receive. You can upload multiple logos if you work with different brands or carriers." />
               </p>
-              <button
-                type="button"
-                onClick={() => logoRef.current?.click()}
-                disabled={uploadingLogo}
-                className="w-full h-32 rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-all flex flex-col items-center justify-center gap-2 bg-muted/30"
-              >
-                {uploadingLogo ? (
-                  <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
-                ) : logo ? (
-                  <Image src={logo} alt="Logo" width={80} height={80} className="max-h-20 object-contain rounded-lg" />
-                ) : (
-                  <>
-                    <div className="w-10 h-10 rounded-lg bg-primary/8 flex items-center justify-center">
-                      <Upload className="w-5 h-5 text-primary" />
+
+              {logos.length > 0 && (
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  {logos.map((logo) => (
+                    <div key={logo.id} className="relative group rounded-xl border border-border bg-muted/30 p-2 flex items-center justify-center h-16">
+                      <Image src={logo.url} alt="Logo" width={80} height={60} className="max-h-12 object-contain rounded-lg" />
+                      <button
+                        type="button"
+                        onClick={() => deleteLogo(logo.id)}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
                     </div>
-                    <span className="text-xs text-muted-foreground">Click to upload</span>
-                  </>
-                )}
-              </button>
+                  ))}
+                </div>
+              )}
+
+              {logos.length < MAX_LOGOS && (
+                <button
+                  type="button"
+                  onClick={() => logoRef.current?.click()}
+                  disabled={uploadingLogo}
+                  className="w-full h-24 rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-all flex flex-col items-center justify-center gap-2 bg-muted/30"
+                >
+                  {uploadingLogo ? (
+                    <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                  ) : (
+                    <>
+                      <div className="w-10 h-10 rounded-lg bg-primary/8 flex items-center justify-center">
+                        <Upload className="w-5 h-5 text-primary" />
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {logos.length === 0 ? "Click to upload" : "Add another logo"}
+                      </span>
+                    </>
+                  )}
+                </button>
+              )}
               <input
                 ref={logoRef}
                 type="file"
@@ -110,10 +180,11 @@ export default function BrandingPage() {
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) uploadFile(f, "logo");
+                  if (f) uploadLogo(f);
+                  if (e.target) e.target.value = "";
                 }}
               />
-              <p className="text-[11px] text-muted-foreground">PNG, JPG, WebP, or SVG. Max 512 KB.</p>
+              <p className="text-[11px] text-muted-foreground">PNG, JPG, WebP, or SVG. Max 512 KB each.</p>
             </div>
 
             <div className="space-y-2">
@@ -148,7 +219,7 @@ export default function BrandingPage() {
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) uploadFile(f, "photo");
+                  if (f) uploadPhoto(f);
                 }}
               />
               <p className="text-[11px] text-muted-foreground">PNG, JPG, or WebP. Max 512 KB.</p>
@@ -168,9 +239,9 @@ export default function BrandingPage() {
                 )}
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    {logo && (
-                      <Image src={logo} alt="" width={20} height={20} className="h-5 w-auto object-contain" />
-                    )}
+                    {logos.slice(0, 3).map((logo) => (
+                      <Image key={logo.id} src={logo.url} alt="" width={20} height={20} className="h-5 w-auto object-contain" />
+                    ))}
                     <p className="text-sm font-semibold text-foreground">Your Name</p>
                   </div>
                   <p className="text-[11px] text-muted-foreground">has requested your information securely</p>

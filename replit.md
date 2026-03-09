@@ -67,7 +67,8 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 
 - Company name: "Secure Link" (two words)
 - All user-facing references use "Secure Link" — never "Agent Secure Links" or "SecureLink"
-- Client-facing header shows "Secure Link" text branding when no custom logo is uploaded
+- Client-facing header shows "Secure Link" text branding when no custom logos are uploaded
+- When user logos exist, subtle "Secure Link" branding remains below user logos (small lock icon + text)
 - Page titles: "Secure Link", dashboard titles: "Dashboard | Secure Link"
 
 ## Client-Facing Form Standards
@@ -83,9 +84,18 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 
 - Upload endpoint: `/api/agent/photo` (POST for upload, DELETE to remove)
 - Max 512KB, accepts PNG/JPG/WebP, stored as base64 data URI in `photoUrl` field
-- Upload UI in dashboard Settings page (Profile section)
+- Upload UI in dashboard Settings page (Branding tab)
 - Displayed on client-facing secure forms via `client-trust-header.tsx`
 - Falls back to initials avatar when no photo is set
+
+## Multi-Logo Upload
+
+- Upload endpoint: `/api/agent/logo` (GET to list, POST to add, DELETE to remove)
+- Supports up to 5 logos per user via `AgentAsset` model (type="LOGO")
+- `User.logoUrl` synced to latest logo for backward compatibility
+- DELETE supports `?id=assetId` for individual removal, or no param to clear all
+- Onboarding branding page and settings branding tab both support multi-logo grid with individual delete
+- Client-facing pages display all logos in a horizontal strip
 
 ## Secure Links Page
 
@@ -162,8 +172,8 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 - Tabbed interface with 4 tabs: **Profile**, **Branding**, **Client Experience**, **Trust & Security**
 - Tab style matches Secure Links page (underline tabs with blue active state)
 - **Profile tab**: Display name, phone, agency, company, industry (dropdown), "Are you licensed?" yes/no flow → license # + licensed states (conditional)
-- **Branding tab**: Logo upload, profile photo upload, live preview of client-facing header
-- **Client Experience tab**: Destination label, carriers, trust message (textarea), notification email, verification page URL
+- **Branding tab**: Multi-logo upload (up to 5), profile photo upload, live preview of client-facing header
+- **Client Experience tab**: Destination label, partners/affiliations, trust message (textarea), notification email
 - **Trust & Security tab**: Data retention (button selector: 30/60/90 days or manual), default link expiration (button selector: 1h–7 days)
 - **Industry field**: Dropdown with predefined list from `src/lib/industries.ts` (used in both onboarding and settings)
 - **Licensing flow**: Replaces old "Verification Status" dropdown. "Are you licensed?" → Yes shows license # + states fields → auto-sets verificationStatus to LICENSED. No → clears fields, sets UNVERIFIED

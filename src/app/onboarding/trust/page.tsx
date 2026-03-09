@@ -84,12 +84,12 @@ export default function TrustPage() {
               <Label htmlFor="destinationLabel" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5" />
                 Where does client data go?
-                <InfoTip text="This label is shown to your clients so they know exactly where their sensitive information is being submitted, like a carrier or company name." />
+                <InfoTip text="This label is shown to your clients so they know exactly where their sensitive information is being submitted, like a company or partner name." />
               </Label>
               <Input
                 id="destinationLabel"
                 name="destinationLabel"
-                placeholder="e.g. Mutual of Omaha, Aetna, Internal processing"
+                placeholder="e.g. Your company, a partner firm, internal processing"
                 className="h-10 rounded-xl"
               />
             </div>
@@ -152,7 +152,7 @@ export default function TrustPage() {
                 id="trustMessage"
                 name="trustMessage"
                 rows={3}
-                placeholder="e.g. Your information is encrypted end-to-end and will only be used for your policy application. Feel free to reach out if you have any questions."
+                placeholder="e.g. Your information is encrypted end-to-end and will only be used for your service needs. Feel free to reach out if you have any questions."
                 className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
               />
             </div>

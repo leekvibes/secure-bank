@@ -433,7 +433,7 @@ export default function NewFormPage() {
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. New Client Application, Insurance Enrollment, Document Request"
+                placeholder="e.g. New Client Application, Onboarding Form, Document Request"
                 required
               />
               <p className="text-xs text-muted-foreground">This is how you will find this form in your dashboard</p>

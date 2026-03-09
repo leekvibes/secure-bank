@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { CheckCircle2, Eye, EyeOff, X, Shield } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, X, Shield, Lock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -85,14 +85,13 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
     }
   }
 
-  function setValue(fieldId: string, value: string) {
-    setValues((v) => ({ ...v, [fieldId]: value }));
-    setFieldErrors((e) => { const n = { ...e }; delete n[fieldId]; return n; });
+  function setValue(id: string, v: string) {
+    setValues((p) => ({ ...p, [id]: v }));
+    setFieldErrors((p) => { const n = { ...p }; delete n[id]; return n; });
   }
-
-  function setConfirmValue(fieldId: string, value: string) {
-    setConfirmValues((v) => ({ ...v, [fieldId]: value }));
-    setFieldErrors((e) => { const n = { ...e }; delete n[`confirm_${fieldId}`]; return n; });
+  function setConfirmValue(id: string, v: string) {
+    setConfirmValues((p) => ({ ...p, [id]: v }));
+    setFieldErrors((p) => { const n = { ...p }; delete n[`confirm_${id}`]; return n; });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -101,18 +100,16 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
     setError(null);
     setFieldErrors({});
 
-    const body: Record<string, string> = {};
-    for (const field of fields) {
-      if (values[field.id]) body[field.id] = values[field.id];
-      if (field.confirmField && confirmValues[field.id]) {
-        body[`confirm_${field.id}`] = confirmValues[field.id];
-      }
+    const payload: Record<string, string> = {};
+    for (const f of fields) {
+      payload[f.id] = values[f.id] ?? "";
+      if (f.confirmField) payload[`confirm_${f.id}`] = confirmValues[f.id] ?? "";
     }
 
     const res = await fetch(`/api/f/${token}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(payload),
     });
 
     const data = await res.json();
@@ -124,7 +121,6 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
       setError(getErrorMessage(data, "Submission failed. Please try again."));
       return;
     }
-
     setSubmitted(true);
   }
 
@@ -140,9 +136,17 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
     photoUrl: agent.photoUrl ?? null,
   };
 
+  const greetingLine = link.clientName
+    ? `Hello, ${link.clientName}. `
+    : "";
+  const destinationLine = agent.destinationLabel
+    ? ` Your ${agent.destinationLabel} setup requires the following details.`
+    : "";
+  const greetingMessage = `${greetingLine}Please complete the form below to securely submit your information.${destinationLine}`;
+
   if (submitted) {
     return (
-      <main className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 flex items-center justify-center px-4 py-12">
+      <main className="min-h-screen bg-gradient-to-b from-blue-50/80 via-slate-50 to-white flex items-center justify-center px-4 py-12">
         <div className="max-w-sm w-full text-center animate-fade-in">
           <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-1 ring-emerald-200">
             <CheckCircle2 className="w-8 h-8 text-emerald-500" />
@@ -151,10 +155,10 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
           <p className="text-gray-500 leading-relaxed mb-8">
             Your information has been encrypted and securely submitted. You may now close this page.
           </p>
-          <div className="bg-slate-50 rounded-2xl border border-gray-200 shadow-sm p-5 text-sm text-gray-600 text-left space-y-3">
+          <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-5 text-sm text-gray-600 text-left space-y-3">
             {[
               "Encrypted with AES-256 before storage",
-              "Delivered only to your agent",
+              "Delivered only to your authorized representative",
               "Protected with bank-level security",
             ].map((line) => (
               <div key={line} className="flex items-center gap-2.5">
@@ -171,71 +175,73 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50/80 via-slate-50 to-white flex flex-col">
       <ClientTrustHeader logoUrls={logoUrls} agent={agentProfile} expiresAt={link.expiresAt} />
 
-      <main className="flex-1 px-4 py-10">
+      <main className="flex-1 px-3 sm:px-4 py-6 sm:py-10">
         <div className="max-w-md mx-auto animate-fade-in">
 
-          <div className="flex items-center justify-center gap-6 mb-6 flex-wrap">
-            {["Bank-Level Security", "256-Bit Encryption", "Private & Secure"].map((t) => (
-              <div key={t} className="flex items-center gap-1.5 text-xs text-gray-500">
-                <Shield className="w-3.5 h-3.5 text-blue-500" />
-                <span>{t}</span>
-              </div>
-            ))}
+          <div className="flex items-center justify-center gap-3 sm:gap-6 mb-4 sm:mb-6 flex-wrap">
+            <TrustIndicator icon={Shield} label="Bank-Level Security" />
+            <TrustIndicator icon={Lock} label="256-Bit Encryption" />
+            <TrustIndicator icon={ShieldCheck} label="Private & Secure" />
           </div>
 
-        <div className="bg-slate-50 rounded-2xl border border-gray-200 shadow-sm p-6">
-          <h2 className="text-base font-semibold text-gray-900 mb-1">{form.title}</h2>
-          {form.description && (
-            <p className="text-sm text-gray-500 mb-4 leading-relaxed">{form.description}</p>
-          )}
-          <p className="text-sm text-gray-500 mb-5 leading-relaxed">
-            Please complete the fields below. Your information is end-to-end encrypted and delivered only to your agent.
-          </p>
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
-              {error}
+          <div className="rounded-2xl border border-blue-100 shadow-sm overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-5 sm:px-6 py-4">
+              <h2 className="text-base sm:text-lg font-semibold text-white">{form.title}</h2>
+              {form.description && (
+                <p className="text-xs sm:text-sm text-blue-100 mt-1 leading-relaxed">{form.description}</p>
+              )}
             </div>
-          )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {fields.map((field) => (
-              <DynamicField
-                key={field.id}
-                field={field}
-                value={values[field.id] ?? ""}
-                confirmValue={confirmValues[field.id] ?? ""}
-                error={fieldErrors[field.id]}
-                confirmError={fieldErrors[`confirm_${field.id}`]}
-                onChange={(v) => {
-                  setValue(field.id, v);
-                  if (field.fieldType === "routing") lookupRouting(field.id, v.replace(/\D/g, "").slice(0, 9));
-                }}
-                onConfirmChange={(v) => setConfirmValue(field.id, v)}
-                routingInfo={routingLookups[field.id] ?? null}
-                routingChecking={routingChecking[field.id] ?? false}
-              />
-            ))}
+            <div className="bg-white px-5 sm:px-6 py-5 sm:py-6">
+              <p className="text-sm text-gray-600 leading-relaxed mb-5 pb-4 border-b border-gray-100">
+                {greetingMessage}
+              </p>
 
-            <Button
-              type="submit"
-              className="w-full h-12 text-base font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-              disabled={loading}
-            >
-              {loading ? "Submitting..." : "Submit Securely"}
-            </Button>
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
+                  {error}
+                </div>
+              )}
 
-            <p className="text-xs text-gray-400 text-center leading-relaxed">
-              This link is single-use and expires after submission. Your information is encrypted and not shared with third parties.
-            </p>
-          </form>
-        </div>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {fields.map((field) => (
+                  <DynamicField
+                    key={field.id}
+                    field={field}
+                    value={values[field.id] ?? ""}
+                    confirmValue={confirmValues[field.id] ?? ""}
+                    error={fieldErrors[field.id]}
+                    confirmError={fieldErrors[`confirm_${field.id}`]}
+                    onChange={(v) => {
+                      setValue(field.id, v);
+                      if (field.fieldType === "routing") lookupRouting(field.id, v.replace(/\D/g, "").slice(0, 9));
+                    }}
+                    onConfirmChange={(v) => setConfirmValue(field.id, v)}
+                    routingInfo={routingLookups[field.id] ?? null}
+                    routingChecking={routingChecking[field.id] ?? false}
+                  />
+                ))}
+
+                <Button
+                  type="submit"
+                  className="w-full h-12 text-base font-semibold bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md rounded-xl"
+                  disabled={loading}
+                >
+                  {loading ? "Submitting..." : "Submit Securely"}
+                </Button>
+
+                <p className="text-xs text-gray-400 text-center leading-relaxed">
+                  This link is single-use and expires after submission. Your information is encrypted and not shared with third parties.
+                </p>
+              </form>
+            </div>
+          </div>
 
           {agent.phone && (
-            <div className="mt-6 text-center">
+            <div className="mt-4 sm:mt-6 text-center">
               <p className="text-sm text-gray-500">
                 Need help?{" "}
                 <a href={`tel:${agent.phone}`} className="text-blue-600 hover:text-blue-700 font-medium transition-colors">
@@ -246,6 +252,17 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+function TrustIndicator({ icon: Icon, label }: { icon: React.ComponentType<{ className?: string }>; label: string }) {
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+      <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center shrink-0 ring-1 ring-blue-100">
+        <Icon className="w-3.5 h-3.5 text-blue-500" />
+      </div>
+      <span className="font-medium">{label}</span>
     </div>
   );
 }
@@ -284,7 +301,7 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
             required={field.required}
             aria-invalid={Boolean(error)}
             className={cn(
-              "flex h-11 w-full appearance-none rounded-lg border bg-slate-50 px-3 py-2 pr-9 text-sm text-gray-900",
+              "flex h-11 w-full appearance-none rounded-lg border bg-white px-3 py-2 pr-9 text-sm text-gray-900",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 focus-visible:border-blue-400",
               error ? "border-red-300 focus-visible:ring-red-500/30" : "border-gray-300",
               !value && "text-gray-400"

@@ -187,7 +187,7 @@ export function AuthForm() {
                     id="displayName"
                     name="displayName"
                     required
-                    placeholder="Alex Rivera"
+                    placeholder="Jordan Taylor"
                     autoComplete="name"
                   />
                 </div>

@@ -79,7 +79,7 @@ export default function ProfilePage() {
               <Input
                 id="agencyName"
                 name="agencyName"
-                placeholder="Rivera Financial Group"
+                placeholder="Apex Consulting Group"
                 className="h-10 rounded-xl"
               />
             </div>
@@ -128,7 +128,7 @@ export default function ProfilePage() {
                   id="supportEmail"
                   name="supportEmail"
                   type="email"
-                  placeholder="support@agency.com"
+                  placeholder="support@yourcompany.com"
                   className="h-10 rounded-xl"
                 />
               </div>
@@ -176,7 +176,7 @@ export default function ProfilePage() {
                       <Input
                         id="licenseNumber"
                         name="licenseNumber"
-                        placeholder="NPN, License #, or Company ID"
+                        placeholder="License #, Bar #, NPN, or Company ID"
                         className="h-10 rounded-xl"
                       />
                     </div>

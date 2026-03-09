@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InfoTip } from "@/components/info-tip";
 import {
-  ExternalLink, Upload, X, Loader2, UserCircle, User, Camera,
+  Upload, X, Loader2, UserCircle, User, Camera,
   Building2, Briefcase, Phone, Mail, FileText,
   MapPin, Clock, Timer, MessageSquare, Lock, Shield, Check,
 } from "lucide-react";
@@ -74,6 +74,8 @@ export function SettingsForm({ user }: Props) {
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string | null>(user.logoUrl);
+  const [logos, setLogos] = useState<{ id: string; url: string }[]>([]);
+  const [logosLoaded, setLogosLoaded] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [currentPhotoUrl, setCurrentPhotoUrl] = useState<string | null>(user.photoUrl);
@@ -129,6 +131,17 @@ export function SettingsForm({ user }: Props) {
     setTimeout(() => router.refresh(), 100);
   }
 
+  const loadLogos = useCallback(async () => {
+    try {
+      const res = await fetch("/api/agent/logo");
+      if (res.ok) {
+        const data = await res.json();
+        setLogos(data.logos ?? []);
+      }
+    } catch {}
+    setLogosLoaded(true);
+  }, []);
+
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -145,6 +158,18 @@ export function SettingsForm({ user }: Props) {
     setLogoUploading(false);
     if (!res.ok) { setLogoError(data.error ?? "Upload failed."); return; }
     setCurrentLogoUrl(data.logoUrl);
+    setLogos((prev) => [...prev, { id: data.assetId, url: data.logoUrl }]);
+    if (e.target) e.target.value = "";
+    router.refresh();
+  }
+
+  async function handleLogoDeleteById(id: string) {
+    setLogoUploading(true);
+    await fetch(`/api/agent/logo?id=${id}`, { method: "DELETE" });
+    setLogos((prev) => prev.filter((l) => l.id !== id));
+    const remaining = logos.filter((l) => l.id !== id);
+    setCurrentLogoUrl(remaining.length > 0 ? remaining[remaining.length - 1].url : null);
+    setLogoUploading(false);
     router.refresh();
   }
 
@@ -152,6 +177,7 @@ export function SettingsForm({ user }: Props) {
     setLogoUploading(true);
     await fetch("/api/agent/logo", { method: "DELETE" });
     setCurrentLogoUrl(null);
+    setLogos([]);
     setLogoUploading(false);
     router.refresh();
   }
@@ -182,11 +208,6 @@ export function SettingsForm({ user }: Props) {
     setPhotoUploading(false);
     router.refresh();
   }
-
-  const verifyUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/verify/${user.agentSlug}`
-      : `/verify/${user.agentSlug}`;
 
   return (
     <div className="space-y-6">
@@ -277,7 +298,7 @@ export function SettingsForm({ user }: Props) {
                     id="agencyName"
                     value={form.agencyName}
                     onChange={(e) => setForm({ ...form, agencyName: e.target.value })}
-                    placeholder="Rivera Financial Group"
+                    placeholder="Apex Consulting Group"
                     className="h-10 rounded-xl"
                   />
                 </div>
@@ -291,7 +312,7 @@ export function SettingsForm({ user }: Props) {
                     id="company"
                     value={form.company}
                     onChange={(e) => setForm({ ...form, company: e.target.value })}
-                    placeholder="Rivera Holdings LLC"
+                    placeholder="Apex Holdings LLC"
                     className="h-10 rounded-xl"
                   />
                 </div>
@@ -361,7 +382,7 @@ export function SettingsForm({ user }: Props) {
                         id="licenseNumber"
                         value={form.licenseNumber}
                         onChange={(e) => setForm({ ...form, licenseNumber: e.target.value })}
-                        placeholder="NPN, License #, or Company ID"
+                        placeholder="License #, Bar #, NPN, or Company ID"
                         className="h-10 rounded-xl"
                       />
                     </div>
@@ -398,55 +419,43 @@ export function SettingsForm({ user }: Props) {
 
       {activeTab === "branding" && (
         <div className="space-y-6">
+          <BrandingTabLoader onLoad={loadLogos} loaded={logosLoaded} />
           <div className="rounded-2xl border border-border/60 bg-card shadow-sm">
             <div className="px-6 py-5 border-b border-border/40">
               <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-                Company Logo
-                <InfoTip text="Your company logo appears at the top of every secure request your clients receive. It helps them instantly recognize who the request is from." />
+                Company Logos
+                <InfoTip text="Your company logos appear at the top of every secure request your clients receive. You can upload up to 5 logos." />
               </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Your logo appears at the top of secure client pages and email notifications.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Your logos appear at the top of secure client pages and email notifications. Up to 5 logos.</p>
             </div>
             <div className="p-6">
               {logoError && (
                 <div className="mb-4 p-3 bg-red-500/8 border border-red-500/15 rounded-xl text-sm text-red-600">{logoError}</div>
               )}
-              {currentLogoUrl ? (
-                <div className="flex items-center gap-4">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={currentLogoUrl}
-                    alt="Agency logo"
-                    className="h-16 max-w-[200px] object-contain rounded-xl border border-border/40 bg-muted/30 p-3"
-                  />
-                  <div className="space-y-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={logoUploading}
-                      className="rounded-xl"
-                    >
-                      {logoUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                      Replace
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleLogoDelete}
-                      disabled={logoUploading}
-                      className="rounded-xl text-red-500 hover:bg-red-500/10 hover:border-red-500/30 ml-2"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                      Remove
-                    </Button>
-                  </div>
+              {logos.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                  {logos.map((logo) => (
+                    <div key={logo.id} className="relative group rounded-xl border border-border/40 bg-muted/30 p-3 flex items-center justify-center h-20">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={logo.url} alt="Logo" className="max-h-14 max-w-full object-contain" />
+                      <button
+                        type="button"
+                        onClick={() => handleLogoDeleteById(logo.id)}
+                        disabled={logoUploading}
+                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ) : (
+              )}
+              {logos.length < 5 && (
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={logoUploading}
-                  className="w-full h-32 rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-all flex flex-col items-center justify-center gap-2 bg-muted/20"
+                  className="w-full h-24 rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-all flex flex-col items-center justify-center gap-2 bg-muted/20"
                 >
                   {logoUploading ? (
                     <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
@@ -455,7 +464,9 @@ export function SettingsForm({ user }: Props) {
                       <div className="w-10 h-10 rounded-lg bg-primary/8 flex items-center justify-center">
                         <Upload className="w-5 h-5 text-primary" />
                       </div>
-                      <span className="text-xs text-muted-foreground">Click to upload logo</span>
+                      <span className="text-xs text-muted-foreground">
+                        {logos.length === 0 ? "Click to upload logo" : "Add another logo"}
+                      </span>
                       <span className="text-[11px] text-muted-foreground/60">PNG, JPG, WebP, or SVG. Max 512 KB</span>
                     </>
                   )}
@@ -562,10 +573,15 @@ export function SettingsForm({ user }: Props) {
                   )}
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      {currentLogoUrl && (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={currentLogoUrl} alt="" className="h-5 w-auto object-contain" />
-                      )}
+                      {logos.length > 0
+                        ? logos.slice(0, 3).map((logo) => (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img key={logo.id} src={logo.url} alt="" className="h-5 w-auto object-contain" />
+                          ))
+                        : currentLogoUrl && (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img src={currentLogoUrl} alt="" className="h-5 w-auto object-contain" />
+                          )}
                       <p className="text-sm font-semibold text-foreground">{form.displayName || "Your Name"}</p>
                     </div>
                     <p className="text-[11px] text-muted-foreground">has requested your information securely</p>
@@ -604,13 +620,13 @@ export function SettingsForm({ user }: Props) {
                   <Label htmlFor="destinationLabel" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5" />
                     Destination Label
-                    <InfoTip text="This label is shown to your clients so they know exactly where their sensitive information is being submitted, like a carrier or company name." />
+                    <InfoTip text="This label is shown to your clients so they know exactly where their sensitive information is being submitted, like a company or partner name." />
                   </Label>
                   <Input
                     id="destinationLabel"
                     value={form.destinationLabel}
                     onChange={(e) => setForm({ ...form, destinationLabel: e.target.value })}
-                    placeholder="e.g. Mutual of Omaha, Aetna, Internal processing"
+                    placeholder="e.g. Your company, a partner firm, internal processing"
                     className="h-10 rounded-xl"
                   />
                 </div>
@@ -618,14 +634,14 @@ export function SettingsForm({ user }: Props) {
                 <div className="space-y-1.5">
                   <Label htmlFor="carriersList" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                     <Briefcase className="w-3.5 h-3.5" />
-                    Carriers
-                    <InfoTip text="A list of insurance carriers or companies you work with. Shown on your verification page so clients can confirm your affiliations." />
+                    Partners / Affiliations
+                    <InfoTip text="A list of companies or partners you work with. Helps clients confirm your affiliations." />
                   </Label>
                   <Input
                     id="carriersList"
                     value={form.carriersList}
                     onChange={(e) => setForm({ ...form, carriersList: e.target.value })}
-                    placeholder="Aetna, Humana, Cigna, UnitedHealth"
+                    placeholder="Company partners, affiliations..."
                     className="h-10 rounded-xl"
                   />
                 </div>
@@ -641,7 +657,7 @@ export function SettingsForm({ user }: Props) {
                     value={form.trustMessage}
                     onChange={(e) => setForm({ ...form, trustMessage: e.target.value })}
                     rows={3}
-                    placeholder="e.g. Your information is encrypted end-to-end and will only be used for your policy application. Feel free to reach out if you have any questions."
+                    placeholder="e.g. Your information is encrypted end-to-end and will only be used for your service needs. Feel free to reach out if you have any questions."
                     className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
                   />
                 </div>
@@ -657,7 +673,7 @@ export function SettingsForm({ user }: Props) {
                     type="email"
                     value={form.notificationEmail}
                     onChange={(e) => setForm({ ...form, notificationEmail: e.target.value })}
-                    placeholder="alerts@youragency.com"
+                    placeholder="alerts@yourcompany.com"
                     className="h-10 rounded-xl"
                   />
                 </div>
@@ -673,35 +689,6 @@ export function SettingsForm({ user }: Props) {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border/60 bg-card shadow-sm">
-            <div className="px-6 py-5 border-b border-border/40">
-              <h2 className="text-base font-semibold text-foreground">Verification Page</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Share this link with clients so they can verify your identity and learn how secure links work.</p>
-            </div>
-            <div className="p-6">
-              <div className="flex gap-2">
-                <Input
-                  readOnly
-                  value={verifyUrl}
-                  className="h-10 rounded-xl font-mono text-sm bg-muted/30"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-10 rounded-xl shrink-0"
-                  onClick={() => navigator.clipboard.writeText(verifyUrl)}
-                >
-                  Copy
-                </Button>
-                <Button asChild variant="outline" size="sm" className="h-10 rounded-xl shrink-0">
-                  <a href={verifyUrl} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="w-4 h-4" />
-                    Open
-                  </a>
-                </Button>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
@@ -776,4 +763,11 @@ export function SettingsForm({ user }: Props) {
       )}
     </div>
   );
+}
+
+function BrandingTabLoader({ onLoad, loaded }: { onLoad: () => void; loaded: boolean }) {
+  useEffect(() => {
+    if (!loaded) onLoad();
+  }, [loaded, onLoad]);
+  return null;
 }
