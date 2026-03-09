@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { CheckCircle2, Eye, EyeOff, X, Shield, Lock, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, X, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -157,9 +157,9 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
           </p>
           <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-5 text-sm text-gray-600 text-left space-y-3">
             {[
-              "Encrypted with AES-256 before storage",
-              "Delivered only to your authorized representative",
-              "Protected with bank-level security",
+              "Your data has been encrypted and securely delivered",
+              "Only your authorized representative can access it",
+              "This link is now inactive and cannot be reused",
             ].map((line) => (
               <div key={line} className="flex items-center gap-2.5">
                 <div className="w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
@@ -181,18 +181,19 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
       <main className="flex-1 px-3 sm:px-4 py-6 sm:py-10">
         <div className="max-w-md mx-auto animate-fade-in">
 
-          <div className="flex items-center justify-center gap-3 sm:gap-6 mb-4 sm:mb-6 flex-wrap">
-            <TrustIndicator icon={Shield} label="Bank-Level Security" />
-            <TrustIndicator icon={Lock} label="256-Bit Encryption" />
-            <TrustIndicator icon={ShieldCheck} label="Private & Secure" />
-          </div>
-
           <div className="rounded-2xl border border-blue-100 shadow-sm overflow-hidden">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-5 sm:px-6 py-4">
-              <h2 className="text-base sm:text-lg font-semibold text-white">{form.title}</h2>
-              {form.description && (
-                <p className="text-xs sm:text-sm text-blue-100 mt-1 leading-relaxed">{form.description}</p>
-              )}
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                  <Shield className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-semibold text-white">{form.title}</h2>
+                  {form.description && (
+                    <p className="text-xs sm:text-sm text-blue-100 mt-1 leading-relaxed">{form.description}</p>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="bg-white px-5 sm:px-6 py-5 sm:py-6">
@@ -234,7 +235,7 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
                 </Button>
 
                 <p className="text-xs text-gray-400 text-center leading-relaxed">
-                  This link is single-use and expires after submission. Your information is encrypted and not shared with third parties.
+                  Your information is delivered only to your authorized representative.
                 </p>
               </form>
             </div>
@@ -252,17 +253,6 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
           )}
         </div>
       </main>
-    </div>
-  );
-}
-
-function TrustIndicator({ icon: Icon, label }: { icon: React.ComponentType<{ className?: string }>; label: string }) {
-  return (
-    <div className="flex items-center gap-1.5 text-xs text-gray-500">
-      <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center shrink-0 ring-1 ring-blue-100">
-        <Icon className="w-3.5 h-3.5 text-blue-500" />
-      </div>
-      <span className="font-medium">{label}</span>
     </div>
   );
 }

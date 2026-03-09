@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   Lock, Shield, Clock, BadgeCheck, ChevronDown, X,
-  Phone, Building2, Mail,
+  Phone, Building2, Mail, FileText,
 } from "lucide-react";
 
 export interface AgentProfile {
@@ -26,20 +26,12 @@ interface Props {
   isViewOnce?: boolean;
 }
 
-const VERIFICATION = {
-  LICENSED: { label: "Licensed Professional", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  CERTIFIED: { label: "Certified Professional", cls: "bg-blue-50 text-blue-700 border-blue-200" },
-  REGULATED: { label: "Regulated Professional", cls: "bg-violet-50 text-violet-700 border-violet-200" },
-} as const;
-
 export function ClientTrustHeader({ logoUrls, agent, expiresAt, isViewOnce }: Props) {
   const [agentOpen, setAgentOpen] = useState(false);
 
   const expiresDate = new Date(expiresAt).toLocaleDateString("en-US", {
     month: "short", day: "numeric", year: "numeric",
   });
-
-  const verification = VERIFICATION[agent.verificationStatus as keyof typeof VERIFICATION];
 
   const initials = agent.displayName
     .split(" ")
@@ -48,9 +40,7 @@ export function ClientTrustHeader({ logoUrls, agent, expiresAt, isViewOnce }: Pr
     .slice(0, 2)
     .toUpperCase();
 
-  const companyLine = [agent.company ?? agent.agencyName, agent.industry]
-    .filter(Boolean)
-    .join(" · ");
+  const companyName = agent.company ?? agent.agencyName;
 
   return (
     <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-xl border-b border-blue-100 shadow-sm">
@@ -64,8 +54,7 @@ export function ClientTrustHeader({ logoUrls, agent, expiresAt, isViewOnce }: Pr
               <AgentCardDesktop
                 agent={agent}
                 initials={initials}
-                verification={verification}
-                companyLine={companyLine}
+                companyName={companyName}
               />
             </div>
           </div>
@@ -83,7 +72,7 @@ export function ClientTrustHeader({ logoUrls, agent, expiresAt, isViewOnce }: Pr
           aria-label="View sender details"
         >
           <Avatar initials={initials} photoUrl={agent.photoUrl} size="sm" />
-          {verification && <BadgeCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
+          {agent.licenseNumber && <BadgeCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
           <ChevronDown
             className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${agentOpen ? "rotate-180" : ""}`}
           />
@@ -95,8 +84,7 @@ export function ClientTrustHeader({ logoUrls, agent, expiresAt, isViewOnce }: Pr
           <AgentCardDrawer
             agent={agent}
             initials={initials}
-            verification={verification}
-            companyLine={companyLine}
+            companyName={companyName}
             onClose={() => setAgentOpen(false)}
           />
         </div>
@@ -104,9 +92,7 @@ export function ClientTrustHeader({ logoUrls, agent, expiresAt, isViewOnce }: Pr
 
       <div className="border-t border-blue-50 bg-gradient-to-r from-blue-50/60 via-slate-50/40 to-blue-50/60">
         <div className="max-w-screen-md mx-auto px-3 py-1.5 flex items-center justify-center gap-2 sm:gap-4 flex-wrap">
-          <TrustPill icon={Lock} label="AES-256" />
-          <Dot />
-          <TrustPill icon={Shield} label="Private" />
+          <TrustPill icon={Lock} label="Encrypted" />
           <Dot />
           <TrustPill icon={Clock} label={`Exp. ${expiresDate}`} />
           {isViewOnce && (
@@ -117,8 +103,8 @@ export function ClientTrustHeader({ logoUrls, agent, expiresAt, isViewOnce }: Pr
           )}
           {agent.destinationLabel && (
             <>
-              <Dot className="hidden sm:block" />
-              <span className="hidden sm:inline text-xs text-gray-400 whitespace-nowrap shrink-0">
+              <Dot />
+              <span className="text-[11px] text-gray-400 whitespace-nowrap shrink-0">
                 To:{" "}
                 <span className="text-gray-600 font-medium">{agent.destinationLabel}</span>
               </span>
@@ -191,41 +177,31 @@ function Avatar({ initials, photoUrl, size = "md" }: { initials: string; photoUr
 }
 
 function AgentCardDesktop({
-  agent, initials, verification, companyLine,
+  agent, initials, companyName,
 }: {
   agent: AgentProfile;
   initials: string;
-  verification: { label: string; cls: string } | undefined;
-  companyLine: string;
+  companyName: string | null;
 }) {
   return (
-    <div className="flex items-start gap-3 bg-blue-50/50 border border-blue-100 rounded-xl px-3 py-2.5 max-w-[260px]">
+    <div className="flex items-start gap-3 bg-blue-50/50 border border-blue-100 rounded-xl px-3 py-2.5 max-w-[280px]">
       <Avatar initials={initials} photoUrl={agent.photoUrl} />
       <div className="min-w-0 space-y-0.5">
         <p className="text-sm font-semibold text-gray-900 leading-tight truncate">
           {agent.displayName}
         </p>
 
-        {companyLine && (
+        {companyName && (
           <p className="text-xs text-gray-500 flex items-center gap-1 truncate">
             <Building2 className="w-3 h-3 text-gray-400 shrink-0" />
-            <span className="truncate">{companyLine}</span>
+            <span className="truncate">{companyName}</span>
           </p>
-        )}
-
-        {verification && (
-          <div className="pt-0.5">
-            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium border leading-none ${verification.cls}`}>
-              <BadgeCheck className="w-2.5 h-2.5" />
-              {verification.label}
-            </span>
-          </div>
         )}
 
         {agent.licenseNumber && (
           <p className="text-xs text-gray-500 flex items-center gap-1">
-            <span className="text-gray-400 font-bold text-[10px]">#</span>
-            License {agent.licenseNumber}
+            <FileText className="w-3 h-3 text-gray-400 shrink-0" />
+            <span>Lic. #{agent.licenseNumber}</span>
           </p>
         )}
 
@@ -238,28 +214,17 @@ function AgentCardDesktop({
             {agent.phone}
           </a>
         )}
-
-        {agent.email && (
-          <a
-            href={`mailto:${agent.email}`}
-            className="text-xs text-gray-500 flex items-center gap-1 hover:text-blue-600 transition-colors truncate max-w-full"
-          >
-            <Mail className="w-3 h-3 text-gray-400 shrink-0" />
-            <span className="truncate">{agent.email}</span>
-          </a>
-        )}
       </div>
     </div>
   );
 }
 
 function AgentCardDrawer({
-  agent, initials, verification, companyLine, onClose,
+  agent, initials, companyName, onClose,
 }: {
   agent: AgentProfile;
   initials: string;
-  verification: { label: string; cls: string } | undefined;
-  companyLine: string;
+  companyName: string | null;
   onClose: () => void;
 }) {
   return (
@@ -269,10 +234,10 @@ function AgentCardDrawer({
           <Avatar initials={initials} photoUrl={agent.photoUrl} size="lg" />
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-900 leading-tight">{agent.displayName}</p>
-            {companyLine && (
+            {companyName && (
               <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5 truncate">
                 <Building2 className="w-3 h-3 text-gray-400 shrink-0" />
-                <span className="truncate">{companyLine}</span>
+                <span className="truncate">{companyName}</span>
               </p>
             )}
           </div>
@@ -286,19 +251,15 @@ function AgentCardDrawer({
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
-        {verification && (
-          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${verification.cls}`}>
-            <BadgeCheck className="w-3.5 h-3.5" />
-            {verification.label}
-          </span>
-        )}
-        {agent.licenseNumber && (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-600 border border-gray-200">
-            # License {agent.licenseNumber}
-          </span>
-        )}
-      </div>
+      {agent.licenseNumber && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200">
+          <BadgeCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+          <div>
+            <p className="text-xs font-medium text-emerald-700">Licensed Professional</p>
+            <p className="text-xs text-emerald-600">License #{agent.licenseNumber}</p>
+          </div>
+        </div>
+      )}
 
       {(agent.phone || agent.email) && (
         <div className="flex flex-col gap-2 pt-1 border-t border-gray-100">

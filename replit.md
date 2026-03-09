@@ -61,7 +61,7 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 - No emojis anywhere in UI — uses Lucide icons exclusively
 - Custom animation keyframes: fade-in, slide-up, scale-in
 - Sidebar: white background with `--sidebar-*` CSS variables
-- Client-facing forms: clean white cards, trust indicators row, professional section headers, agent photo display
+- Client-facing forms: clean white cards, professional section headers, agent photo display
 
 ## Branding
 
@@ -78,7 +78,9 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 - Consent text uses formal authorization language
 - Success state: "Submitted Securely" with encryption confirmation
 - Full Intake form organized with section dividers (Personal Information, Beneficiary Details, Banking Information)
-- Trust indicators centered: "Bank-Level Security", "256-Bit Encryption", "Private & Secure"
+- Trust messaging centralized in `client-trust-header.tsx` (Encrypted pill, expiry, single-use badge)
+- No redundant trust indicator rows on form pages — header handles all security messaging
+- Success state bullets: outcome-focused ("securely delivered", "only your representative can access it", "link is now inactive")
 
 ## Agent Profile Photo
 
