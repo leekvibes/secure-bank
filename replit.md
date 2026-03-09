@@ -157,6 +157,17 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 - No consent checkbox on any form type
 - No data retention/auto-delete UI — data is only deleted manually by the agent
 
+## Settings Page
+
+- Tabbed interface with 4 tabs: **Profile**, **Branding**, **Client Experience**, **Trust & Security**
+- Tab style matches Secure Links page (underline tabs with blue active state)
+- **Profile tab**: Display name, phone, agency, company, industry, license #, licensed states
+- **Branding tab**: Logo upload, profile photo upload, live preview of client-facing header
+- **Client Experience tab**: Destination label, carriers, trust message (textarea), notification email, verification page URL
+- **Trust & Security tab**: Verification status (dropdown), data retention (button selector: 30/60/90 days or manual), default link expiration (button selector: 1h–7 days)
+- All fields from the onboarding flow are also present in settings so users can update anything later
+- Single "Save Changes" button per tab, shared form state, immediate upload for images
+
 ## Signup & Onboarding
 
 - **Sign-up form** (`/auth?mode=signup`): 4 fields only — Full Name, Work Email, Password, Confirm Password

@@ -32,17 +32,19 @@ export default async function SettingsPage() {
       notificationEmail: true,
       verificationStatus: true,
       dataRetentionDays: true,
+      trustMessage: true,
+      defaultExpirationHours: true,
     },
   });
 
   if (!user) redirect("/auth");
 
   return (
-    <div className="max-w-2xl space-y-8 animate-fade-in">
+    <div className="max-w-2xl space-y-6 animate-fade-in">
       <div>
         <h1 className="ui-page-title">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Manage your agent profile, branding, and compliance settings.
+          Manage your profile, branding, and security settings.
         </p>
       </div>
       <SettingsForm user={user} />
