@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/api-response";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Cleanup cron endpoint.
  *
