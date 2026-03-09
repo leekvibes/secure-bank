@@ -33,7 +33,7 @@ export default async function SubmissionPage({ params }: Props) {
   // Fetch audit logs for this link
   const auditLogs = await db.auditLog.findMany({
     where: { linkId: submission.linkId },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: "asc" },
     take: 20,
   });
 

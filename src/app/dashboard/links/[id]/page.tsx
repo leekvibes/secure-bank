@@ -6,8 +6,8 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, CreditCard, Shield, ClipboardList, Camera, ImageIcon,
-  Clock, Send, Eye, Building2, Calendar,
-  Download, Lock, Info, History, FileText, Zap,
+  Clock, Send, Eye, Building2, Calendar, Hash,
+  Download, Lock, FileText, Mail, Phone, User,
 } from "lucide-react";
 import { cn, LINK_TYPES, formatDate, isExpired, type LinkType } from "@/lib/utils";
 import { RequestActions } from "@/components/request-actions";
@@ -31,22 +31,22 @@ function getDisplayStatus(link: {
   return "DRAFT";
 }
 
-const STATUS_CONFIG: Record<DisplayStatus, { label: string; dot: string; badge: string }> = {
-  DRAFT:     { label: "Draft",     dot: "bg-muted-foreground/50", badge: "bg-muted/60 text-muted-foreground ring-border/50" },
-  SENT:      { label: "Sent",      dot: "bg-primary animate-pulse",             badge: "bg-primary/10 text-primary ring-primary/25" },
-  OPENED:    { label: "Opened",    dot: "bg-amber-500 animate-pulse",           badge: "bg-amber-500/10 text-amber-600 ring-amber-500/25" },
-  SUBMITTED: { label: "Submitted", dot: "bg-emerald-500",         badge: "bg-emerald-500/10 text-emerald-600 ring-emerald-500/25" },
-  EXPIRED:   { label: "Expired",   dot: "bg-red-400",             badge: "bg-red-500/10 text-red-500 ring-red-500/25" },
+const STATUS_CONFIG: Record<DisplayStatus, { label: string; dot: string; bg: string; text: string }> = {
+  DRAFT:     { label: "Draft",     dot: "bg-slate-400",     bg: "bg-slate-500/10",    text: "text-slate-500" },
+  SENT:      { label: "Sent",      dot: "bg-primary animate-pulse", bg: "bg-primary/10", text: "text-primary" },
+  OPENED:    { label: "Opened",    dot: "bg-amber-500 animate-pulse", bg: "bg-amber-500/10", text: "text-amber-600" },
+  SUBMITTED: { label: "Submitted", dot: "bg-emerald-500",   bg: "bg-emerald-500/10",  text: "text-emerald-600" },
+  EXPIRED:   { label: "Expired",   dot: "bg-red-400",       bg: "bg-red-500/10",      text: "text-red-500" },
 };
 
 const TYPE_META: Record<string, {
   icon: React.ComponentType<{ className?: string }>;
-  bg: string; iconColor: string; border: string; gradient: string;
+  iconColor: string; gradient: string; iconBg: string; iconRing: string;
 }> = {
-  BANKING_INFO: { icon: CreditCard,    bg: "bg-blue-500/10",    iconColor: "text-blue-500",    border: "border-blue-500/20",    gradient: "from-blue-500/5 via-primary/5 to-transparent" },
-  SSN_ONLY:     { icon: Shield,        bg: "bg-violet-500/10",  iconColor: "text-violet-500",  border: "border-violet-500/20",  gradient: "from-violet-500/5 via-primary/5 to-transparent" },
-  FULL_INTAKE:  { icon: ClipboardList, bg: "bg-emerald-500/10", iconColor: "text-emerald-500", border: "border-emerald-500/20", gradient: "from-emerald-500/5 via-primary/5 to-transparent" },
-  ID_UPLOAD:    { icon: Camera,        bg: "bg-orange-500/10",  iconColor: "text-orange-500",  border: "border-orange-500/20",  gradient: "from-orange-500/5 via-primary/5 to-transparent" },
+  BANKING_INFO: { icon: CreditCard,    iconColor: "text-blue-500",    gradient: "from-blue-500/8 via-blue-500/3 to-transparent",    iconBg: "bg-blue-500/10",    iconRing: "ring-blue-500/20" },
+  SSN_ONLY:     { icon: Shield,        iconColor: "text-violet-500",  gradient: "from-violet-500/8 via-violet-500/3 to-transparent",  iconBg: "bg-violet-500/10",  iconRing: "ring-violet-500/20" },
+  FULL_INTAKE:  { icon: ClipboardList, iconColor: "text-emerald-500", gradient: "from-emerald-500/8 via-emerald-500/3 to-transparent", iconBg: "bg-emerald-500/10", iconRing: "ring-emerald-500/20" },
+  ID_UPLOAD:    { icon: Camera,        iconColor: "text-orange-500",  gradient: "from-orange-500/8 via-orange-500/3 to-transparent",  iconBg: "bg-orange-500/10",  iconRing: "ring-orange-500/20" },
 };
 
 export default async function LinkDetailPage({ params }: { params: { id: string } }) {
@@ -87,64 +87,51 @@ export default async function LinkDetailPage({ params }: { params: { id: string 
   const timeline = buildRequestTimeline(auditLogs, link.sends);
 
   return (
-    <div className="space-y-6 max-w-[1080px]">
+    <div className="max-w-[1100px] animate-fade-in">
 
       <Link
         href="/dashboard/links"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors group"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6 group"
       >
         <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
-        Requests
+        Back to Secure Links
       </Link>
 
-      <div className={cn(
-        "bg-card rounded-xl border border-border/60 shadow-sm overflow-hidden"
-      )}>
-        <div className={cn("bg-gradient-to-r p-6", typeMeta.gradient)}>
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-
-            <div className="flex items-start gap-4">
-              <div className={cn(
-                "w-14 h-14 rounded-xl flex items-center justify-center shrink-0 border ring-2 ring-offset-2 ring-offset-card",
-                typeMeta.bg, typeMeta.border,
-                typeMeta.border.replace("border-", "ring-")
-              )}>
-                <TypeIcon className={cn("w-7 h-7", typeMeta.iconColor)} />
-              </div>
-              <div>
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <h1 className="text-xl font-bold text-foreground leading-tight">
-                    {link.clientName ?? <span className="text-muted-foreground font-normal italic">No name</span>}
-                  </h1>
-                  <span className={cn(
-                    "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ring-1 shadow-sm",
-                    statusCfg.badge
-                  )}>
-                    <span className={cn("w-2 h-2 rounded-full", statusCfg.dot)} />
-                    {statusCfg.label}
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20">
-                    <Lock className="w-3 h-3" />
-                    Encrypted
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground mt-1 font-medium">{typeLabel}</p>
-                {link.clientEmail && (
-                  <p className="text-xs text-muted-foreground/70 mt-0.5">{link.clientEmail}</p>
-                )}
-                {link.clientPhone && (
-                  <p className="text-xs text-muted-foreground/70">{link.clientPhone}</p>
-                )}
+      <div className="rounded-2xl border border-border/50 bg-card shadow-lg shadow-black/[0.03] overflow-hidden mb-6">
+        <div className={cn("bg-gradient-to-br px-8 py-7", typeMeta.gradient)}>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+            <div className={cn(
+              "w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 ring-2",
+              typeMeta.iconBg, typeMeta.iconRing
+            )}>
+              <TypeIcon className={cn("w-8 h-8", typeMeta.iconColor)} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl font-bold text-foreground tracking-tight">
+                {link.clientName ?? <span className="text-muted-foreground/60 font-normal">Unnamed Client</span>}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-0.5">{typeLabel}</p>
+              <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                <span className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold",
+                  statusCfg.bg, statusCfg.text
+                )}>
+                  <span className={cn("w-1.5 h-1.5 rounded-full", statusCfg.dot)} />
+                  {statusCfg.label}
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-emerald-500/8 text-emerald-600">
+                  <Lock className="w-2.5 h-2.5" />
+                  End-to-End Encrypted
+                </span>
               </div>
             </div>
-
             {link.assets.length > 0 && (
               <div className="flex items-center gap-2 shrink-0">
                 {link.assets.slice(0, 3).map(({ asset }) => (
                   <div
                     key={asset.id}
                     title={asset.name ?? asset.type}
-                    className="w-10 h-10 rounded-xl border border-border/60 bg-secondary/80 overflow-hidden flex items-center justify-center shrink-0 ring-1 ring-border/20"
+                    className="w-11 h-11 rounded-xl border border-border/40 bg-card overflow-hidden flex items-center justify-center shrink-0 shadow-sm"
                   >
                     {asset.url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -155,7 +142,7 @@ export default async function LinkDetailPage({ params }: { params: { id: string 
                   </div>
                 ))}
                 {link.assets.length > 3 && (
-                  <div className="w-10 h-10 rounded-xl border border-border/60 bg-secondary/80 flex items-center justify-center text-xs font-semibold text-muted-foreground ring-1 ring-border/20">
+                  <div className="w-11 h-11 rounded-xl border border-border/40 bg-card flex items-center justify-center text-xs font-semibold text-muted-foreground shadow-sm">
                     +{link.assets.length - 3}
                   </div>
                 )}
@@ -164,60 +151,146 @@ export default async function LinkDetailPage({ params }: { params: { id: string 
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3 px-6 py-4 border-t border-border/40 bg-muted/20">
-          <MetaPill icon={Calendar} label={`Created ${formatDate(link.createdAt)}`} />
-          <MetaPill
+        <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-border/40 border-t border-border/40 bg-muted/20">
+          <StatCell icon={Calendar} label="Created" value={formatDate(link.createdAt)} />
+          <StatCell
             icon={Clock}
-            label={`${expired ? "Expired" : "Expires"} ${formatDate(link.expiresAt)}`}
+            label={expired ? "Expired" : "Expires"}
+            value={formatDate(link.expiresAt)}
             danger={expired && displayStatus !== "SUBMITTED"}
           />
-          {(link.destinationLabel || link.destination) && (
-            <MetaPill icon={Building2} label={link.destinationLabel ?? link.destination!} />
-          )}
+          <StatCell icon={Building2} label="Destination" value={link.destinationLabel ?? link.destination ?? "Not set"} />
+          <StatCell icon={Send} label="Sends" value={String(link.sends.length)} />
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_300px] gap-6 items-start">
+      <div className="grid lg:grid-cols-[1fr_320px] gap-6 items-start">
 
-        <div className="space-y-5">
+        <div className="space-y-6">
 
-          <div className="bg-card rounded-xl border border-border/60 shadow-sm overflow-hidden">
-            <div className="px-6 pt-5 pb-4 bg-gradient-to-r from-muted/40 via-muted/20 to-transparent border-b border-border/40">
-              <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                <Zap className="w-3.5 h-3.5" />
+          {(link.submission || link.idUpload) && (
+            <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
+              <div className="px-6 py-5 bg-gradient-to-r from-primary/5 to-transparent border-b border-border/40">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-foreground flex items-center gap-2.5">
+                    {link.idUpload ? (
+                      <><Camera className="w-4 h-4 text-orange-500" /> ID Upload</>
+                    ) : (
+                      <><FileText className="w-4 h-4 text-primary" /> Submitted Data</>
+                    )}
+                  </h2>
+                  {link.submission && (
+                    <div className="flex gap-1.5">
+                      <a
+                        href={`/api/submissions/${link.submission.id}/export?format=json`}
+                        download
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                      >
+                        <Download className="w-3 h-3" />
+                        JSON
+                      </a>
+                      <a
+                        href={`/api/submissions/${link.submission.id}/export?format=text`}
+                        download
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                      >
+                        <Download className="w-3 h-3" />
+                        TXT
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-6">
+                <div className="grid grid-cols-2 gap-4 mb-5">
+                  {link.submission && (
+                    <>
+                      <MiniStat label="Submitted" value={formatDate(link.submission.createdAt)} />
+                      <MiniStat label="Reveal Count" value={String(link.submission.revealCount)} />
+                      <MiniStat
+                        label="Last Revealed"
+                        value={link.submission.revealedAt ? formatDate(link.submission.revealedAt) : "Never"}
+                      />
+                    </>
+                  )}
+                  {link.idUpload && (
+                    <>
+                      <MiniStat label="View Count" value={String(link.idUpload.viewCount)} />
+                      <MiniStat
+                        label="Last Viewed"
+                        value={link.idUpload.viewedAt ? formatDate(link.idUpload.viewedAt) : "Never"}
+                      />
+                    </>
+                  )}
+                </div>
+
+                {link.submission && (
+                  <Link
+                    href={`/dashboard/submissions/${link.submission.id}`}
+                    className="flex items-center justify-center gap-2.5 w-full px-4 py-3 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm hover:shadow-md"
+                  >
+                    <Eye className="w-4 h-4" />
+                    Reveal Encrypted Data
+                  </Link>
+                )}
+                {link.idUpload && (
+                  <Link
+                    href={`/dashboard/uploads/${link.idUpload.id}`}
+                    className="flex items-center justify-center gap-2.5 w-full px-4 py-3 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm hover:shadow-md"
+                  >
+                    <Eye className="w-4 h-4" />
+                    View ID Upload
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
+            <div className="px-6 py-5 bg-gradient-to-r from-muted/30 to-transparent border-b border-border/40">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2.5">
+                <Clock className="w-4 h-4 text-muted-foreground" />
                 Activity Timeline
+                <span className="ml-auto text-[11px] font-medium text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full">
+                  {timeline.length} event{timeline.length !== 1 ? "s" : ""}
+                </span>
               </h2>
             </div>
-
             <div className="p-6">
               {timeline.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No activity recorded yet.</p>
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 rounded-2xl bg-muted/40 flex items-center justify-center mx-auto mb-3">
+                    <Clock className="w-5 h-5 text-muted-foreground/50" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">No activity recorded yet</p>
+                </div>
               ) : (
-                <div>
+                <div className="space-y-0">
                   {timeline.map((event, i) => {
                     const EventIcon = event.icon;
                     return (
                       <div key={event.id} className="flex gap-4">
                         <div className="flex flex-col items-center">
                           <div className={cn(
-                            "w-9 h-9 rounded-full flex items-center justify-center shrink-0 z-10 ring-2 ring-offset-2 ring-offset-card",
+                            "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 z-10 ring-1 ring-offset-2 ring-offset-card",
                             event.iconBg,
                             event.iconBg.replace("bg-", "ring-").replace("/100", "/30").replace("/10", "/20")
                           )}>
                             <EventIcon className={cn("w-4 h-4", event.iconColor)} />
                           </div>
                           {i < timeline.length - 1 && (
-                            <div className="w-px flex-1 min-h-[24px] bg-gradient-to-b from-border via-border/60 to-border/30 my-1" />
+                            <div className="w-px flex-1 min-h-[24px] bg-gradient-to-b from-border to-border/20 my-1.5" />
                           )}
                         </div>
-                        <div className={cn("min-w-0", i < timeline.length - 1 ? "pb-6" : "pb-0")}>
-                          <p className="text-sm font-semibold text-foreground mt-2 leading-none">
+                        <div className={cn("min-w-0 flex-1", i < timeline.length - 1 ? "pb-6" : "pb-0")}>
+                          <p className="text-sm font-medium text-foreground mt-2 leading-none">
                             {event.label}
                           </p>
                           {event.sublabel && (
-                            <p className="text-xs text-muted-foreground mt-1.5">{event.sublabel}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{event.sublabel}</p>
                           )}
-                          <p className="text-[11px] text-muted-foreground/60 mt-1 tabular-nums font-medium">
+                          <p className="text-[11px] text-muted-foreground/60 mt-1 tabular-nums">
                             {formatDate(event.time)}
                           </p>
                         </div>
@@ -228,90 +301,6 @@ export default async function LinkDetailPage({ params }: { params: { id: string 
               )}
             </div>
           </div>
-
-          {(link.submission || link.idUpload) && (
-            <div className="bg-card rounded-xl border border-border/60 shadow-sm overflow-hidden">
-              <div className="px-6 pt-5 pb-4 bg-gradient-to-r from-primary/5 via-primary/3 to-transparent border-b border-border/40">
-                <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                  {link.idUpload ? (
-                    <>
-                      <Camera className="w-3.5 h-3.5" />
-                      ID Upload
-                    </>
-                  ) : (
-                    <>
-                      <FileText className="w-3.5 h-3.5" />
-                      Submitted Data
-                    </>
-                  )}
-                </h2>
-              </div>
-
-              <div className="p-6">
-                <dl className="space-y-3 text-sm mb-5">
-                  {link.submission && (
-                    <>
-                      <Row label="Submitted" value={formatDate(link.submission.createdAt)} />
-                      <Row label="Reveal count" value={String(link.submission.revealCount)} />
-                      <Row
-                        label="Last revealed"
-                        value={link.submission.revealedAt ? formatDate(link.submission.revealedAt) : "Never"}
-                      />
-                    </>
-                  )}
-                  {link.idUpload && (
-                    <>
-                      <Row label="View count" value={String(link.idUpload.viewCount)} />
-                      <Row
-                        label="Last viewed"
-                        value={link.idUpload.viewedAt ? formatDate(link.idUpload.viewedAt) : "Never"}
-                      />
-                    </>
-                  )}
-                </dl>
-
-                {link.submission && (
-                  <Link
-                    href={`/dashboard/submissions/${link.submission.id}`}
-                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm hover:shadow-md"
-                  >
-                    <Eye className="w-4 h-4" />
-                    Reveal encrypted data
-                  </Link>
-                )}
-                {link.idUpload && (
-                  <Link
-                    href={`/dashboard/uploads/${link.idUpload.id}`}
-                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm hover:shadow-md"
-                  >
-                    <Eye className="w-4 h-4" />
-                    View ID upload
-                  </Link>
-                )}
-
-                {link.submission && (
-                  <div className="flex gap-2 mt-3">
-                    <a
-                      href={`/api/submissions/${link.submission.id}/export?format=json`}
-                      download
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-border/60 text-muted-foreground text-xs font-semibold hover:bg-secondary/80 transition-all ring-1 ring-transparent hover:ring-border/40"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      Export JSON
-                    </a>
-                    <a
-                      href={`/api/submissions/${link.submission.id}/export?format=text`}
-                      download
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-border/60 text-muted-foreground text-xs font-semibold hover:bg-secondary/80 transition-all ring-1 ring-transparent hover:ring-border/40"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      Export TXT
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="space-y-5 lg:sticky lg:top-6">
@@ -328,61 +317,56 @@ export default async function LinkDetailPage({ params }: { params: { id: string 
             idUploadId={link.idUpload?.id ?? null}
           />
 
-          <div className="bg-card rounded-xl border border-border/60 shadow-sm overflow-hidden">
-            <div className="px-5 pt-4 pb-3 bg-gradient-to-r from-muted/40 via-muted/20 to-transparent border-b border-border/40">
-              <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                <Info className="w-3.5 h-3.5" />
-                Request Details
+          <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
+            <div className="px-5 py-4 bg-gradient-to-r from-muted/30 to-transparent border-b border-border/40">
+              <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
+                <User className="w-3.5 h-3.5 text-muted-foreground" />
+                Client Details
               </h3>
             </div>
-            <div className="p-5">
-              <dl className="space-y-3">
-                {([
-                  ["Type",        typeLabel],
-                  ["Status",      statusCfg.label],
-                  ["Client",      link.clientName ?? "—"],
-                  ["Phone",       link.clientPhone ?? "—"],
-                  ["Email",       link.clientEmail ?? "—"],
-                  ["Destination", link.destinationLabel ?? link.destination ?? "—"],
-                  ["Sends",       String(link.sends.length)],
-                ] as [string, string][]).map(([label, value]) => (
-                  <div key={label} className="flex justify-between gap-2 text-sm">
-                    <dt className="text-muted-foreground/80 shrink-0 text-xs font-medium uppercase tracking-wide">{label}</dt>
-                    <dd className="text-foreground font-semibold text-right truncate text-sm">{value}</dd>
-                  </div>
-                ))}
-              </dl>
+            <div className="p-5 space-y-3.5">
+              <DetailRow icon={User} label="Name" value={link.clientName ?? "Not provided"} />
+              <DetailRow icon={Mail} label="Email" value={link.clientEmail ?? "Not provided"} />
+              <DetailRow icon={Phone} label="Phone" value={link.clientPhone ?? "Not provided"} />
+              <DetailRow icon={Building2} label="Destination" value={link.destinationLabel ?? link.destination ?? "Not set"} />
+              <DetailRow icon={Hash} label="Link Type" value={typeLabel} />
             </div>
           </div>
 
-          <div className="bg-card rounded-xl border border-border/60 shadow-sm overflow-hidden">
-            <div className="px-5 pt-4 pb-3 bg-gradient-to-r from-blue-500/5 via-muted/20 to-transparent border-b border-border/40">
-              <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                <History className="w-3.5 h-3.5" />
+          <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
+            <div className="px-5 py-4 bg-gradient-to-r from-blue-500/5 to-transparent border-b border-border/40">
+              <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
+                <Send className="w-3.5 h-3.5 text-blue-500" />
                 Send History
-                <span className="ml-auto inline-flex items-center justify-center w-5 h-5 rounded-full bg-muted text-[10px] font-bold text-muted-foreground ring-1 ring-border/40">
-                  {link.sends.length}
-                </span>
+                {link.sends.length > 0 && (
+                  <span className="ml-auto text-[10px] font-bold text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full">
+                    {link.sends.length}
+                  </span>
+                )}
               </h3>
             </div>
             <div className="p-5">
               {link.sends.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No sends recorded yet.</p>
+                <p className="text-sm text-muted-foreground text-center py-4">No sends recorded yet</p>
               ) : (
                 <div className="space-y-3">
                   {[...link.sends].reverse().map((send) => (
-                    <div key={send.id} className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5 ring-2 ring-blue-500/20 ring-offset-1 ring-offset-card">
-                        <Send className="w-3.5 h-3.5 text-blue-500" />
+                    <div key={send.id} className="flex items-start gap-3 p-3 rounded-xl bg-muted/20 border border-border/30">
+                      <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                        {send.method === "EMAIL" ? (
+                          <Mail className="w-3.5 h-3.5 text-blue-500" />
+                        ) : (
+                          <Send className="w-3.5 h-3.5 text-blue-500" />
+                        )}
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-foreground">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground">
                           {send.method === "EMAIL" ? "Email" : send.method === "SMS" ? "SMS" : "Link copied"}
                         </p>
                         {send.recipient !== "clipboard" && (
                           <p className="text-xs text-muted-foreground truncate">{send.recipient}</p>
                         )}
-                        <p className="text-[11px] text-muted-foreground/60 tabular-nums font-medium">
+                        <p className="text-[11px] text-muted-foreground/60 tabular-nums mt-0.5">
                           {formatDate(send.createdAt)}
                         </p>
                       </div>
@@ -398,33 +382,55 @@ export default async function LinkDetailPage({ params }: { params: { id: string 
   );
 }
 
-function MetaPill({
+function StatCell({
   icon: Icon,
   label,
+  value,
   danger = false,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
+  value: string;
   danger?: boolean;
 }) {
   return (
-    <div className={cn(
-      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ring-1",
-      danger
-        ? "text-red-500 bg-red-500/5 ring-red-500/20"
-        : "text-muted-foreground bg-muted/40 ring-border/40"
-    )}>
-      <Icon className="w-3.5 h-3.5 shrink-0" />
-      <span>{label}</span>
+    <div className="px-5 py-4">
+      <div className="flex items-center gap-1.5 mb-1">
+        <Icon className={cn("w-3 h-3", danger ? "text-red-500" : "text-muted-foreground/60")} />
+        <span className={cn("text-[11px] font-medium uppercase tracking-wider", danger ? "text-red-500" : "text-muted-foreground/60")}>{label}</span>
+      </div>
+      <p className={cn("text-sm font-semibold truncate", danger ? "text-red-500" : "text-foreground")}>{value}</p>
     </div>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-2">
-      <dt className="text-muted-foreground/80 shrink-0 text-xs font-medium uppercase tracking-wide">{label}</dt>
-      <dd className="text-foreground font-semibold text-right tabular-nums text-sm">{value}</dd>
+    <div className="rounded-xl bg-muted/25 border border-border/30 px-4 py-3">
+      <p className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wider mb-0.5">{label}</p>
+      <p className="text-sm font-semibold text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function DetailRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-7 h-7 rounded-lg bg-muted/40 flex items-center justify-center shrink-0">
+        <Icon className="w-3.5 h-3.5 text-muted-foreground/60" />
+      </div>
+      <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+        <span className="text-xs text-muted-foreground shrink-0">{label}</span>
+        <span className="text-sm font-medium text-foreground text-right truncate">{value}</span>
+      </div>
     </div>
   );
 }
