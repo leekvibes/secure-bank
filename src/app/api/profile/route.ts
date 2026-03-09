@@ -23,7 +23,7 @@ export async function PATCH(req: NextRequest) {
     await db.user.update({
       where: { id: session.user.id },
       data: {
-        displayName: d.displayName,
+        displayName: d.displayName ?? undefined,
         agencyName: d.agencyName ?? null,
         company: d.company ?? null,
         phone: d.phone ?? null,
@@ -35,6 +35,8 @@ export async function PATCH(req: NextRequest) {
         notificationEmail: d.notificationEmail || null,
         verificationStatus: d.verificationStatus ?? undefined,
         dataRetentionDays: d.dataRetentionDays ?? undefined,
+        trustMessage: d.trustMessage !== undefined ? (d.trustMessage || null) : undefined,
+        defaultExpirationHours: d.defaultExpirationHours ?? undefined,
       },
     });
 

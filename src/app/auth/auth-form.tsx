@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Lock, Shield, ArrowRight } from "lucide-react";
+import { Lock, Shield, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ export function AuthForm() {
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSignIn(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -51,13 +52,20 @@ export function AuthForm() {
     setError(null);
     try {
       const form = new FormData(e.currentTarget);
+      const password = form.get("password") as string;
+      const confirmPassword = form.get("confirmPassword") as string;
+
+      if (password !== confirmPassword) {
+        setError("Passwords do not match.");
+        setLoading(false);
+        return;
+      }
+
       const body = {
         email: form.get("email"),
-        password: form.get("password"),
+        password,
+        confirmPassword,
         displayName: form.get("displayName"),
-        agencyName: form.get("agencyName"),
-        industry: form.get("industry") || undefined,
-        destinationLabel: form.get("destinationLabel") || undefined,
       };
 
       const res = await fetch("/api/register", {
@@ -86,7 +94,7 @@ export function AuthForm() {
         setError(loginData.error ?? "Account created, but sign-in failed. Please sign in manually.");
         return;
       }
-      window.location.href = "/dashboard";
+      window.location.href = "/onboarding";
     } catch {
       setError("Registration failed. Please try again.");
     } finally {
@@ -114,8 +122,8 @@ export function AuthForm() {
             </CardTitle>
             <CardDescription>
               {mode === "signin"
-                ? "Sign in to your agent dashboard"
-                : "Start sending secure links to clients"}
+                ? "Sign in to your dashboard"
+                : "Get started in under a minute"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -135,7 +143,7 @@ export function AuthForm() {
                     type="email"
                     required
                     autoComplete="email"
-                    placeholder="you@agency.com"
+                    placeholder="you@company.com"
                   />
                 </div>
                 <div className="space-y-2">
@@ -174,67 +182,57 @@ export function AuthForm() {
             ) : (
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="displayName">Your name</Label>
+                  <Label htmlFor="displayName">Full name</Label>
                   <Input
                     id="displayName"
                     name="displayName"
                     required
                     placeholder="Alex Rivera"
+                    autoComplete="name"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="agencyName">
-                    Agency name{" "}
-                    <span className="text-muted-foreground font-normal">(optional)</span>
-                  </Label>
-                  <Input
-                    id="agencyName"
-                    name="agencyName"
-                    placeholder="Rivera Financial Group"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="industry">
-                    Industry{" "}
-                    <span className="text-muted-foreground font-normal">(optional)</span>
-                  </Label>
-                  <Input
-                    id="industry"
-                    name="industry"
-                    placeholder="Life Insurance, Health Insurance, Medicare..."
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="destinationLabel">
-                    Where will client info be submitted?{" "}
-                    <span className="text-muted-foreground font-normal">(optional)</span>
-                  </Label>
-                  <Input
-                    id="destinationLabel"
-                    name="destinationLabel"
-                    placeholder="e.g. Mutual of Omaha, Aetna, Americo"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">Work email</Label>
                   <Input
                     id="email"
                     name="email"
                     type="email"
                     required
                     autoComplete="email"
-                    placeholder="you@agency.com"
+                    placeholder="you@company.com"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      autoComplete="new-password"
+                      placeholder="At least 8 characters"
+                      minLength={8}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm password</Label>
                   <Input
-                    id="password"
-                    name="password"
-                    type="password"
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type={showPassword ? "text" : "password"}
                     required
                     autoComplete="new-password"
-                    placeholder="At least 8 characters"
+                    placeholder="Re-enter your password"
                     minLength={8}
                   />
                 </div>

@@ -13,10 +13,11 @@ import {
 export const signUpSchema = z.object({
   email: z.string().email("Valid email required"),
   password: z.string().min(8, "Password must be at least 8 characters").max(128),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
   displayName: z.string().min(2, "Name required").max(80),
-  agencyName: z.string().max(120).optional(),
-  industry: z.string().max(120).optional(),
-  destinationLabel: z.string().max(200).optional(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
 });
 export type SignUpInput = z.infer<typeof signUpSchema>;
 
@@ -166,7 +167,7 @@ export type FullIntakeInput = z.infer<typeof fullIntakeSchema>;
 // ── Profile update ────────────────────────────────────────────────────────────
 
 export const updateProfileSchema = z.object({
-  displayName: z.string().min(2).max(80),
+  displayName: z.string().min(2).max(80).optional(),
   agencyName: z.string().max(120).optional(),
   company: z.string().max(120).optional(),
   phone: z.string().max(30).optional().refine((v) => isValidPhoneNumber(v ?? ""), "Invalid phone number"),
@@ -180,6 +181,8 @@ export const updateProfileSchema = z.object({
   // Compliance / trust
   verificationStatus: z.enum(["UNVERIFIED", "LICENSED", "CERTIFIED", "REGULATED"]).optional(),
   dataRetentionDays: z.number().int().refine((v) => [30, 60, 90, -1].includes(v)).optional(),
+  trustMessage: z.string().max(2000).optional(),
+  defaultExpirationHours: z.number().int().min(1).max(168).optional(),
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 

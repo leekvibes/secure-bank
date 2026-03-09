@@ -157,10 +157,20 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 - No consent checkbox on any form type
 - No data retention/auto-delete UI — data is only deleted manually by the agent
 
-## Signup Onboarding
+## Signup & Onboarding
 
-- Signup form asks: Full Name, Agency Name (optional), Industry (optional), Where client info is submitted (optional), Email, Password
-- Industry and destinationLabel stored on User model and pre-populate link creation defaults
+- **Sign-up form** (`/auth?mode=signup`): 4 fields only — Full Name, Work Email, Password, Confirm Password
+- After sign-up, users are redirected to `/onboarding` (multi-step wizard)
+- **Onboarding steps** (all skippable except final):
+  1. Profile Setup (`/onboarding/profile`): Company/Agency, Industry, Phone, Support Email, License/ID
+  2. Trust Settings (`/onboarding/trust`): Destination label, Retention policy, Default expiration, Trust message
+  3. Branding (`/onboarding/branding`): Logo upload, Profile photo upload, Live preview of client view
+  4. First Request (`/onboarding/first-request`): Choose type, Client info, Destination — creates a real link
+  5. Success (`/onboarding/success`): Shows link actions (copy, message), "Go to Dashboard" completes onboarding
+- `onboardingCompleted` flag on User model — `false` for new users, `true` for existing
+- Dashboard layout redirects to `/onboarding` if `onboardingCompleted` is false
+- Onboarding layout redirects to `/dashboard` if `onboardingCompleted` is already true
+- User model also has: `trustMessage` (String?), `defaultExpirationHours` (Int, default 24)
 
 ## Setup & Portability
 

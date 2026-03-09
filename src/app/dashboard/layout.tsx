@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { redirect } from "next/navigation";
+import { db } from "@/lib/db";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 
 export const metadata: Metadata = {
@@ -18,6 +19,15 @@ export default async function DashboardLayout({
 }) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/auth");
+
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { onboardingCompleted: true },
+  });
+
+  if (user && !user.onboardingCompleted) {
+    redirect("/onboarding");
+  }
 
   return (
     <div className="min-h-screen bg-background">

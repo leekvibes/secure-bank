@@ -36,7 +36,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: first }, { status: 400 });
     }
 
+    const agent = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { defaultExpirationHours: true, trustMessage: true, destinationLabel: true },
+    });
+
     let payload = parsed.data;
+
+    const rawExpiration = body?.expirationHours;
+    if (rawExpiration === undefined || rawExpiration === null) {
+      payload.expirationHours = agent?.defaultExpirationHours ?? 24;
+    }
+    if (!payload.destinationLabel && !payload.destination && agent?.destinationLabel) {
+      payload.destinationLabel = agent.destinationLabel;
+    }
+
     if (payload.templateId) {
       const template = await db.linkTemplate.findFirst({
         where: { id: payload.templateId, userId: session.user.id },

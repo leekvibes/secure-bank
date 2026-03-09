@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -29,6 +29,10 @@ model User {
   // Compliance / trust
   verificationStatus String  @default("UNVERIFIED") // UNVERIFIED | LICENSED | CERTIFIED | REGULATED
   dataRetentionDays  Int     @default(30)            // 30 | 60 | 90 | -1 (manual)
+  trustMessage       String?
+  defaultExpirationHours Int @default(24)
+  // Onboarding
+  onboardingCompleted Boolean @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
