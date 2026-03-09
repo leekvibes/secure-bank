@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "clean:next": "node -e \"const fs=require('fs'); try{fs.rmSync('.next',{recursive:true,force:true})}catch{}\"",
+    "postinstall": "prisma generate",
     "predev": "npm run clean:next",
     "dev": "next dev -p 5000 -H 0.0.0.0",
     "prebuild": "npm run clean:next",
