@@ -245,10 +245,10 @@ export function SecureFormClient({
   const greetingLine = clientName
     ? `Hello, ${clientName}. `
     : "";
-  const destinationLine = agent.destinationLabel
-    ? ` Your ${agent.destinationLabel} setup requires the following details.`
+  const destinationPart = agent.destinationLabel
+    ? ` to ${agent.destinationLabel}`
     : "";
-  const greetingMessage = `${greetingLine}Please complete the form below to securely submit your ${typeLabel}.${destinationLine}`;
+  const greetingMessage = `${greetingLine}Please complete the form below to securely submit your ${typeLabel}${destinationPart}.`;
 
   if (submitted) {
     return (

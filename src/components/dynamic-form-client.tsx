@@ -139,10 +139,10 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
   const greetingLine = link.clientName
     ? `Hello, ${link.clientName}. `
     : "";
-  const destinationLine = agent.destinationLabel
-    ? ` Your ${agent.destinationLabel} setup requires the following details.`
+  const destinationPart = agent.destinationLabel
+    ? ` to ${agent.destinationLabel}`
     : "";
-  const greetingMessage = `${greetingLine}Please complete the form below to securely submit your information.${destinationLine}`;
+  const greetingMessage = `${greetingLine}Please complete the form below to securely submit your information${destinationPart}.`;
 
   if (submitted) {
     return (
