@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Upload, Camera, User, ArrowRight, ArrowLeft, Loader2, Shield, Lock, Check } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { InfoTip } from "@/components/info-tip";
 import { OnboardingShell } from "../onboarding-shell";
 
 export default function BrandingPage() {
@@ -81,6 +82,7 @@ export default function BrandingPage() {
               <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <Upload className="w-3.5 h-3.5" />
                 Company Logo
+                <InfoTip text="Your company logo appears at the top of every secure request your clients receive. It helps them instantly recognize who the request is from." />
               </p>
               <button
                 type="button"
@@ -118,6 +120,7 @@ export default function BrandingPage() {
               <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <Camera className="w-3.5 h-3.5" />
                 Your Profile Photo
+                <InfoTip text="Adding a profile photo makes your secure requests feel more personal and trustworthy. Clients are more likely to submit sensitive info when they can see who's asking." />
               </p>
               <button
                 type="button"

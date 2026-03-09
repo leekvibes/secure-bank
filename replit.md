@@ -161,10 +161,13 @@ User model includes `photoUrl` field (String?, base64 data URI) for agent profil
 
 - Tabbed interface with 4 tabs: **Profile**, **Branding**, **Client Experience**, **Trust & Security**
 - Tab style matches Secure Links page (underline tabs with blue active state)
-- **Profile tab**: Display name, phone, agency, company, industry, license #, licensed states
+- **Profile tab**: Display name, phone, agency, company, industry (dropdown), "Are you licensed?" yes/no flow → license # + licensed states (conditional)
 - **Branding tab**: Logo upload, profile photo upload, live preview of client-facing header
 - **Client Experience tab**: Destination label, carriers, trust message (textarea), notification email, verification page URL
-- **Trust & Security tab**: Verification status (dropdown), data retention (button selector: 30/60/90 days or manual), default link expiration (button selector: 1h–7 days)
+- **Trust & Security tab**: Data retention (button selector: 30/60/90 days or manual), default link expiration (button selector: 1h–7 days)
+- **Industry field**: Dropdown with predefined list from `src/lib/industries.ts` (used in both onboarding and settings)
+- **Licensing flow**: Replaces old "Verification Status" dropdown. "Are you licensed?" → Yes shows license # + states fields → auto-sets verificationStatus to LICENSED. No → clears fields, sets UNVERIFIED
+- **Info tooltips** (`src/components/info-tip.tsx`): Small (i) icons next to every setting label, showing explanatory text on hover
 - All fields from the onboarding flow are also present in settings so users can update anything later
 - Single "Save Changes" button per tab, shared form state, immediate upload for images
 

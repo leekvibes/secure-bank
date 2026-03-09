@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { InfoTip } from "@/components/info-tip";
 import {
   ExternalLink, Upload, X, Loader2, UserCircle, User, Camera,
-  Building2, Briefcase, Phone, Mail, FileText, ShieldCheck,
+  Building2, Briefcase, Phone, Mail, FileText,
   MapPin, Clock, Timer, MessageSquare, Lock, Shield, Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { INDUSTRIES } from "@/lib/industries";
 
 interface Props {
   user: {
@@ -76,6 +78,9 @@ export function SettingsForm({ user }: Props) {
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [currentPhotoUrl, setCurrentPhotoUrl] = useState<string | null>(user.photoUrl);
 
+  const hasLicense = !!(user.licenseNumber && user.verificationStatus === "LICENSED");
+  const [isLicensed, setIsLicensed] = useState<boolean>(hasLicense);
+
   const [form, setForm] = useState({
     displayName: user.displayName,
     agencyName: user.agencyName ?? "",
@@ -99,10 +104,15 @@ export function SettingsForm({ user }: Props) {
     setError(null);
     setSuccess(false);
 
+    const payload = {
+      ...form,
+      verificationStatus: isLicensed && form.licenseNumber ? "LICENSED" : "UNVERIFIED",
+    };
+
     const res = await fetch("/api/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
 
     const data = await res.json();
@@ -113,9 +123,10 @@ export function SettingsForm({ user }: Props) {
       return;
     }
 
+    setForm((prev) => ({ ...prev, verificationStatus: payload.verificationStatus }));
     setSuccess(true);
-    router.refresh();
     setTimeout(() => setSuccess(false), 3000);
+    setTimeout(() => router.refresh(), 100);
   }
 
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -228,6 +239,7 @@ export function SettingsForm({ user }: Props) {
                   <Label htmlFor="displayName" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                     <User className="w-3.5 h-3.5" />
                     Display Name
+                    <InfoTip text="The name shown to your clients on secure requests and your verification page." />
                   </Label>
                   <Input
                     id="displayName"
@@ -241,6 +253,7 @@ export function SettingsForm({ user }: Props) {
                   <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                     <Phone className="w-3.5 h-3.5" />
                     Phone
+                    <InfoTip text="Your phone number can be displayed on secure requests so clients can contact you with questions." />
                   </Label>
                   <Input
                     id="phone"
@@ -258,6 +271,7 @@ export function SettingsForm({ user }: Props) {
                   <Label htmlFor="agencyName" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                     <Building2 className="w-3.5 h-3.5" />
                     Agency Name
+                    <InfoTip text="Your agency or business name shown to clients so they know who is requesting their information." />
                   </Label>
                   <Input
                     id="agencyName"
@@ -271,6 +285,7 @@ export function SettingsForm({ user }: Props) {
                   <Label htmlFor="company" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                     <Building2 className="w-3.5 h-3.5" />
                     Company
+                    <InfoTip text="The parent company or organization you work with, if different from your agency." />
                   </Label>
                   <Input
                     id="company"
@@ -286,43 +301,87 @@ export function SettingsForm({ user }: Props) {
                 <Label htmlFor="industry" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                   <Briefcase className="w-3.5 h-3.5" />
                   Industry
+                  <InfoTip text="Selecting your industry helps us tailor the experience and helps clients understand what type of professional you are." />
                 </Label>
-                <Input
+                <select
                   id="industry"
                   value={form.industry}
                   onChange={(e) => setForm({ ...form, industry: e.target.value })}
-                  placeholder="Life Insurance, Health Insurance, Medicare..."
-                  className="h-10 rounded-xl"
-                />
+                  className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary"
+                >
+                  <option value="">Select your industry</option>
+                  {INDUSTRIES.map((ind) => (
+                    <option key={ind} value={ind}>{ind}</option>
+                  ))}
+                </select>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="licenseNumber" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5" />
-                    License / ID Number
-                  </Label>
-                  <Input
-                    id="licenseNumber"
-                    value={form.licenseNumber}
-                    onChange={(e) => setForm({ ...form, licenseNumber: e.target.value })}
-                    placeholder="NPN, License #, or Company ID"
-                    className="h-10 rounded-xl"
-                  />
+              <div className="space-y-3">
+                <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5" />
+                  Are you a licensed professional?
+                  <InfoTip text="If you hold a professional license (insurance, financial, etc.), providing your license number adds a 'Licensed' trust badge to your secure requests." />
+                </Label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsLicensed(true)}
+                    className={cn(
+                      "flex-1 h-10 rounded-xl text-sm font-medium border transition-all",
+                      isLicensed
+                        ? "bg-primary text-white border-primary shadow-sm"
+                        : "bg-background text-foreground border-border hover:border-primary/40"
+                    )}
+                  >
+                    Yes, I'm licensed
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsLicensed(false);
+                      setForm({ ...form, licenseNumber: "", licensedStates: "" });
+                    }}
+                    className={cn(
+                      "flex-1 h-10 rounded-xl text-sm font-medium border transition-all",
+                      !isLicensed
+                        ? "bg-primary text-white border-primary shadow-sm"
+                        : "bg-background text-foreground border-border hover:border-primary/40"
+                    )}
+                  >
+                    No
+                  </button>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="licensedStates" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5" />
-                    Licensed States
-                  </Label>
-                  <Input
-                    id="licensedStates"
-                    value={form.licensedStates}
-                    onChange={(e) => setForm({ ...form, licensedStates: e.target.value })}
-                    placeholder="CA, TX, FL"
-                    className="h-10 rounded-xl"
-                  />
-                </div>
+                {isLicensed && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="licenseNumber" className="text-xs font-medium text-muted-foreground">
+                        License / ID Number
+                      </Label>
+                      <Input
+                        id="licenseNumber"
+                        value={form.licenseNumber}
+                        onChange={(e) => setForm({ ...form, licenseNumber: e.target.value })}
+                        placeholder="NPN, License #, or Company ID"
+                        className="h-10 rounded-xl"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="licensedStates" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5" />
+                        Licensed States
+                        <InfoTip text="The states where you hold an active license. Shown on your verification page." />
+                      </Label>
+                      <Input
+                        id="licensedStates"
+                        value={form.licensedStates}
+                        onChange={(e) => setForm({ ...form, licensedStates: e.target.value })}
+                        placeholder="CA, TX, FL"
+                        className="h-10 rounded-xl"
+                      />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground sm:col-span-2">Providing your license number adds a verified trust badge visible to your clients.</p>
+                  </div>
+                )}
               </div>
 
               <div className="pt-2">
@@ -341,7 +400,10 @@ export function SettingsForm({ user }: Props) {
         <div className="space-y-6">
           <div className="rounded-2xl border border-border/60 bg-card shadow-sm">
             <div className="px-6 py-5 border-b border-border/40">
-              <h2 className="text-base font-semibold text-foreground">Company Logo</h2>
+              <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                Company Logo
+                <InfoTip text="Your company logo appears at the top of every secure request your clients receive. It helps them instantly recognize who the request is from." />
+              </h2>
               <p className="text-xs text-muted-foreground mt-0.5">Your logo appears at the top of secure client pages and email notifications.</p>
             </div>
             <div className="p-6">
@@ -411,7 +473,10 @@ export function SettingsForm({ user }: Props) {
 
           <div className="rounded-2xl border border-border/60 bg-card shadow-sm">
             <div className="px-6 py-5 border-b border-border/40">
-              <h2 className="text-base font-semibold text-foreground">Profile Photo</h2>
+              <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                Profile Photo
+                <InfoTip text="Adding a profile photo makes your secure requests feel more personal and trustworthy. Clients are more likely to submit sensitive info when they can see who's asking." />
+              </h2>
               <p className="text-xs text-muted-foreground mt-0.5">Displayed to clients on secure forms. Helps build trust and recognition.</p>
             </div>
             <div className="p-6">
@@ -488,6 +553,7 @@ export function SettingsForm({ user }: Props) {
               <div className="rounded-xl border border-border bg-gradient-to-br from-primary/5 to-transparent p-5">
                 <div className="flex items-center gap-3 mb-3">
                   {currentPhotoUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={currentPhotoUrl} alt="" className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/10" />
                   ) : (
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -497,6 +563,7 @@ export function SettingsForm({ user }: Props) {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       {currentLogoUrl && (
+                        /* eslint-disable-next-line @next/next/no-img-element */
                         <img src={currentLogoUrl} alt="" className="h-5 w-auto object-contain" />
                       )}
                       <p className="text-sm font-semibold text-foreground">{form.displayName || "Your Name"}</p>
@@ -537,6 +604,7 @@ export function SettingsForm({ user }: Props) {
                   <Label htmlFor="destinationLabel" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5" />
                     Destination Label
+                    <InfoTip text="This label is shown to your clients so they know exactly where their sensitive information is being submitted, like a carrier or company name." />
                   </Label>
                   <Input
                     id="destinationLabel"
@@ -545,13 +613,13 @@ export function SettingsForm({ user }: Props) {
                     placeholder="e.g. Mutual of Omaha, Aetna, Internal processing"
                     className="h-10 rounded-xl"
                   />
-                  <p className="text-[11px] text-muted-foreground">Shown on the secure form so clients know where their info is going.</p>
                 </div>
 
                 <div className="space-y-1.5">
                   <Label htmlFor="carriersList" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                     <Briefcase className="w-3.5 h-3.5" />
                     Carriers
+                    <InfoTip text="A list of insurance carriers or companies you work with. Shown on your verification page so clients can confirm your affiliations." />
                   </Label>
                   <Input
                     id="carriersList"
@@ -560,13 +628,13 @@ export function SettingsForm({ user }: Props) {
                     placeholder="Aetna, Humana, Cigna, UnitedHealth"
                     className="h-10 rounded-xl"
                   />
-                  <p className="text-[11px] text-muted-foreground">Comma-separated list shown on your verification page.</p>
                 </div>
 
                 <div className="space-y-1.5">
                   <Label htmlFor="trustMessage" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                     <MessageSquare className="w-3.5 h-3.5" />
                     Default Trust Message
+                    <InfoTip text="A personal message shown on your secure request page. Use it to reassure clients about how their data will be handled and invite them to contact you with questions." />
                   </Label>
                   <textarea
                     id="trustMessage"
@@ -576,13 +644,13 @@ export function SettingsForm({ user }: Props) {
                     placeholder="e.g. Your information is encrypted end-to-end and will only be used for your policy application. Feel free to reach out if you have any questions."
                     className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
                   />
-                  <p className="text-[11px] text-muted-foreground">Appears on your secure request page to reassure clients.</p>
                 </div>
 
                 <div className="space-y-1.5">
                   <Label htmlFor="notificationEmail" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                     <Mail className="w-3.5 h-3.5" />
                     Notification Email
+                    <InfoTip text="This email receives a notification every time a client submits information through one of your secure links. If left blank, your account email is used." />
                   </Label>
                   <Input
                     id="notificationEmail"
@@ -592,7 +660,6 @@ export function SettingsForm({ user }: Props) {
                     placeholder="alerts@youragency.com"
                     className="h-10 rounded-xl"
                   />
-                  <p className="text-[11px] text-muted-foreground">Receives an email when a client submits. Defaults to your account email if blank.</p>
                 </div>
 
                 <div className="pt-2">
@@ -642,33 +709,15 @@ export function SettingsForm({ user }: Props) {
         <div className="rounded-2xl border border-border/60 bg-card shadow-sm">
           <div className="px-6 py-5 border-b border-border/40">
             <h2 className="text-base font-semibold text-foreground">Trust & Security</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Control security indicators, data handling policies, and default link behavior.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Control data handling policies and default link behavior.</p>
           </div>
           <div className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-1.5">
-                <Label htmlFor="verificationStatus" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  Verification Status
-                </Label>
-                <select
-                  id="verificationStatus"
-                  value={form.verificationStatus}
-                  onChange={(e) => setForm({ ...form, verificationStatus: e.target.value })}
-                  className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary"
-                >
-                  <option value="UNVERIFIED">Unverified (no badge shown)</option>
-                  <option value="LICENSED">Licensed Agent</option>
-                  <option value="CERTIFIED">Certified Agent</option>
-                  <option value="REGULATED">Regulated Professional</option>
-                </select>
-                <p className="text-[11px] text-muted-foreground">Displays a trust badge on client forms. Only declare a status that is accurate.</p>
-              </div>
-
               <div className="space-y-2">
                 <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5" />
                   Data Retention Policy
+                  <InfoTip text="How long client submissions are stored before being automatically deleted. Shorter retention periods are more secure. 'Manual only' means you decide when to delete data yourself." />
                 </Label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {RETENTION_OPTIONS.map((opt) => (
@@ -687,13 +736,13 @@ export function SettingsForm({ user }: Props) {
                     </button>
                   ))}
                 </div>
-                <p className="text-[11px] text-muted-foreground">How long submitted data is retained before automatic deletion.</p>
               </div>
 
               <div className="space-y-2">
                 <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                   <Timer className="w-3.5 h-3.5" />
                   Default Link Expiration
+                  <InfoTip text="How long each secure link stays active before it expires and can no longer be used. Shorter times are more secure. You can override this when creating individual links." />
                 </Label>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                   {EXPIRATION_OPTIONS.map((opt) => (
@@ -712,7 +761,6 @@ export function SettingsForm({ user }: Props) {
                     </button>
                   ))}
                 </div>
-                <p className="text-[11px] text-muted-foreground">Default expiration time for new secure links. Can be overridden per link.</p>
               </div>
 
               <div className="pt-2">

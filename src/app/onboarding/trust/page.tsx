@@ -6,6 +6,7 @@ import { MapPin, Clock, Timer, MessageSquare, ArrowRight, ArrowLeft, Loader2 } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { InfoTip } from "@/components/info-tip";
 import { OnboardingShell } from "../onboarding-shell";
 
 const RETENTION_OPTIONS = [
@@ -42,7 +43,6 @@ export default function TrustPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          displayName: undefined,
           destinationLabel: form.get("destinationLabel") || undefined,
           dataRetentionDays: retention,
           defaultExpirationHours: expiration,
@@ -84,6 +84,7 @@ export default function TrustPage() {
               <Label htmlFor="destinationLabel" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5" />
                 Where does client data go?
+                <InfoTip text="This label is shown to your clients so they know exactly where their sensitive information is being submitted, like a carrier or company name." />
               </Label>
               <Input
                 id="destinationLabel"
@@ -91,13 +92,13 @@ export default function TrustPage() {
                 placeholder="e.g. Mutual of Omaha, Aetna, Internal processing"
                 className="h-10 rounded-xl"
               />
-              <p className="text-[11px] text-muted-foreground">Clients see this label on your secure request to know where their information is being sent.</p>
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5" />
                 Data Retention
+                <InfoTip text="How long client submissions are stored before being automatically deleted. Shorter retention is more secure. 'Manual only' means you delete data yourself when you're done with it." />
               </Label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {RETENTION_OPTIONS.map((opt) => (
@@ -121,6 +122,7 @@ export default function TrustPage() {
               <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <Timer className="w-3.5 h-3.5" />
                 Default Link Expiration
+                <InfoTip text="How long each secure link stays active before it expires and can no longer be used. Shorter times are more secure. You can override this per link." />
               </Label>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                 {EXPIRATION_OPTIONS.map((opt) => (
@@ -144,6 +146,7 @@ export default function TrustPage() {
               <Label htmlFor="trustMessage" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <MessageSquare className="w-3.5 h-3.5" />
                 Default Trust Message
+                <InfoTip text="A personal message shown on your secure request page. Use it to reassure clients about how their data will be handled and invite them to contact you with questions." />
               </Label>
               <textarea
                 id="trustMessage"
@@ -152,7 +155,6 @@ export default function TrustPage() {
                 placeholder="e.g. Your information is encrypted end-to-end and will only be used for your policy application. Feel free to reach out if you have any questions."
                 className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
               />
-              <p className="text-[11px] text-muted-foreground">This message appears on your secure request page to reassure clients.</p>
             </div>
 
             <div className="flex items-center justify-between pt-2">

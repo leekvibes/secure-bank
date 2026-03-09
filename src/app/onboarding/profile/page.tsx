@@ -2,16 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Briefcase, Phone, Mail, FileText, ShieldCheck, ArrowRight, Loader2 } from "lucide-react";
+import { Building2, Briefcase, Phone, Mail, FileText, MapPin, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { InfoTip } from "@/components/info-tip";
 import { OnboardingShell } from "../onboarding-shell";
+import { INDUSTRIES } from "@/lib/industries";
+import { cn } from "@/lib/utils";
 
 export default function ProfilePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [industry, setIndustry] = useState("");
+  const [isLicensed, setIsLicensed] = useState<boolean | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -19,16 +24,19 @@ export default function ProfilePage() {
     setError(null);
     try {
       const form = new FormData(e.currentTarget);
+      const licenseNumber = form.get("licenseNumber") as string;
+      const licensedStates = form.get("licensedStates") as string;
       const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          displayName: form.get("displayName") || undefined,
           agencyName: form.get("agencyName") || undefined,
-          industry: form.get("industry") || undefined,
+          industry: industry || undefined,
           phone: form.get("phone") || undefined,
           notificationEmail: form.get("supportEmail") || undefined,
-          licenseNumber: form.get("licenseNumber") || undefined,
+          licenseNumber: licenseNumber || undefined,
+          licensedStates: licensedStates || undefined,
+          verificationStatus: isLicensed && licenseNumber ? "LICENSED" : "UNVERIFIED",
         }),
       });
       if (!res.ok) {
@@ -62,31 +70,37 @@ export default function ProfilePage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="agencyName" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5" />
-                  Company / Agency
-                </Label>
-                <Input
-                  id="agencyName"
-                  name="agencyName"
-                  placeholder="Rivera Financial Group"
-                  className="h-10 rounded-xl"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="industry" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                  <Briefcase className="w-3.5 h-3.5" />
-                  Industry
-                </Label>
-                <Input
-                  id="industry"
-                  name="industry"
-                  placeholder="Life Insurance, Medicare..."
-                  className="h-10 rounded-xl"
-                />
-              </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="agencyName" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5" />
+                Company / Agency
+                <InfoTip text="Your company or agency name is shown to clients on secure requests so they know who is asking for their information." />
+              </Label>
+              <Input
+                id="agencyName"
+                name="agencyName"
+                placeholder="Rivera Financial Group"
+                className="h-10 rounded-xl"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="industry" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <Briefcase className="w-3.5 h-3.5" />
+                Industry
+                <InfoTip text="Selecting your industry helps us tailor the experience and helps clients understand what type of professional you are." />
+              </Label>
+              <select
+                id="industry"
+                value={industry}
+                onChange={(e) => setIndustry(e.target.value)}
+                className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary"
+              >
+                <option value="">Select your industry</option>
+                {INDUSTRIES.map((ind) => (
+                  <option key={ind} value={ind}>{ind}</option>
+                ))}
+              </select>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -94,6 +108,7 @@ export default function ProfilePage() {
                 <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                   <Phone className="w-3.5 h-3.5" />
                   Phone Number
+                  <InfoTip text="Your phone number can be displayed on secure requests so clients can contact you with questions." />
                 </Label>
                 <Input
                   id="phone"
@@ -107,6 +122,7 @@ export default function ProfilePage() {
                 <Label htmlFor="supportEmail" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                   <Mail className="w-3.5 h-3.5" />
                   Support Email
+                  <InfoTip text="This email receives notifications when a client submits information. If left blank, your account email is used." />
                 </Label>
                 <Input
                   id="supportEmail"
@@ -118,27 +134,68 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="licenseNumber" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+            <div className="space-y-3">
+              <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5" />
-                License / Company ID
+                Are you a licensed professional?
+                <InfoTip text="If you hold a professional license (insurance, financial, etc.), providing your license number adds a 'Licensed' trust badge to your secure requests." />
               </Label>
-              <Input
-                id="licenseNumber"
-                name="licenseNumber"
-                placeholder="NPN, License #, or Company ID"
-                className="h-10 rounded-xl"
-              />
-            </div>
-
-            <div className="rounded-xl bg-primary/5 border border-primary/10 px-4 py-3 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-4 h-4 text-amber-600" />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsLicensed(true)}
+                  className={cn(
+                    "flex-1 h-10 rounded-xl text-sm font-medium border transition-all",
+                    isLicensed === true
+                      ? "bg-primary text-white border-primary shadow-sm"
+                      : "bg-white text-foreground border-border hover:border-primary/40"
+                  )}
+                >
+                  Yes, I'm licensed
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsLicensed(false)}
+                  className={cn(
+                    "flex-1 h-10 rounded-xl text-sm font-medium border transition-all",
+                    isLicensed === false
+                      ? "bg-primary text-white border-primary shadow-sm"
+                      : "bg-white text-foreground border-border hover:border-primary/40"
+                  )}
+                >
+                  No
+                </button>
               </div>
-              <div>
-                <p className="text-xs font-medium text-foreground">Verification Status: Unverified</p>
-                <p className="text-[11px] text-muted-foreground">You can upgrade your verification level in Settings after setup.</p>
-              </div>
+              {isLicensed && (
+                <div className="animate-fade-in space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="licenseNumber" className="text-xs font-medium text-muted-foreground">
+                        License / ID Number
+                      </Label>
+                      <Input
+                        id="licenseNumber"
+                        name="licenseNumber"
+                        placeholder="NPN, License #, or Company ID"
+                        className="h-10 rounded-xl"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="licensedStates" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5" />
+                        Licensed States
+                      </Label>
+                      <Input
+                        id="licensedStates"
+                        name="licensedStates"
+                        placeholder="CA, TX, FL"
+                        className="h-10 rounded-xl"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">Providing your license number adds a verified trust badge visible to your clients.</p>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between pt-2">
