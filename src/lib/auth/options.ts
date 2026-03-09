@@ -3,26 +3,49 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 
-const useSecureCookies = (process.env.NEXTAUTH_URL ?? "").startsWith("https://");
-const cookiePrefix = useSecureCookies ? "__Secure-" : "";
+export function useSecureCookies(): boolean {
+  const url = process.env.NEXTAUTH_URL ?? "";
+  return url.startsWith("https://");
+}
+
+export function getSameSitePolicy(): "none" | "lax" {
+  return useSecureCookies() ? "none" : "lax";
+}
+
+export function getSessionCookieName(): string {
+  const cookiePrefix = useSecureCookies() ? "__Secure-" : "";
+  return `${cookiePrefix}next-auth.session-token`;
+}
+
+export function getNextAuthCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: getSameSitePolicy(),
+    path: "/",
+    secure: useSecureCookies(),
+  };
+}
+
+const cookiePrefix = useSecureCookies() ? "__Secure-" : "";
 
 export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
     maxAge: 8 * 60 * 60,
   },
   cookies: {
     sessionToken: {
-      name: `${cookiePrefix}next-auth.session-token`,
-      options: { httpOnly: true, sameSite: "none" as const, path: "/", secure: true },
+      name: getSessionCookieName(),
+      options: getNextAuthCookieOptions(),
     },
     callbackUrl: {
       name: `${cookiePrefix}next-auth.callback-url`,
-      options: { httpOnly: true, sameSite: "none" as const, path: "/", secure: true },
+      options: getNextAuthCookieOptions(),
     },
     csrfToken: {
-      name: useSecureCookies ? "__Host-next-auth.csrf-token" : "next-auth.csrf-token",
-      options: { httpOnly: true, sameSite: "none" as const, path: "/", secure: true },
+      name: useSecureCookies() ? "__Host-next-auth.csrf-token" : "next-auth.csrf-token",
+      options: getNextAuthCookieOptions(),
     },
   },
   pages: {
