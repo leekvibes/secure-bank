@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { CheckCircle2, Loader2, Upload, X, Shield, Phone } from "lucide-react";
+import { CheckCircle2, Loader2, Upload, X, Shield, Phone, Lock } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -84,7 +85,6 @@ export function SecureFormClient({
   const [showConfirmSsn, setShowConfirmSsn] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [showConfirmAccount, setShowConfirmAccount] = useState(false);
-  const [useMiddleInitial, setUseMiddleInitial] = useState<boolean | null>(null);
   const frontRef = useRef<HTMLInputElement>(null);
   const backRef = useRef<HTMLInputElement>(null);
   const submitLockRef = useRef(false);
@@ -148,7 +148,7 @@ export function SecureFormClient({
     if (linkType === "BANKING_INFO") {
       Object.assign(body, {
         fullName: fields.fullName,
-        ...(useMiddleInitial ? { middleInitial: fields.middleInitial } : {}),
+        ...(fields.middleInitial ? { middleInitial: fields.middleInitial } : {}),
         bankName: fields.bankName,
         routingNumber: fields.routingNumber,
         accountNumber: fields.accountNumber,
@@ -279,13 +279,6 @@ export function SecureFormClient({
             ))}
           </div>
 
-          <div className="mt-4 bg-red-50 rounded-2xl border border-red-200 p-4 text-left">
-            <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-1">Fraud warning</p>
-            <p className="text-sm text-red-600 leading-relaxed">
-              If you believe someone tried to scam you using this link or the information you submitted, call us immediately at{" "}
-              <a href={`tel:${agent.phone ?? "2023024129"}`} className="font-bold underline">{agent.phone ?? "202-302-4129"}</a>.
-            </p>
-          </div>
         </div>
       </main>
     );
@@ -378,46 +371,21 @@ export function SecureFormClient({
 
                 {linkType === "BANKING_INFO" && (
                   <>
-                    <Field label="Full Name" error={fieldErrors.fullName} required>
-                      <Input value={fields.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Your full legal name" autoComplete="name" />
-                    </Field>
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-gray-700">
-                        Do you have a middle initial on your bank account?
-                      </p>
-                      <div className="flex gap-2">
-                        {([true, false] as const).map((val) => (
-                          <button
-                            key={String(val)}
-                            type="button"
-                            onClick={() => {
-                              setUseMiddleInitial(val);
-                              if (!val) set("middleInitial", "");
-                            }}
-                            className={`flex-1 h-10 rounded-xl text-sm font-medium border transition-all ${
-                              useMiddleInitial === val
-                                ? "bg-primary text-white border-primary shadow-sm"
-                                : "bg-white text-gray-700 border-gray-200 hover:border-primary/40"
-                            }`}
-                          >
-                            {val ? "Yes" : "No"}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {useMiddleInitial === true && (
-                      <Field label="Middle Initial" error={fieldErrors.middleInitial} hint="Single letter as it appears on your bank account">
+                    <div className="grid grid-cols-[1fr_80px] gap-3 items-end">
+                      <Field label="Full Legal Name" error={fieldErrors.fullName} required>
+                        <Input value={fields.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="As it appears on your bank account" autoComplete="name" />
+                      </Field>
+                      <Field label="M.I." error={fieldErrors.middleInitial}>
                         <Input
                           value={fields.middleInitial}
-                          onChange={(e) =>
-                            set("middleInitial", e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 1).toUpperCase())
-                          }
+                          onChange={(e) => set("middleInitial", e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 1).toUpperCase())}
                           placeholder="A"
                           autoComplete="additional-name"
                           maxLength={1}
+                          className="text-center"
                         />
                       </Field>
-                    )}
+                    </div>
                     <Field
                       label="Routing Number"
                       error={fieldErrors.routingNumber}
@@ -545,43 +513,21 @@ export function SecureFormClient({
                         <span className="text-sm font-semibold text-gray-700">Banking Information</span>
                         <div className="flex-1 h-px bg-blue-100" />
                       </div>
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium text-gray-700">
-                          Do you have a middle initial on your bank account?
-                        </p>
-                        <div className="flex gap-2">
-                          {([true, false] as const).map((val) => (
-                            <button
-                              key={String(val)}
-                              type="button"
-                              onClick={() => {
-                                setUseMiddleInitial(val);
-                                if (!val) set("middleInitial", "");
-                              }}
-                              className={`flex-1 h-10 rounded-xl text-sm font-medium border transition-all ${
-                                useMiddleInitial === val
-                                  ? "bg-primary text-white border-primary shadow-sm"
-                                  : "bg-white text-gray-700 border-gray-200 hover:border-primary/40"
-                              }`}
-                            >
-                              {val ? "Yes" : "No"}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      {useMiddleInitial === true && (
-                        <Field label="Middle Initial" error={fieldErrors.middleInitial} hint="Single letter as it appears on your bank account">
+                      <div className="grid grid-cols-[1fr_80px] gap-3 items-end">
+                        <Field label="Full Legal Name" error={fieldErrors.fullName} required>
+                          <Input value={fields.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="As it appears on your bank account" autoComplete="name" />
+                        </Field>
+                        <Field label="M.I." error={fieldErrors.middleInitial}>
                           <Input
                             value={fields.middleInitial}
-                            onChange={(e) =>
-                              set("middleInitial", e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 1).toUpperCase())
-                            }
+                            onChange={(e) => set("middleInitial", e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 1).toUpperCase())}
                             placeholder="A"
                             autoComplete="additional-name"
                             maxLength={1}
+                            className="text-center"
                           />
                         </Field>
-                      )}
+                      </div>
                       <Field label="Routing Number" error={fieldErrors.routingNumber} required hint={checkingRouting ? "Looking up bank..." : routingInfo ? (
                         <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
@@ -784,6 +730,16 @@ export function SecureFormClient({
                   Contact {agent.displayName}
                 </a>
               </p>
+            </div>
+          )}
+
+          {logoUrls.length > 0 && (
+            <div className="flex flex-col items-center gap-1.5 py-4 border-t border-gray-100 mt-2">
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                <Lock className="w-3 h-3" />
+                Secured &amp; delivered by
+              </div>
+              <BrandLogo size="sm" />
             </div>
           )}
         </div>

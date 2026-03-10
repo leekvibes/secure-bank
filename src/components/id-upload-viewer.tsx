@@ -44,6 +44,8 @@ export function IdUploadViewer({ upload, auditLogs }: Props) {
   const router = useRouter();
   const [frontUrl, setFrontUrl] = useState<string | null>(null);
   const [backUrl, setBackUrl] = useState<string | null>(null);
+  const [frontIsPdf, setFrontIsPdf] = useState(false);
+  const [backIsPdf, setBackIsPdf] = useState(false);
   const [loading, setLoading] = useState<"front" | "back" | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,9 +60,10 @@ export function IdUploadViewer({ upload, auditLogs }: Props) {
         return;
       }
       const blob = await res.blob();
+      const isPdf = blob.type === "application/pdf";
       const url = URL.createObjectURL(blob);
-      if (side === "front") setFrontUrl(url);
-      else setBackUrl(url);
+      if (side === "front") { setFrontUrl(url); setFrontIsPdf(isPdf); }
+      else { setBackUrl(url); setBackIsPdf(isPdf); }
     } catch {
       setError("Failed to load image.");
     } finally {
@@ -160,8 +163,12 @@ export function IdUploadViewer({ upload, auditLogs }: Props) {
             </div>
             {frontUrl ? (
               <div className="rounded-xl overflow-hidden border border-border/40 ring-1 ring-border/20 shadow-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={frontUrl} alt="ID front" className="w-full object-contain max-h-80 bg-surface-2" />
+                {frontIsPdf ? (
+                  <embed src={frontUrl} type="application/pdf" className="w-full h-80" />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={frontUrl} alt="ID front" className="w-full object-contain max-h-80 bg-surface-2" />
+                )}
               </div>
             ) : (
               <Button
@@ -193,8 +200,12 @@ export function IdUploadViewer({ upload, auditLogs }: Props) {
               </div>
               {backUrl ? (
                 <div className="rounded-xl overflow-hidden border border-border/40 ring-1 ring-border/20 shadow-sm">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={backUrl} alt="ID back" className="w-full object-contain max-h-80 bg-surface-2" />
+                  {backIsPdf ? (
+                    <embed src={backUrl} type="application/pdf" className="w-full h-80" />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={backUrl} alt="ID back" className="w-full object-contain max-h-80 bg-surface-2" />
+                  )}
                 </div>
               ) : (
                 <Button

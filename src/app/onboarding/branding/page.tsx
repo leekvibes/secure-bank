@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { InfoTip } from "@/components/info-tip";
 import { OnboardingShell } from "../onboarding-shell";
+import { PhotoCropUploader } from "@/components/photo-crop-uploader";
 
 const MAX_LOGOS = 5;
 
@@ -191,38 +192,17 @@ export default function BrandingPage() {
               <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <Camera className="w-3.5 h-3.5" />
                 Your Profile Photo
-                <InfoTip text="Adding a profile photo makes your secure requests feel more personal and trustworthy. Clients are more likely to submit sensitive info when they can see who's asking." />
+                <InfoTip text="Drag to center your face after uploading. Clients see your photo on secure request pages." />
               </p>
-              <button
-                type="button"
-                onClick={() => photoRef.current?.click()}
+              <PhotoCropUploader
+                currentPhotoUrl={photo}
                 disabled={uploadingPhoto}
-                className="w-full h-32 rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-all flex flex-col items-center justify-center gap-2 bg-muted/30"
-              >
-                {uploadingPhoto ? (
-                  <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
-                ) : photo ? (
-                  <Image src={photo} alt="Photo" width={80} height={80} className="w-20 h-20 object-cover rounded-full" />
-                ) : (
-                  <>
-                    <div className="w-10 h-10 rounded-full bg-primary/8 flex items-center justify-center">
-                      <User className="w-5 h-5 text-primary" />
-                    </div>
-                    <span className="text-xs text-muted-foreground">Click to upload</span>
-                  </>
-                )}
-              </button>
-              <input
-                ref={photoRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) uploadPhoto(f);
+                onSave={(url) => setPhoto(url)}
+                onDelete={async () => {
+                  await fetch("/api/agent/photo", { method: "DELETE" });
+                  setPhoto(null);
                 }}
               />
-              <p className="text-[11px] text-muted-foreground">PNG, JPG, or WebP. Max 512 KB.</p>
             </div>
           </div>
 

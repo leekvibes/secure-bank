@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { INDUSTRIES } from "@/lib/industries";
+import { PhotoCropUploader } from "@/components/photo-crop-uploader";
 
 interface Props {
   user: {
@@ -526,69 +527,17 @@ export function SettingsForm({ user }: Props) {
                 Profile Photo
                 <InfoTip text="Adding a profile photo makes your secure requests feel more personal and trustworthy. Clients are more likely to submit sensitive info when they can see who's asking." />
               </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Displayed to clients on secure forms. Helps build trust and recognition.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Drag to center your face after uploading. Displayed on client-facing secure forms.</p>
             </div>
             <div className="p-6">
-              {photoError && (
-                <div className="mb-4 p-3 bg-red-500/8 border border-red-500/15 rounded-xl text-sm text-red-600">{photoError}</div>
-              )}
-              {currentPhotoUrl ? (
-                <div className="flex items-center gap-4">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={currentPhotoUrl}
-                    alt="Profile photo"
-                    className="w-20 h-20 object-cover rounded-full border-2 border-border/40 ring-4 ring-primary/5"
-                  />
-                  <div className="space-y-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => photoInputRef.current?.click()}
-                      disabled={photoUploading}
-                      className="rounded-xl"
-                    >
-                      {photoUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
-                      Replace
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handlePhotoDelete}
-                      disabled={photoUploading}
-                      className="rounded-xl text-red-500 hover:bg-red-500/10 hover:border-red-500/30 ml-2"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                      Remove
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => photoInputRef.current?.click()}
-                  disabled={photoUploading}
-                  className="w-full h-32 rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-all flex flex-col items-center justify-center gap-2 bg-muted/20"
-                >
-                  {photoUploading ? (
-                    <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
-                  ) : (
-                    <>
-                      <div className="w-10 h-10 rounded-full bg-primary/8 flex items-center justify-center">
-                        <UserCircle className="w-5 h-5 text-primary" />
-                      </div>
-                      <span className="text-xs text-muted-foreground">Click to upload photo</span>
-                      <span className="text-[11px] text-muted-foreground/60">PNG, JPG, or WebP. Max 512 KB</span>
-                    </>
-                  )}
-                </button>
-              )}
-              <input
-                ref={photoInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="hidden"
-                onChange={handlePhotoUpload}
+              <PhotoCropUploader
+                currentPhotoUrl={currentPhotoUrl}
+                disabled={photoUploading}
+                onSave={(url) => {
+                  setCurrentPhotoUrl(url);
+                  router.refresh();
+                }}
+                onDelete={handlePhotoDelete}
               />
             </div>
           </div>

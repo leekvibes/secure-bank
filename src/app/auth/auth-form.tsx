@@ -19,6 +19,7 @@ export function AuthForm() {
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
+  const prefillEmail = searchParams.get("email") ?? "";
   const verified = searchParams.get("verified") === "1";
   const verifyError = searchParams.get("error");
   const verifyBanner = verified
@@ -164,6 +165,7 @@ export function AuthForm() {
                     required
                     autoComplete="email"
                     placeholder="you@company.com"
+                    defaultValue={prefillEmail}
                   />
                 </div>
                 <div className="space-y-2">
@@ -220,6 +222,7 @@ export function AuthForm() {
                     required
                     autoComplete="email"
                     placeholder="you@company.com"
+                    defaultValue={prefillEmail}
                   />
                 </div>
                 <div className="space-y-2">
