@@ -6,7 +6,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { isExpired } from "@/lib/utils";
 import { addDays } from "date-fns";
 import { NO_STORE_HEADERS } from "@/lib/http";
-import { sendSubmissionNotification } from "@/lib/email";
+import { sendIdUploadNotification, sendIdUploadConfirmationToClient } from "@/lib/email";
 import { validateUploadFile } from "@/lib/upload-security";
 
 export async function POST(req: NextRequest) {
@@ -113,15 +113,39 @@ export async function POST(req: NextRequest) {
     request: req,
   });
 
-  // Fire-and-forget notification
-  sendSubmissionNotification({
+  const uploadedAt = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
+  const docTypeLabels: Record<string, string> = {
+    DRIVERS_LICENSE: "Driver's License",
+    PASSPORT: "Passport",
+    PASSPORT_CARD: "Passport Card",
+    GREEN_CARD: "Green Card",
+    MILITARY_ID: "Military ID",
+    SOCIAL_SECURITY: "Social Security Card",
+    BIRTH_CERTIFICATE: "Birth Certificate",
+  };
+  const linkOptions = (() => { try { return JSON.parse(link.optionsJson ?? "{}"); } catch { return {}; } })();
+  const documentType = docTypeLabels[linkOptions.documentType ?? ""] ?? "ID Document";
+
+  // Notify agent
+  sendIdUploadNotification({
     agentEmail: link.agent.email,
     agentName: link.agent.displayName,
     clientName: link.clientName,
-    linkType: "ID_UPLOAD",
-    submissionId: link.id,
-    appUrl: process.env.NEXTAUTH_URL ?? "",
+    documentType,
+    uploadedAt,
+    viewUrl: `${process.env.NEXTAUTH_URL}/dashboard/uploads/${link.id}`,
   });
+
+  // Confirm to client if email known
+  if (link.clientEmail) {
+    sendIdUploadConfirmationToClient({
+      toEmail: link.clientEmail,
+      clientName: link.clientName ?? "there",
+      documentType,
+      uploadedAt,
+      agentName: link.agent.displayName,
+    });
+  }
 
   return NextResponse.json({ success: true }, { status: 201, headers: NO_STORE_HEADERS });
 }

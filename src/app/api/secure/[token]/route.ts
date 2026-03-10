@@ -7,7 +7,7 @@ import {
 } from "@/lib/schemas";
 import { writeAuditLog } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { sendSubmissionNotification } from "@/lib/email";
+import { sendSubmissionNotification, sendSubmissionConfirmationToClient } from "@/lib/email";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { buildEncryptedSubmissionData } from "@/lib/submission-storage";
 import { isValidSingleUseToken } from "@/lib/validation";
@@ -255,14 +255,33 @@ export async function POST(
     select: { id: true },
   });
   if (newSubmission) {
+    const typeLabels: Record<string, string> = {
+      BANKING_INFO: "Banking Information",
+      SSN_ONLY: "SSN (Secure)",
+      FULL_INTAKE: "Full Intake",
+      ID_UPLOAD: "ID Document Upload",
+    };
+    const submittedAt = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
+
+    // Notify agent
     sendSubmissionNotification({
       agentEmail: link.agent.email,
       agentName: link.agent.displayName,
       clientName: link.clientName,
       linkType: link.linkType,
       submissionId: newSubmission.id,
-      appUrl: process.env.NEXTAUTH_URL ?? "",
     });
+
+    // Confirm receipt to client if email is known
+    if (link.clientEmail) {
+      sendSubmissionConfirmationToClient({
+        toEmail: link.clientEmail,
+        clientName: link.clientName ?? "there",
+        requestType: typeLabels[link.linkType] ?? link.linkType,
+        submittedAt,
+        agentName: link.agent.displayName,
+      });
+    }
   }
 
   return apiSuccess({ success: true }, 201);

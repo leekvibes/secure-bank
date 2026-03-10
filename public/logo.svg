@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 140" fill="none">
+  <defs>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00A3FF"/>
+      <stop offset="100%" stop-color="#0057FF"/>
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00A3FF" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#0057FF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background-ready (transparent) -->
+
+  <!-- Icon: Hexagonal shield with circuit lines -->
+  <g transform="translate(58, 70)">
+    <!-- Outer hexagon -->
+    <polygon points="0,-48 42,-24 42,24 0,48 -42,24 -42,-24"
+             fill="none" stroke="url(#blueGrad)" stroke-width="2.5" opacity="0.4"/>
+    <!-- Inner hexagon -->
+    <polygon points="0,-38 33,-19 33,19 0,38 -33,19 -33,-19"
+             fill="#0A0A0A" stroke="url(#blueGrad)" stroke-width="2"/>
+
+    <!-- Circuit lines decorating the hexagon -->
+    <line x1="-33" y1="-19" x2="-46" y2="-28" stroke="#00A3FF" stroke-width="1.5" opacity="0.5"/>
+    <circle cx="-46" cy="-28" r="2" fill="#00A3FF" opacity="0.5"/>
+    <line x1="33" y1="-19" x2="46" y2="-28" stroke="#00A3FF" stroke-width="1.5" opacity="0.5"/>
+    <circle cx="46" cy="-28" r="2" fill="#00A3FF" opacity="0.5"/>
+    <line x1="33" y1="19" x2="46" y2="28" stroke="#00A3FF" stroke-width="1.5" opacity="0.5"/>
+    <circle cx="46" cy="28" r="2" fill="#00A3FF" opacity="0.5"/>
+    <line x1="-33" y1="19" x2="-46" y2="28" stroke="#00A3FF" stroke-width="1.5" opacity="0.5"/>
+    <circle cx="-46" cy="28" r="2" fill="#00A3FF" opacity="0.5"/>
+
+    <!-- Shield/lock icon inside -->
+    <g filter="url(#glow)">
+      <!-- Lock body -->
+      <rect x="-10" y="-2" width="20" height="16" rx="3" fill="url(#blueGrad)"/>
+      <!-- Lock shackle -->
+      <path d="M-6 -2 V-10 A6 6 0 0 1 6 -10 V-2" stroke="#00A3FF" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <!-- Keyhole -->
+      <circle cx="0" cy="7" r="3" fill="#0A0A0A"/>
+      <rect x="-1.2" y="7" width="2.4" height="5" rx="1" fill="#0A0A0A"/>
+    </g>
+  </g>
+
+  <!-- Text: "SecureLink" -->
+  <text x="118" y="60" font-family="'SF Pro Display', system-ui, -apple-system, sans-serif"
+        font-size="44" font-weight="800" letter-spacing="-1">
+    <tspan fill="#FFFFFF">Secure</tspan><tspan fill="url(#blueGrad)">Link</tspan>
+  </text>
+
+  <!-- Horizontal tech line -->
+  <line x1="118" y1="74" x2="370" y2="74" stroke="#00A3FF" stroke-width="1" opacity="0.3"/>
+  <rect x="118" y="73" width="40" height="2" rx="1" fill="url(#blueGrad)" opacity="0.8"/>
+
+  <!-- Slogan -->
+  <text x="118" y="96" font-family="'SF Mono', 'Fira Code', monospace"
+        font-size="13" font-weight="500" fill="#00A3FF" letter-spacing="4" opacity="0.85">
+    SECURE. SIMPLE. FAST.
+  </text>
+
+  <!-- Small decorative dots -->
+  <circle cx="370" cy="92" r="1.5" fill="#00A3FF" opacity="0.4"/>
+  <circle cx="378" cy="92" r="1.5" fill="#00A3FF" opacity="0.25"/>
+  <circle cx="386" cy="92" r="1.5" fill="#00A3FF" opacity="0.15"/>
+</svg>

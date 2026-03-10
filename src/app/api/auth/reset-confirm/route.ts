@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { sendPasswordChangedEmail } from "@/lib/email";
 
 const schema = z.object({
   token: z.string().min(1),
@@ -57,6 +58,13 @@ export async function POST(req: NextRequest) {
       data: { usedAt: new Date() },
     }),
   ]);
+
+  // Security confirmation email
+  sendPasswordChangedEmail({
+    toEmail: resetToken.user.email,
+    toName: resetToken.user.displayName,
+    changedAt: new Date().toLocaleString("en-US", { timeZone: "America/New_York" }),
+  });
 
   return NextResponse.json({ success: true });
 }

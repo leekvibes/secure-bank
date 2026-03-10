@@ -6,6 +6,7 @@ import { decryptFields } from "@/lib/crypto";
 import { writeAuditLog } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { apiError, apiSuccess } from "@/lib/api-response";
+import { sendRevealNotification } from "@/lib/email";
 
 export async function POST(
   req: NextRequest,
@@ -56,6 +57,21 @@ export async function POST(
     request: req,
     metadata: { submissionId: submission.id, revealCount: submission.revealCount + 1 },
   });
+
+  // Security email on every reveal
+  const agent = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { email: true, displayName: true },
+  });
+  if (agent) {
+    sendRevealNotification({
+      agentEmail: agent.email,
+      agentName: agent.displayName,
+      clientName: submission.link.clientName,
+      revealedAt: new Date().toLocaleString("en-US", { timeZone: "America/New_York" }),
+      viewUrl: `${process.env.NEXTAUTH_URL}/dashboard/submissions/${submission.id}`,
+    });
+  }
 
   return apiSuccess({ fields });
 }
