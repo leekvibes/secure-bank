@@ -118,35 +118,30 @@ export function ClientTrustHeader({ logoUrls, agent, expiresAt, isViewOnce }: Pr
 }
 
 function LogoStrip({ logoUrls }: { logoUrls: string[] }) {
-  const secureLinkBrand = <BrandLogo size="sm" />;
-
   if (logoUrls.length === 0) {
     return <BrandLogo size="sm" />;
   }
 
   return (
-    <div className="flex flex-col items-center gap-1">
-      <div className="flex items-center justify-center gap-3 overflow-x-auto scrollbar-none max-w-[280px]">
-        {logoUrls.map((url, i) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={i}
-            src={url}
-            alt="Logo"
-            className="h-8 max-h-8 max-w-[120px] w-auto object-contain shrink-0"
-          />
-        ))}
-      </div>
-      {secureLinkBrand}
+    <div className="flex items-center justify-center gap-4 overflow-x-auto scrollbar-none max-w-[320px]">
+      {logoUrls.map((url, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={i}
+          src={url}
+          alt="Logo"
+          className="h-10 max-h-10 max-w-[160px] w-auto object-contain shrink-0"
+        />
+      ))}
     </div>
   );
 }
 
 function Avatar({ initials, photoUrl, size = "md" }: { initials: string; photoUrl?: string | null; size?: "sm" | "md" | "lg" }) {
   const cls =
-    size === "sm" ? "w-7 h-7 text-xs" :
-    size === "lg" ? "w-11 h-11 text-base" :
-    "w-9 h-9 text-sm";
+    size === "sm" ? "w-9 h-9 text-xs" :
+    size === "lg" ? "w-14 h-14 text-base" :
+    "w-12 h-12 text-sm";
 
   if (photoUrl) {
     return (
@@ -174,7 +169,7 @@ function AgentCardDesktop({
   companyName: string | null;
 }) {
   return (
-    <div className="flex items-start gap-3 bg-blue-50/50 border border-blue-100 rounded-xl px-3 py-2.5 max-w-[280px]">
+    <div className="flex items-center gap-3 bg-blue-50/50 border border-blue-100 rounded-xl px-3 py-2.5 max-w-[300px]">
       <Avatar initials={initials} photoUrl={agent.photoUrl} />
       <div className="min-w-0 space-y-0.5">
         <p className="text-sm font-semibold text-gray-900 leading-tight truncate">

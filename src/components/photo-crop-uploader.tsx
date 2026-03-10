@@ -135,7 +135,7 @@ export function PhotoCropUploader({ currentPhotoUrl, onSave, onDelete, disabled 
             <ZoomOut className="w-4 h-4 text-muted-foreground shrink-0" />
             <input
               type="range"
-              min={0.4}
+              min={0.1}
               max={3}
               step={0.01}
               value={zoom}
@@ -162,7 +162,7 @@ export function PhotoCropUploader({ currentPhotoUrl, onSave, onDelete, disabled 
           <img
             src={currentPhotoUrl}
             alt="Profile photo"
-            className="w-24 h-24 object-cover rounded-full border-2 border-border/40 ring-4 ring-primary/8 shrink-0"
+            className="w-32 h-32 object-cover rounded-full border-2 border-border/40 ring-4 ring-primary/8 shrink-0"
           />
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground leading-relaxed">
