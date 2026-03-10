@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import {
-  Lock, Shield, Clock, BadgeCheck, ChevronDown, X,
-  Phone, Building2, Mail, FileText,
+  Shield, Clock, BadgeCheck, ChevronDown, X,
+  Phone, Building2, Mail, FileText, Lock,
 } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 
 export interface AgentProfile {
   displayName: string;
@@ -117,24 +118,10 @@ export function ClientTrustHeader({ logoUrls, agent, expiresAt, isViewOnce }: Pr
 }
 
 function LogoStrip({ logoUrls }: { logoUrls: string[] }) {
-  const secureLinkBrand = (
-    <span className="text-[11px] font-medium tracking-tight text-gray-400 whitespace-nowrap flex items-center gap-1">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/icon.svg" alt="" width="12" height="12" />
-      <span><span className="text-blue-500">Secure</span> Link</span>
-    </span>
-  );
+  const secureLinkBrand = <BrandLogo size="sm" />;
 
   if (logoUrls.length === 0) {
-    return (
-      <div className="flex items-center justify-center gap-2">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/icon.svg" alt="Secure Link" width="26" height="26" />
-        <span className="text-base font-bold tracking-tight text-gray-900 whitespace-nowrap">
-          <span className="text-blue-600">Secure</span> Link
-        </span>
-      </div>
-    );
+    return <BrandLogo size="sm" />;
   }
 
   return (

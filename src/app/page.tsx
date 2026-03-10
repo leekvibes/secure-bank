@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
-import { Shield, Lock, Clock, Eye, ArrowRight, Fingerprint } from "lucide-react";
+import { Lock, Clock, Eye, ArrowRight, Fingerprint, Shield } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -13,11 +14,7 @@ export default async function HomePage() {
     <main className="min-h-screen bg-gradient-to-b from-white to-[hsl(210,25%,96%)] text-foreground overflow-hidden">
       <div className="relative z-10">
         <nav className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icon.svg" alt="Secure Link" width="34" height="34" />
-            <span className="font-semibold text-lg tracking-tight text-foreground">Secure Link</span>
-          </div>
+          <BrandLogo size="sm" />
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-foreground">
               <Link href="/auth">Sign in</Link>
@@ -102,11 +99,7 @@ export default async function HomePage() {
 
         <footer className="max-w-6xl mx-auto px-6 pb-12">
           <div className="border-t border-border pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/icon.svg" alt="" width="18" height="18" className="opacity-50" />
-              <span className="text-sm text-muted-foreground/60 font-medium">Secure Link</span>
-            </div>
+            <BrandLogo size="sm" />
             <p className="text-xs text-muted-foreground/50 text-center sm:text-right max-w-lg leading-relaxed">
               Secure Link does not store data longer than your configured retention period.
               This tool assists with secure data collection; it is not a legal compliance product.

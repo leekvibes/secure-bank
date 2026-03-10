@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { Lock, LayoutDashboard, Plus, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Plus, Settings, LogOut } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -24,10 +25,8 @@ export function DashboardNav({ user }: Props) {
     <header className="bg-card/95 border-b border-border backdrop-blur supports-[backdrop-filter]:bg-card/85">
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icon.svg" alt="Secure Link" width="28" height="28" />
-            <span className="font-semibold text-foreground text-sm">Secure Link</span>
+          <Link href="/dashboard">
+            <BrandLogo size="sm" />
           </Link>
 
           <nav className="hidden sm:flex items-center gap-1">

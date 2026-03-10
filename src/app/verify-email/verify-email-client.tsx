@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Mail, RefreshCw, ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
+import { Mail, RefreshCw, ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/brand-logo";
 
 interface Props {
   email: string;
@@ -112,10 +113,8 @@ export function VerifyEmailClient({ email }: Props) {
       <div className="w-full max-w-md animate-fade-in">
 
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 justify-center mb-10 group">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icon.svg" alt="Secure Link" width="36" height="36" />
-          <span className="text-lg font-semibold text-foreground tracking-tight">Secure Link</span>
+        <Link href="/" className="flex justify-center mb-10">
+          <BrandLogo size="md" />
         </Link>
 
         {/* Card */}

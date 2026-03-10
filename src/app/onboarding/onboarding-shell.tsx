@@ -1,8 +1,9 @@
 "use client";
 
-import { Shield, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/brand-logo";
 
 const STEPS = [
   { label: "Profile", path: "/onboarding/profile" },
@@ -21,10 +22,8 @@ export function OnboardingShell({ currentStep, children }: OnboardingShellProps)
   return (
     <div className="min-h-screen flex flex-col">
       <header className="px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icon.svg" alt="Secure Link" width="30" height="30" />
-          <span className="text-sm font-semibold text-foreground tracking-tight">Secure Link</span>
+        <Link href="/">
+          <BrandLogo size="sm" />
         </Link>
         <span className="text-xs text-muted-foreground">
           Step {currentStep} of {STEPS.length}

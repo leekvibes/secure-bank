@@ -82,13 +82,13 @@ function emailTemplate({
       <td align="center">
         <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
 
-          <!-- Dark header with logo -->
+          <!-- Logo header -->
           <tr>
-            <td style="background:#0D1117;border-radius:12px 12px 0 0;padding:44px 40px 40px;text-align:center;">
+            <td style="background:#F8FAFC;border-radius:12px 12px 0 0;padding:44px 40px 40px;text-align:center;border-bottom:1px solid #E2E8F0;">
               <div style="display:inline-block;line-height:1;">
-                <span style="font-family:system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:34px;font-weight:800;letter-spacing:-0.5px;color:#FFFFFF;">Secure</span><span style="font-family:system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:34px;font-weight:800;letter-spacing:-0.5px;color:#00A3FF;">Link</span>
+                <span style="font-family:system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:34px;font-weight:800;letter-spacing:-0.5px;color:#0F172A;">Secure</span><span style="font-family:system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:34px;font-weight:800;letter-spacing:-0.5px;color:#00A3FF;">Link</span>
               </div>
-              <div style="margin-top:10px;font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:3.5px;color:#00A3FF;opacity:0.8;">SECURE. SIMPLE. FAST.</div>
+              <div style="margin-top:10px;font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:3.5px;color:#00A3FF;">SECURE. SIMPLE. FAST.</div>
             </td>
           </tr>
 
