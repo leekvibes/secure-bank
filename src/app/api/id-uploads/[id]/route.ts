@@ -69,7 +69,7 @@ export async function GET(
 
   const detectedMime = detectFileMimeType(fileData);
   const mimeType = storedMimeType || detectedMime;
-  const allowedMimeTypes = new Set(["image/jpeg", "image/png", "application/pdf"]);
+  const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
   if (!allowedMimeTypes.has(mimeType)) {
     return NextResponse.json(
       { error: "Unsupported file type." },

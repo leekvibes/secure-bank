@@ -40,10 +40,15 @@ test("upload validation rejects invalid mime and oversize files", () => {
   const invalidMimeResult = validateUploadFile(invalidMime);
   assert.equal(invalidMimeResult.ok, false);
 
-  const oversized = new File([Buffer.alloc(5 * 1024 * 1024 + 1)], "big.jpg", {
+  const oversized = new File([Buffer.alloc(10 * 1024 * 1024 + 1)], "big.jpg", {
     type: "image/jpeg",
   });
   const oversizedResult = validateUploadFile(oversized);
   assert.equal(oversizedResult.ok, false);
 });
 
+test("upload validation accepts webp images", () => {
+  const webp = new File(["webp"], "photo.webp", { type: "image/webp" });
+  const result = validateUploadFile(webp);
+  assert.equal(result.ok, true);
+});

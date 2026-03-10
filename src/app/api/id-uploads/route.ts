@@ -83,9 +83,10 @@ export async function POST(req: NextRequest) {
   }
 
   const deleteAt = addDays(new Date(), link.retentionDays);
+  let createdUploadId = "";
 
-  await db.$transaction([
-    db.idUpload.create({
+  await db.$transaction(async (tx) => {
+    const createdUpload = await tx.idUpload.create({
       data: {
         linkId: link.id,
         agentId: link.agentId,
@@ -99,12 +100,15 @@ export async function POST(req: NextRequest) {
           backFile && typeof backFile !== "string" ? backFile.type || null : null,
         deleteAt,
       },
-    }),
-    db.secureLink.update({
+      select: { id: true },
+    });
+    createdUploadId = createdUpload.id;
+
+    await tx.secureLink.update({
       where: { id: link.id },
       data: { status: "SUBMITTED", submittedAt: new Date() },
-    }),
-  ]);
+    });
+  });
 
   await writeAuditLog({
     event: "ID_UPLOADED",
@@ -133,7 +137,7 @@ export async function POST(req: NextRequest) {
     clientName: link.clientName,
     documentType,
     uploadedAt,
-    viewUrl: `${process.env.NEXTAUTH_URL}/dashboard/uploads/${link.id}`,
+    viewUrl: `${process.env.NEXTAUTH_URL}/dashboard/uploads/${createdUploadId}`,
   });
 
   // Confirm to client if email known
@@ -147,5 +151,8 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ success: true }, { status: 201, headers: NO_STORE_HEADERS });
+  return NextResponse.json(
+    { success: true, uploadId: createdUploadId },
+    { status: 201, headers: NO_STORE_HEADERS }
+  );
 }

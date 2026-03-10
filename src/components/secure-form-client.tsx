@@ -22,8 +22,8 @@ function fmtPhone(raw: string): string {
   return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6, 10)}${d.length > 10 ? ` ${d.slice(10)}` : ""}`;
 }
 
-const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
-const ALLOWED_UPLOAD_MIMES = new Set(["image/jpeg", "image/png", "application/pdf"]);
+const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_UPLOAD_MIMES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 
 interface Props {
   token: string;
@@ -232,8 +232,8 @@ export function SecureFormClient({
 
   function validateUploadSelection(file: File | null): string | undefined {
     if (!file) return undefined;
-    if (!ALLOWED_UPLOAD_MIMES.has(file.type)) return "Only JPG, PNG, and PDF files are accepted.";
-    if (file.size > MAX_UPLOAD_SIZE_BYTES) return "File must be under 5 MB.";
+    if (!ALLOWED_UPLOAD_MIMES.has(file.type)) return "Only JPG, PNG, WEBP, and PDF files are accepted.";
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) return "File must be under 10 MB.";
     return undefined;
   }
 
@@ -666,7 +666,7 @@ export function SecureFormClient({
                         <input
                           ref={frontRef}
                           type="file"
-                          accept="image/jpeg,image/png,application/pdf"
+                          accept="image/jpeg,image/png,image/webp,application/pdf"
                           className="hidden"
                           onChange={(e) => {
                             const file = e.target.files?.[0] ?? null;
@@ -729,7 +729,7 @@ export function SecureFormClient({
                         <input
                           ref={backRef}
                           type="file"
-                          accept="image/jpeg,image/png,application/pdf"
+                          accept="image/jpeg,image/png,image/webp,application/pdf"
                           className="hidden"
                           onChange={(e) => {
                             const file = e.target.files?.[0] ?? null;

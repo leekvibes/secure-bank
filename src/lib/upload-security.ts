@@ -1,11 +1,12 @@
-const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
   "image/png",
+  "image/webp",
   "application/pdf",
 ]);
-const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "pdf"]);
+const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "pdf"]);
 
 export interface UploadValidationResult {
   ok: boolean;
@@ -18,7 +19,7 @@ export function validateUploadFile(file: File): UploadValidationResult {
   }
 
   if (file.size > MAX_UPLOAD_SIZE_BYTES) {
-    return { ok: false, error: "File exceeds 5MB limit." };
+    return { ok: false, error: "File exceeds 10MB limit." };
   }
 
   const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -26,7 +27,7 @@ export function validateUploadFile(file: File): UploadValidationResult {
   const extAllowed = ALLOWED_EXTENSIONS.has(extension);
 
   if (!mimeAllowed || !extAllowed) {
-    return { ok: false, error: "Only JPG, PNG, and PDF files are allowed." };
+    return { ok: false, error: "Only JPG, PNG, WEBP, and PDF files are allowed." };
   }
 
   return { ok: true };
