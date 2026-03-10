@@ -84,8 +84,11 @@ function emailTemplate({
 
           <!-- Dark header with logo -->
           <tr>
-            <td style="background:#0D1117;border-radius:12px 12px 0 0;padding:40px 40px 36px;text-align:center;">
-              <img src="${LOGO_URL}" alt="Secure Link" height="80" style="display:block;margin:0 auto;max-width:320px;"/>
+            <td style="background:#0D1117;border-radius:12px 12px 0 0;padding:44px 40px 40px;text-align:center;">
+              <div style="display:inline-block;line-height:1;">
+                <span style="font-family:system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:34px;font-weight:800;letter-spacing:-0.5px;color:#FFFFFF;">Secure</span><span style="font-family:system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:34px;font-weight:800;letter-spacing:-0.5px;color:#00A3FF;">Link</span>
+              </div>
+              <div style="margin-top:10px;font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:3.5px;color:#00A3FF;opacity:0.8;">SECURE. SIMPLE. FAST.</div>
             </td>
           </tr>
 
