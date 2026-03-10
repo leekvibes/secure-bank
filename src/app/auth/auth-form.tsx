@@ -104,9 +104,9 @@ export function AuthForm() {
         setError(loginData.error ?? "Account created, but sign-in failed. Please sign in manually.");
         return;
       }
-      // Show "check email" message before redirecting
+      // Redirect to email verification waiting page
       setError(null);
-      window.location.href = "/onboarding?checkEmail=1";
+      window.location.href = "/verify-email";
     } catch {
       setError("Registration failed. Please try again.");
     } finally {

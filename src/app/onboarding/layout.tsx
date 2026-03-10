@@ -13,11 +13,15 @@ export default async function OnboardingLayout({
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { onboardingCompleted: true },
+    select: { onboardingCompleted: true, emailVerified: true },
   });
 
   if (user?.onboardingCompleted) {
     redirect("/dashboard");
+  }
+
+  if (!user?.emailVerified) {
+    redirect("/verify-email");
   }
 
   return (

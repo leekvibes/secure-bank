@@ -9,7 +9,7 @@ import { InfoTip } from "@/components/info-tip";
 import {
   Upload, X, Loader2, UserCircle, User, Camera,
   Building2, Briefcase, Phone, Mail, FileText,
-  MapPin, Clock, Timer, MessageSquare, Lock, Shield, Check,
+  MapPin, Clock, Timer, MessageSquare, Lock, Shield, Check, Eye, EyeOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { INDUSTRIES } from "@/lib/industries";
@@ -42,6 +42,7 @@ const TABS = [
   { key: "branding", label: "Branding" },
   { key: "client", label: "Client Experience" },
   { key: "trust", label: "Trust & Security" },
+  { key: "account", label: "Account Settings" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -82,6 +83,14 @@ export function SettingsForm({ user }: Props) {
 
   const hasLicense = !!(user.licenseNumber && user.verificationStatus === "LICENSED");
   const [isLicensed, setIsLicensed] = useState<boolean>(hasLicense);
+
+  // Account Settings — password change
+  const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSuccess, setPwSuccess] = useState(false);
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
 
   const [form, setForm] = useState({
     displayName: user.displayName,
@@ -207,6 +216,31 @@ export function SettingsForm({ user }: Props) {
     setCurrentPhotoUrl(null);
     setPhotoUploading(false);
     router.refresh();
+  }
+
+  async function handlePasswordChange(e: React.FormEvent) {
+    e.preventDefault();
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      setPwError("Passwords do not match.");
+      return;
+    }
+    setPwLoading(true);
+    setPwError(null);
+    setPwSuccess(false);
+    const res = await fetch("/api/auth/change-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(pwForm),
+    });
+    const data = await res.json();
+    setPwLoading(false);
+    if (!res.ok) {
+      setPwError(data.error ?? "Failed to change password.");
+      return;
+    }
+    setPwSuccess(true);
+    setPwForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    setTimeout(() => setPwSuccess(false), 4000);
   }
 
   return (
@@ -689,6 +723,112 @@ export function SettingsForm({ user }: Props) {
             </div>
           </div>
 
+        </div>
+      )}
+
+      {activeTab === "account" && (
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-border/60 bg-card shadow-sm">
+            <div className="px-6 py-5 border-b border-border/40">
+              <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <Lock className="w-4 h-4 text-primary" />
+                Change Password
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Update your account password. You&apos;ll receive a security email when your password changes.</p>
+            </div>
+            <div className="p-6">
+              {pwError && (
+                <div className="mb-4 p-3 bg-red-500/8 border border-red-500/15 rounded-xl text-sm text-red-600">{pwError}</div>
+              )}
+              {pwSuccess && (
+                <div className="mb-4 p-3 bg-emerald-500/8 border border-emerald-500/15 rounded-xl text-sm text-emerald-600 flex items-center gap-2">
+                  <Check className="w-4 h-4" /> Password changed successfully.
+                </div>
+              )}
+              <form onSubmit={handlePasswordChange} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="currentPassword" className="text-xs font-medium text-muted-foreground">Current Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="currentPassword"
+                      type={showCurrentPw ? "text" : "password"}
+                      value={pwForm.currentPassword}
+                      onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })}
+                      required
+                      autoComplete="current-password"
+                      placeholder="Your current password"
+                      className="h-10 rounded-xl pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPw(!showCurrentPw)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showCurrentPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="newPassword" className="text-xs font-medium text-muted-foreground">New Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="newPassword"
+                      type={showNewPw ? "text" : "password"}
+                      value={pwForm.newPassword}
+                      onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })}
+                      required
+                      autoComplete="new-password"
+                      placeholder="At least 8 characters"
+                      minLength={8}
+                      className="h-10 rounded-xl pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPw(!showNewPw)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirmNewPassword" className="text-xs font-medium text-muted-foreground">Confirm New Password</Label>
+                  <Input
+                    id="confirmNewPassword"
+                    type={showNewPw ? "text" : "password"}
+                    value={pwForm.confirmPassword}
+                    onChange={(e) => setPwForm({ ...pwForm, confirmPassword: e.target.value })}
+                    required
+                    autoComplete="new-password"
+                    placeholder="Re-enter new password"
+                    minLength={8}
+                    className="h-10 rounded-xl"
+                  />
+                </div>
+                <div className="pt-2">
+                  <Button type="submit" disabled={pwLoading} className="h-10 px-6 rounded-xl font-medium">
+                    {pwLoading ? (
+                      <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Updating...</span>
+                    ) : "Update Password"}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border/60 bg-card shadow-sm">
+            <div className="px-6 py-5 border-b border-border/40">
+              <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <Mail className="w-4 h-4 text-primary" />
+                Account Email
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Your sign-in email address.</p>
+            </div>
+            <div className="p-6">
+              <Input value={user.email} disabled className="h-10 rounded-xl bg-muted/50" />
+              <p className="mt-2 text-[11px] text-muted-foreground">To change your email address, contact support@mysecurelink.co.</p>
+            </div>
+          </div>
         </div>
       )}
 

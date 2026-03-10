@@ -84,8 +84,8 @@ function emailTemplate({
 
           <!-- Dark header with logo -->
           <tr>
-            <td style="background:#0D1117;border-radius:12px 12px 0 0;padding:32px 40px;text-align:center;">
-              <img src="${LOGO_URL}" alt="Secure Link" height="52" style="display:block;margin:0 auto;"/>
+            <td style="background:#0D1117;border-radius:12px 12px 0 0;padding:40px 40px 36px;text-align:center;">
+              <img src="${LOGO_URL}" alt="Secure Link" height="80" style="display:block;margin:0 auto;max-width:320px;"/>
             </td>
           </tr>
 
