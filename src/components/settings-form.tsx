@@ -48,6 +48,10 @@ const TABS = [
 type TabKey = (typeof TABS)[number]["key"];
 
 const RETENTION_OPTIONS = [
+  { value: 1,  label: "1 day" },
+  { value: 3,  label: "3 days" },
+  { value: 7,  label: "7 days" },
+  { value: 14, label: "14 days" },
   { value: 30, label: "30 days" },
   { value: 60, label: "60 days" },
   { value: 90, label: "90 days" },
@@ -651,21 +655,6 @@ export function SettingsForm({ user }: Props) {
             <div className="p-6">
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-1.5">
-                  <Label htmlFor="destinationLabel" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5" />
-                    Destination Label
-                    <InfoTip text="This label is shown to your clients so they know exactly where their sensitive information is being submitted, like a company or partner name." />
-                  </Label>
-                  <Input
-                    id="destinationLabel"
-                    value={form.destinationLabel}
-                    onChange={(e) => setForm({ ...form, destinationLabel: e.target.value })}
-                    placeholder="e.g. Your company, a partner firm, internal processing"
-                    className="h-10 rounded-xl"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
                   <Label htmlFor="carriersList" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                     <Briefcase className="w-3.5 h-3.5" />
                     Partners / Affiliations
@@ -843,7 +832,7 @@ export function SettingsForm({ user }: Props) {
               <div className="space-y-2">
                 <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5" />
-                  Data Retention Policy
+                  How long do you want to store client info?
                   <InfoTip text="How long client submissions are stored before being automatically deleted. Shorter retention periods are more secure. 'Manual only' means you decide when to delete data yourself." />
                 </Label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

@@ -21,10 +21,9 @@ export function OnboardingShell({ currentStep, children }: OnboardingShellProps)
   return (
     <div className="min-h-screen flex flex-col">
       <header className="px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <Shield className="w-4 h-4 text-white" />
-          </div>
+        <Link href="/" className="flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon.svg" alt="Secure Link" width="30" height="30" />
           <span className="text-sm font-semibold text-foreground tracking-tight">Secure Link</span>
         </Link>
         <span className="text-xs text-muted-foreground">

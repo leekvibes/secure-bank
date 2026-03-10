@@ -13,10 +13,9 @@ export default async function HomePage() {
     <main className="min-h-screen bg-gradient-to-b from-white to-[hsl(210,25%,96%)] text-foreground overflow-hidden">
       <div className="relative z-10">
         <nav className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-md">
-              <Lock className="w-4.5 h-4.5 text-white" />
-            </div>
+          <div className="flex items-center gap-2.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icon.svg" alt="Secure Link" width="34" height="34" />
             <span className="font-semibold text-lg tracking-tight text-foreground">Secure Link</span>
           </div>
           <div className="flex items-center gap-3">
@@ -104,7 +103,8 @@ export default async function HomePage() {
         <footer className="max-w-6xl mx-auto px-6 pb-12">
           <div className="border-t border-border pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <Lock className="w-3.5 h-3.5 text-muted-foreground/50" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/icon.svg" alt="" width="18" height="18" className="opacity-50" />
               <span className="text-sm text-muted-foreground/60 font-medium">Secure Link</span>
             </div>
             <p className="text-xs text-muted-foreground/50 text-center sm:text-right max-w-lg leading-relaxed">

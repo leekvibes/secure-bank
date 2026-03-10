@@ -84,12 +84,10 @@ export function SecureFormClient({
   const [showConfirmSsn, setShowConfirmSsn] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [showConfirmAccount, setShowConfirmAccount] = useState(false);
+  const [useMiddleInitial, setUseMiddleInitial] = useState<boolean | null>(null);
   const frontRef = useRef<HTMLInputElement>(null);
   const backRef = useRef<HTMLInputElement>(null);
   const submitLockRef = useRef(false);
-  const middleInitialEnabled =
-    linkType === "BANKING_INFO" &&
-    (Boolean(linkOptions?.middleInitialEnabled) || Boolean(linkOptions?.requireMiddleInitial));
 
   function set(key: string, value: string | boolean) {
     setFields((f) => ({ ...f, [key]: value }));
@@ -109,16 +107,21 @@ export function SecureFormClient({
     fields.accountNumber !== fields.confirmAccountNumber;
 
   async function lookupRouting(value: string) {
-    if (value.length !== 9) { setRoutingInfo(null); return; }
+    if (value.length !== 9) {
+      setRoutingInfo(null);
+      set("bankName", "");
+      return;
+    }
     setCheckingRouting(true);
     try {
-      const res = await fetch(`/api/routing?number=${value}`);
+      const res = await fetch(`/api/routing?number=${value}`, { cache: "no-store" });
       const data = await res.json();
       if (data.name) {
         setRoutingInfo(data.name);
         set("bankName", data.name);
       } else {
         setRoutingInfo(null);
+        set("bankName", "");
       }
     } catch {
       setRoutingInfo(null);
@@ -145,7 +148,7 @@ export function SecureFormClient({
     if (linkType === "BANKING_INFO") {
       Object.assign(body, {
         fullName: fields.fullName,
-        ...(middleInitialEnabled ? { middleInitial: fields.middleInitial } : {}),
+        ...(useMiddleInitial ? { middleInitial: fields.middleInitial } : {}),
         bankName: fields.bankName,
         routingNumber: fields.routingNumber,
         accountNumber: fields.accountNumber,
@@ -378,15 +381,36 @@ export function SecureFormClient({
                     <Field label="Full Name" error={fieldErrors.fullName} required>
                       <Input value={fields.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Your full legal name" autoComplete="name" />
                     </Field>
-                    {middleInitialEnabled && (
-                      <Field label="Middle Initial" error={fieldErrors.middleInitial} required hint="Single letter (A–Z)">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-gray-700">
+                        Do you have a middle initial on your bank account?
+                      </p>
+                      <div className="flex gap-2">
+                        {([true, false] as const).map((val) => (
+                          <button
+                            key={String(val)}
+                            type="button"
+                            onClick={() => {
+                              setUseMiddleInitial(val);
+                              if (!val) set("middleInitial", "");
+                            }}
+                            className={`flex-1 h-10 rounded-xl text-sm font-medium border transition-all ${
+                              useMiddleInitial === val
+                                ? "bg-primary text-white border-primary shadow-sm"
+                                : "bg-white text-gray-700 border-gray-200 hover:border-primary/40"
+                            }`}
+                          >
+                            {val ? "Yes" : "No"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {useMiddleInitial === true && (
+                      <Field label="Middle Initial" error={fieldErrors.middleInitial} hint="Single letter as it appears on your bank account">
                         <Input
                           value={fields.middleInitial}
                           onChange={(e) =>
-                            set(
-                              "middleInitial",
-                              e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 1).toUpperCase()
-                            )
+                            set("middleInitial", e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 1).toUpperCase())
                           }
                           placeholder="A"
                           autoComplete="additional-name"
@@ -461,7 +485,7 @@ export function SecureFormClient({
                         {showConfirmAccount ? "Hide account number" : "Show account number"}
                       </button>
                     </Field>
-                    <Field label="Preferred Draft Date" error={fieldErrors.preferredDraftDate} required hint="Day of month for automatic payments (e.g. 1st, 15th)">
+                    <Field label="Preferred Draft Date" error={fieldErrors.preferredDraftDate} hint="Day of month for automatic payments (e.g. 1st, 15th) — optional">
                       <Input value={fields.preferredDraftDate} onChange={(e) => set("preferredDraftDate", e.target.value)} placeholder="e.g. 1st, 15th, or any day" />
                     </Field>
                   </>
@@ -521,6 +545,43 @@ export function SecureFormClient({
                         <span className="text-sm font-semibold text-gray-700">Banking Information</span>
                         <div className="flex-1 h-px bg-blue-100" />
                       </div>
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-gray-700">
+                          Do you have a middle initial on your bank account?
+                        </p>
+                        <div className="flex gap-2">
+                          {([true, false] as const).map((val) => (
+                            <button
+                              key={String(val)}
+                              type="button"
+                              onClick={() => {
+                                setUseMiddleInitial(val);
+                                if (!val) set("middleInitial", "");
+                              }}
+                              className={`flex-1 h-10 rounded-xl text-sm font-medium border transition-all ${
+                                useMiddleInitial === val
+                                  ? "bg-primary text-white border-primary shadow-sm"
+                                  : "bg-white text-gray-700 border-gray-200 hover:border-primary/40"
+                              }`}
+                            >
+                              {val ? "Yes" : "No"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {useMiddleInitial === true && (
+                        <Field label="Middle Initial" error={fieldErrors.middleInitial} hint="Single letter as it appears on your bank account">
+                          <Input
+                            value={fields.middleInitial}
+                            onChange={(e) =>
+                              set("middleInitial", e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 1).toUpperCase())
+                            }
+                            placeholder="A"
+                            autoComplete="additional-name"
+                            maxLength={1}
+                          />
+                        </Field>
+                      )}
                       <Field label="Routing Number" error={fieldErrors.routingNumber} required hint={checkingRouting ? "Looking up bank..." : routingInfo ? (
                         <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
@@ -552,7 +613,7 @@ export function SecureFormClient({
                           {showConfirmAccount ? "Hide account number" : "Show account number"}
                         </button>
                       </Field>
-                      <Field label="Preferred Draft Date" error={fieldErrors.preferredDraftDate} required>
+                      <Field label="Preferred Draft Date" error={fieldErrors.preferredDraftDate} hint="Optional">
                         <Input value={fields.preferredDraftDate} onChange={(e) => set("preferredDraftDate", e.target.value)} placeholder="e.g. 1st, 15th" />
                       </Field>
                     </div>

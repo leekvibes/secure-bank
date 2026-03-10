@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { encode } from "next-auth/jwt";
+import {
+  getNextAuthCookieOptions,
+  getSessionCookieName,
+} from "@/lib/auth/options";
 
-const useSecureCookies = (process.env.NEXTAUTH_URL ?? "").startsWith("https://");
-const SESSION_COOKIE = useSecureCookies
-  ? "__Secure-next-auth.session-token"
-  : "next-auth.session-token";
+const SESSION_COOKIE = getSessionCookieName();
 
 export async function POST(req: NextRequest) {
   try {
@@ -44,10 +45,7 @@ export async function POST(req: NextRequest) {
     const response = NextResponse.json({ success: true });
 
     const cookieOptions = {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none" as const,
-      path: "/",
+      ...getNextAuthCookieOptions(),
       maxAge: 8 * 60 * 60,
     };
 

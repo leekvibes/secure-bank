@@ -25,12 +25,9 @@ export function DashboardNav({ user }: Props) {
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-primary rounded-md flex items-center justify-center">
-              <Lock className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="font-semibold text-foreground text-sm">
-              Secure Links
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icon.svg" alt="Secure Link" width="28" height="28" />
+            <span className="font-semibold text-foreground text-sm">Secure Link</span>
           </Link>
 
           <nav className="hidden sm:flex items-center gap-1">

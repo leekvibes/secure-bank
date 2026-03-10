@@ -1,202 +1,354 @@
 const ROUTING_DB: Record<string, string> = {
-  "021000021": "JP MORGAN CHASE",
-  "021000089": "CITIBANK",
-  "021001088": "BANK OF AMERICA",
-  "021000322": "JP MORGAN CHASE",
-  "021101108": "BANK OF AMERICA",
-  "021200339": "HSBC BANK USA",
-  "021202337": "HSBC BANK USA",
-  "021272655": "TD BANK",
-  "021302567": "CITIBANK",
-  "021407912": "PNC BANK",
-  "021409169": "BANK OF AMERICA",
-  "021502011": "KEYBANK",
-  "021912915": "CITIBANK",
-  "022000046": "JP MORGAN CHASE",
-  "022300173": "KEYBANK",
-  "022000248": "JP MORGAN CHASE",
-  "026009593": "BANK OF AMERICA",
-  "026013673": "BANK OF AMERICA",
-  "026073150": "COMMUNITY FEDERAL SAVINGS BANK",
-  "031000053": "WELLS FARGO",
-  "031100157": "HSBC BANK USA",
-  "031100209": "PNC BANK",
-  "031101169": "PNC BANK",
-  "031176110": "TD BANK",
-  "031201360": "PNC BANK",
-  "031202084": "BB&T (NOW TRUIST)",
-  "031207607": "TD BANK",
-  "031301422": "REGIONS BANK",
-  "031302955": "M&T BANK",
-  "031312738": "BANK OF AMERICA",
-  "031901482": "CITIZENS BANK",
-  "036001808": "PNC BANK",
-  "041000124": "KEYBANK",
-  "041000153": "PNC BANK",
-  "041001039": "KEYBANK",
-  "041202582": "HUNTINGTON NATIONAL BANK",
-  "041215032": "HUNTINGTON NATIONAL BANK",
-  "042000013": "US BANK",
-  "042000314": "FIFTH THIRD BANK",
-  "042100175": "PNC BANK",
-  "043000096": "PNC BANK",
-  "043318092": "FIRST NATIONAL BANK",
-  "044000037": "HUNTINGTON NATIONAL BANK",
-  "051000017": "BANK OF AMERICA",
-  "051000020": "SUNTRUST (NOW TRUIST)",
-  "051400549": "BANK OF AMERICA",
-  "051503394": "NAVY FEDERAL CREDIT UNION",
-  "053000196": "WELLS FARGO",
-  "053000219": "SUNTRUST (NOW TRUIST)",
-  "053100300": "FIRST CITIZENS BANK",
-  "053200983": "REGIONS BANK",
-  "053902197": "BB&T (NOW TRUIST)",
-  "054001204": "BANK OF AMERICA",
-  "054001220": "US BANK",
-  "061000052": "BANK OF AMERICA",
-  "061000104": "SUNTRUST (NOW TRUIST)",
-  "061000227": "WELLS FARGO",
-  "061020016": "SYNOVUS BANK",
-  "061092387": "WELLS FARGO",
-  "061100606": "REGIONS BANK",
-  "061103852": "NAVY FEDERAL CREDIT UNION",
-  "062000019": "REGIONS BANK",
-  "062000080": "REGIONS BANK",
-  "062005690": "BBVA USA (NOW PNC)",
-  "062203751": "NAVY FEDERAL CREDIT UNION",
-  "063000047": "BANK OF AMERICA",
-  "063100277": "SUNTRUST (NOW TRUIST)",
-  "063102152": "CENTENNIAL BANK",
-  "063107513": "NAVY FEDERAL CREDIT UNION",
-  "064000017": "SUNTRUST (NOW TRUIST)",
-  "064000059": "BANK OF AMERICA",
-  "064103707": "PINNACLE BANK",
-  "065000090": "REGIONS BANK",
-  "065000171": "CAPITAL ONE",
-  "065305436": "NAVY FEDERAL CREDIT UNION",
-  "067011140": "CITIBANK",
-  "067014822": "NAVY FEDERAL CREDIT UNION",
-  "071000013": "JP MORGAN CHASE",
-  "071000288": "BMO HARRIS BANK",
-  "071000505": "BANK OF AMERICA",
-  "071025661": "CITIBANK",
-  "071904779": "WINTRUST FINANCIAL",
-  "071921891": "CITIBANK",
-  "072000096": "COMERICA BANK",
-  "072000326": "JP MORGAN CHASE",
-  "072000805": "FIFTH THIRD BANK",
-  "072403004": "HUNTINGTON NATIONAL BANK",
-  "073000176": "US BANK",
-  "073000228": "WELLS FARGO",
-  "073000545": "KEYBANK",
-  "073972181": "GREEN DOT BANK",
-  "074000010": "FIFTH THIRD BANK",
-  "074000078": "JP MORGAN CHASE",
-  "074908594": "NAVY FEDERAL CREDIT UNION",
-  "075000019": "BMO HARRIS BANK",
-  "075000022": "JP MORGAN CHASE",
-  "075911988": "NAVY FEDERAL CREDIT UNION",
-  "081000032": "US BANK",
-  "081000045": "COMMERCE BANK",
-  "081000210": "US BANK",
-  "081202759": "REGIONS BANK",
-  "081904808": "ALLY BANK",
-  "082000073": "US BANK",
-  "082000549": "REGIONS BANK",
-  "083000108": "PNC BANK",
-  "083000137": "US BANK",
-  "084000026": "REGIONS BANK",
-  "084009519": "FIRST HORIZON BANK",
-  "091000019": "US BANK",
-  "091000022": "WELLS FARGO",
-  "091300023": "ASSOCIATED BANK",
-  "091901480": "WELLS FARGO",
-  "091000080": "BREMER BANK",
-  "091904010": "NAVY FEDERAL CREDIT UNION",
-  "101000019": "UMB FINANCIAL",
-  "101000695": "US BANK",
-  "101089292": "COMMERCE BANK",
-  "101205681": "CAPITOL FEDERAL SAVINGS",
-  "103000648": "BANK OF OKLAHOMA",
-  "103100195": "ARVEST BANK",
-  "103113357": "TINKER FEDERAL CREDIT UNION",
-  "104000016": "FIRST NATIONAL BANK OF OMAHA",
-  "107000327": "WELLS FARGO",
-  "107005047": "FIRSTBANK",
-  "107002192": "ZIONS BANK",
-  "111000025": "BANK OF AMERICA",
-  "111000614": "JP MORGAN CHASE",
-  "111017694": "CHARLES SCHWAB BANK",
-  "111900659": "NAVY FEDERAL CREDIT UNION",
-  "112000066": "WELLS FARGO",
-  "112200567": "BBVA USA (NOW PNC)",
-  "113000023": "JP MORGAN CHASE",
-  "113010547": "CAPITAL ONE",
-  "113024588": "NAVY FEDERAL CREDIT UNION",
-  "114000093": "FROST BANK",
-  "114903284": "NAVY FEDERAL CREDIT UNION",
-  "121000248": "WELLS FARGO",
-  "121000358": "BANK OF AMERICA",
-  "121002042": "PACIFIC WESTERN BANK",
-  "121042882": "WELLS FARGO",
-  "121100782": "GOLDEN 1 CREDIT UNION",
-  "121137522": "PROVIDENT CREDIT UNION",
-  "121140399": "NAVY FEDERAL CREDIT UNION",
-  "121141822": "APPLE FEDERAL CREDIT UNION",
-  "121181985": "SILICON VALLEY BANK",
-  "121202211": "JP MORGAN CHASE",
-  "122000247": "WELLS FARGO",
-  "122000496": "UNION BANK",
-  "122000661": "BANK OF AMERICA",
-  "122003396": "US BANK",
-  "122100024": "BANK OF AMERICA",
-  "122105155": "GOLDEN 1 CREDIT UNION",
-  "122000030": "CITIBANK",
-  "122016066": "NAVY FEDERAL CREDIT UNION",
-  "122235821": "JP MORGAN CHASE",
-  "122400724": "BANK OF AMERICA",
-  "122401710": "CITIBANK",
-  "123000220": "US BANK",
-  "123002011": "WELLS FARGO",
-  "124000054": "JP MORGAN CHASE",
-  "124001545": "ZIONS BANK",
-  "124302150": "MOUNTAIN AMERICA CREDIT UNION",
-  "125000024": "JP MORGAN CHASE",
-  "125008547": "BANNER BANK",
-  "125200057": "COLUMBIA BANK",
-  "211070175": "TD BANK",
-  "211170101": "CITIZENS BANK",
-  "211274450": "ROCKLAND TRUST",
-  "211370545": "PEOPLE'S UNITED BANK (NOW M&T)",
-  "211474019": "BANK OF AMERICA",
-  "221172610": "TD BANK",
-  "222370440": "TD BANK",
-  "226071004": "TD BANK",
-  "231372691": "TD BANK",
-  "231381116": "NAVY FEDERAL CREDIT UNION",
-  "241070417": "HUNTINGTON NATIONAL BANK",
-  "253177049": "NAVY FEDERAL CREDIT UNION",
-  "254070116": "BB&T (NOW TRUIST)",
-  "256074974": "NAVY FEDERAL CREDIT UNION",
-  "261070015": "WELLS FARGO",
-  "261071315": "DELTA COMMUNITY CREDIT UNION",
-  "263079804": "NAVY FEDERAL CREDIT UNION",
-  "267084131": "NAVY FEDERAL CREDIT UNION",
-  "271070801": "DISCOVER BANK",
-  "271071321": "ALLIANT CREDIT UNION",
-  "272471852": "LAKE MICHIGAN CREDIT UNION",
-  "281073568": "NAVY FEDERAL CREDIT UNION",
-  "291070001": "WELLS FARGO",
-  "302075830": "NAVY FEDERAL CREDIT UNION",
-  "307070005": "BANK OF AMERICA",
-  "311079573": "NAVY FEDERAL CREDIT UNION",
-  "314074269": "USAA FEDERAL SAVINGS BANK",
-  "321070007": "WELLS FARGO",
-  "321081669": "NAVY FEDERAL CREDIT UNION",
-  "322070381": "NAVY FEDERAL CREDIT UNION",
-  "322271627": "JP MORGAN CHASE",
-  "322278141": "LOGIX FEDERAL CREDIT UNION",
-  "325070760": "NAVY FEDERAL CREDIT UNION",
+  // ── JP Morgan Chase ─────────────────────────────────────────────────────────
+  "021000021": "JPMorgan Chase Bank",
+  "021000322": "JPMorgan Chase Bank",
+  "022000046": "JPMorgan Chase Bank",
+  "022000248": "JPMorgan Chase Bank",
+  "071000013": "JPMorgan Chase Bank",
+  "072000326": "JPMorgan Chase Bank",
+  "074000078": "JPMorgan Chase Bank",
+  "075000022": "JPMorgan Chase Bank",
+  "111000614": "JPMorgan Chase Bank",
+  "113000023": "JPMorgan Chase Bank",
+  "121202211": "JPMorgan Chase Bank",
+  "122235821": "JPMorgan Chase Bank",
+  "124000054": "JPMorgan Chase Bank",
+  "125000024": "JPMorgan Chase Bank",
+  "322271627": "JPMorgan Chase Bank",
+
+  // ── Bank of America ──────────────────────────────────────────────────────────
+  "021001088": "Bank of America",
+  "021101108": "Bank of America",
+  "021409169": "Bank of America",
+  "026009593": "Bank of America",
+  "026013673": "Bank of America",
+  "031312738": "Bank of America",
+  "051000017": "Bank of America",
+  "051400549": "Bank of America",
+  "054001204": "Bank of America",
+  "061000052": "Bank of America",
+  "063000047": "Bank of America",
+  "064000059": "Bank of America",
+  "111000025": "Bank of America",
+  "121000358": "Bank of America",
+  "122000661": "Bank of America",
+  "122100024": "Bank of America",
+  "122400724": "Bank of America",
+  "307070005": "Bank of America",
+
+  // ── Wells Fargo ──────────────────────────────────────────────────────────────
+  "031000053": "Wells Fargo Bank",
+  "053000196": "Wells Fargo Bank",
+  "061000227": "Wells Fargo Bank",
+  "061092387": "Wells Fargo Bank",
+  "073000228": "Wells Fargo Bank",
+  "091000022": "Wells Fargo Bank",
+  "091901480": "Wells Fargo Bank",
+  "107000327": "Wells Fargo Bank",
+  "112000066": "Wells Fargo Bank",
+  "121000248": "Wells Fargo Bank",
+  "121042882": "Wells Fargo Bank",
+  "122000247": "Wells Fargo Bank",
+  "123002011": "Wells Fargo Bank",
+  "261070015": "Wells Fargo Bank",
+  "291070001": "Wells Fargo Bank",
+  "321070007": "Wells Fargo Bank",
+
+  // ── Citibank ─────────────────────────────────────────────────────────────────
+  "021000089": "Citibank",
+  "021302567": "Citibank",
+  "021912915": "Citibank",
+  "067011140": "Citibank",
+  "071025661": "Citibank",
+  "071921891": "Citibank",
+  "122000030": "Citibank",
+  "122401710": "Citibank",
+  "271070801": "Citibank (formerly Discover Bank)",
+
+  // ── US Bank ──────────────────────────────────────────────────────────────────
+  "042000013": "U.S. Bank",
+  "054001220": "U.S. Bank",
+  "073000176": "U.S. Bank",
+  "081000032": "U.S. Bank",
+  "081000210": "U.S. Bank",
+  "082000073": "U.S. Bank",
+  "083000137": "U.S. Bank",
+  "091000019": "U.S. Bank",
+  "101000695": "U.S. Bank",
+  "122003396": "U.S. Bank",
+  "123000220": "U.S. Bank",
+
+  // ── PNC Bank ─────────────────────────────────────────────────────────────────
+  "021407912": "PNC Bank",
+  "031100209": "PNC Bank",
+  "031101169": "PNC Bank",
+  "031201360": "PNC Bank",
+  "036001808": "PNC Bank",
+  "041000153": "PNC Bank",
+  "042100175": "PNC Bank",
+  "043000096": "PNC Bank",
+  "083000108": "PNC Bank",
+
+  // ── TD Bank ──────────────────────────────────────────────────────────────────
+  "021272655": "TD Bank",
+  "031176110": "TD Bank",
+  "031207607": "TD Bank",
+  "211070175": "TD Bank",
+  "221172610": "TD Bank",
+  "222370440": "TD Bank",
+  "226071004": "TD Bank",
+  "231372691": "TD Bank",
+
+  // ── Truist (formerly BB&T / SunTrust) ────────────────────────────────────────
+  "031202084": "Truist Bank",
+  "051000020": "Truist Bank",
+  "053000219": "Truist Bank",
+  "053902197": "Truist Bank",
+  "061000104": "Truist Bank",
+  "063100277": "Truist Bank",
+  "064000017": "Truist Bank",
+  "253177049": "Truist Bank",
+  "254070116": "Truist Bank",
+
+  // ── Capital One ──────────────────────────────────────────────────────────────
+  "065000171": "Capital One",
+  "113010547": "Capital One",
+  "255071981": "Capital One",
+
+  // ── Regions Bank ─────────────────────────────────────────────────────────────
+  "031301422": "Regions Bank",
+  "053200983": "Regions Bank",
+  "061100606": "Regions Bank",
+  "062000019": "Regions Bank",
+  "062000080": "Regions Bank",
+  "065000090": "Regions Bank",
+  "081202759": "Regions Bank",
+  "082000549": "Regions Bank",
+  "084000026": "Regions Bank",
+
+  // ── USAA Federal Savings Bank ─────────────────────────────────────────────────
+  "314074269": "USAA Federal Savings Bank",
+
+  // ── Navy Federal Credit Union ─────────────────────────────────────────────────
+  "051503394": "Navy Federal Credit Union",
+  "061103852": "Navy Federal Credit Union",
+  "062203751": "Navy Federal Credit Union",
+  "063107513": "Navy Federal Credit Union",
+  "065305436": "Navy Federal Credit Union",
+  "067014822": "Navy Federal Credit Union",
+  "074908594": "Navy Federal Credit Union",
+  "075911988": "Navy Federal Credit Union",
+  "091904010": "Navy Federal Credit Union",
+  "111900659": "Navy Federal Credit Union",
+  "113024588": "Navy Federal Credit Union",
+  "114903284": "Navy Federal Credit Union",
+  "121140399": "Navy Federal Credit Union",
+  "122016066": "Navy Federal Credit Union",
+  "231381116": "Navy Federal Credit Union",
+  "256074974": "Navy Federal Credit Union",
+  "263079804": "Navy Federal Credit Union",
+  "267084131": "Navy Federal Credit Union",
+  "281073568": "Navy Federal Credit Union",
+  "302075830": "Navy Federal Credit Union",
+  "311079573": "Navy Federal Credit Union",
+  "314089681": "Navy Federal Credit Union",
+  "321081669": "Navy Federal Credit Union",
+  "322070381": "Navy Federal Credit Union",
+  "325070760": "Navy Federal Credit Union",
+
+  // ── Ally Bank ────────────────────────────────────────────────────────────────
+  "081904808": "Ally Bank",
+  "124003116": "Ally Bank",
+
+  // ── Charles Schwab Bank ───────────────────────────────────────────────────────
+  "111017694": "Charles Schwab Bank",
+  "282076588": "Charles Schwab Bank",
+
+  // ── Discover Bank ────────────────────────────────────────────────────────────
+  "031100649": "Discover Bank",
+
+  // ── KeyBank ──────────────────────────────────────────────────────────────────
+  "021502011": "KeyBank",
+  "022300173": "KeyBank",
+  "041000124": "KeyBank",
+  "041001039": "KeyBank",
+  "073000545": "KeyBank",
+
+  // ── Huntington National Bank ─────────────────────────────────────────────────
+  "041202582": "Huntington National Bank",
+  "041215032": "Huntington National Bank",
+  "044000037": "Huntington National Bank",
+  "072403004": "Huntington National Bank",
+  "241070417": "Huntington National Bank",
+
+  // ── Fifth Third Bank ─────────────────────────────────────────────────────────
+  "042000314": "Fifth Third Bank",
+  "072000805": "Fifth Third Bank",
+  "074000010": "Fifth Third Bank",
+
+  // ── M&T Bank ─────────────────────────────────────────────────────────────────
+  "031302955": "M&T Bank",
+  "022300251": "M&T Bank (formerly People's United)",
+
+  // ── Citizens Bank ────────────────────────────────────────────────────────────
+  "031901482": "Citizens Bank",
+  "211170101": "Citizens Bank",
+  "036076150": "Citizens Bank",
+
+  // ── HSBC Bank USA ────────────────────────────────────────────────────────────
+  "021200339": "HSBC Bank USA",
+  "021202337": "HSBC Bank USA",
+  "031100157": "HSBC Bank USA",
+
+  // ── BMO Harris Bank ──────────────────────────────────────────────────────────
+  "071000288": "BMO Bank",
+  "075000019": "BMO Bank",
+
+  // ── Comerica Bank ────────────────────────────────────────────────────────────
+  "072000096": "Comerica Bank",
+  "111000753": "Comerica Bank",
+
+  // ── Frost Bank ───────────────────────────────────────────────────────────────
+  "114000093": "Frost Bank",
+
+  // ── Zions Bank ───────────────────────────────────────────────────────────────
+  "107002192": "Zions Bank",
+  "124001545": "Zions Bank",
+
+  // ── First Horizon Bank ───────────────────────────────────────────────────────
+  "084009519": "First Horizon Bank",
+
+  // ── Commerce Bank ────────────────────────────────────────────────────────────
+  "081000045": "Commerce Bank",
+  "081000100": "Commerce Bank",
+  "101089292": "Commerce Bank",
+
+  // ── Synovus Bank ─────────────────────────────────────────────────────────────
+  "061020016": "Synovus Bank",
+
+  // ── Associated Bank ──────────────────────────────────────────────────────────
+  "091300023": "Associated Bank",
+
+  // ── Green Dot Bank ───────────────────────────────────────────────────────────
+  "073972181": "Green Dot Bank",
+  "124303065": "Green Dot Bank",
+
+  // ── Alliant Credit Union ─────────────────────────────────────────────────────
+  "271071321": "Alliant Credit Union",
+
+  // ── Golden 1 Credit Union ────────────────────────────────────────────────────
+  "121100782": "Golden 1 Credit Union",
+  "122105155": "Golden 1 Credit Union",
+
+  // ── Lake Michigan Credit Union ───────────────────────────────────────────────
+  "272471852": "Lake Michigan Credit Union",
+
+  // ── Mountain America Credit Union ───────────────────────────────────────────
+  "324302150": "Mountain America Credit Union",
+
+  // ── Delta Community Credit Union ─────────────────────────────────────────────
+  "261071315": "Delta Community Credit Union",
+
+  // ── Logix Federal Credit Union ───────────────────────────────────────────────
+  "322278141": "Logix Federal Credit Union",
+
+  // ── Tinker Federal Credit Union ──────────────────────────────────────────────
+  "103113357": "Tinker Federal Credit Union",
+
+  // ── Apple Federal Credit Union ───────────────────────────────────────────────
+  "121141822": "Apple Federal Credit Union",
+
+  // ── First National Bank of Omaha ─────────────────────────────────────────────
+  "104000016": "First National Bank of Omaha",
+
+  // ── Arvest Bank ──────────────────────────────────────────────────────────────
+  "103100195": "Arvest Bank",
+
+  // ── Bank of Oklahoma ─────────────────────────────────────────────────────────
+  "103000648": "Bank of Oklahoma",
+
+  // ── First Citizens Bank ──────────────────────────────────────────────────────
+  "053100300": "First Citizens Bank",
+  "053207766": "First Citizens Bank",
+
+  // ── Pinnacle Bank ────────────────────────────────────────────────────────────
+  "064103707": "Pinnacle Bank",
+
+  // ── Banner Bank ──────────────────────────────────────────────────────────────
+  "125008547": "Banner Bank",
+
+  // ── Columbia Bank ────────────────────────────────────────────────────────────
+  "125200057": "Columbia Bank",
+
+  // ── Rockland Trust ───────────────────────────────────────────────────────────
+  "211274450": "Rockland Trust",
+
+  // ── Centennial Bank ──────────────────────────────────────────────────────────
+  "063102152": "Centennial Bank",
+
+  // ── Pacific Western Bank / PacWest ───────────────────────────────────────────
+  "121002042": "Pacific Premier Bank",
+
+  // ── Wintrust Financial ───────────────────────────────────────────────────────
+  "071904779": "Wintrust Bank",
+
+  // ── Bremer Bank ──────────────────────────────────────────────────────────────
+  "091000080": "Bremer Bank",
+
+  // ── UMB Financial ────────────────────────────────────────────────────────────
+  "101000019": "UMB Bank",
+
+  // ── Capitol Federal Savings ──────────────────────────────────────────────────
+  "101205681": "Capitol Federal Savings",
+
+  // ── FirstBank ────────────────────────────────────────────────────────────────
+  "107005047": "FirstBank",
+
+  // ── Provident Credit Union ───────────────────────────────────────────────────
+  "121137522": "Provident Credit Union",
+
+  // ── People's United (now M&T) ────────────────────────────────────────────────
+  "211370545": "People's United Bank (now M&T Bank)",
+
+  // ── Synchrony Bank ───────────────────────────────────────────────────────────
+  "021213591": "Synchrony Bank",
+  "031101186": "Synchrony Bank",
+
+  // ── Marcus by Goldman Sachs ──────────────────────────────────────────────────
+  "124085024": "Goldman Sachs Bank USA",
+  "026015079": "Goldman Sachs Bank USA",
+
+  // ── American Express National Bank ───────────────────────────────────────────
+  "124071889": "American Express National Bank",
+
+  // ── Sofi Bank ────────────────────────────────────────────────────────────────
+  "031101533": "SoFi Bank",
+  "084209745": "SoFi Bank",
+
+  // ── Chime (The Bancorp / Stride Bank) ────────────────────────────────────────
+  "031101279": "Chime (Bancorp Bank)",
+  "103112675": "Chime (Stride Bank)",
+
+  // ── CashApp / Sutton Bank ────────────────────────────────────────────────────
+  "041215663": "Cash App (Sutton Bank)",
+
+  // ── Varo Bank ────────────────────────────────────────────────────────────────
+  "103112596": "Varo Bank",
+
+  // ── Axos Bank ────────────────────────────────────────────────────────────────
+  "122287675": "Axos Bank",
+  "124271978": "Axos Bank",
+
+  // ── BBVA (now PNC) ───────────────────────────────────────────────────────────
+  "062005690": "PNC Bank (formerly BBVA)",
+  "112200567": "PNC Bank (formerly BBVA)",
+
+  // ── Union Bank (now US Bank) ─────────────────────────────────────────────────
+  "122000496": "U.S. Bank (formerly Union Bank)",
+
+  // ── Signature Bank / Flagstar Bank ──────────────────────────────────────────
+  "026013576": "Flagstar Bank",
+  "272484872": "Flagstar Bank",
 };
 
 export function lookupLocal(routingNumber: string): string | null {

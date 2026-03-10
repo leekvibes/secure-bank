@@ -117,10 +117,9 @@ export function AuthForm() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-[hsl(210,25%,97%)] to-[hsl(210,20%,94%)] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md animate-fade-in">
-        <Link href="/" className="flex items-center gap-3 justify-center mb-10 group">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-md">
-            <Shield className="w-5 h-5 text-white" />
-          </div>
+        <Link href="/" className="flex items-center gap-2.5 justify-center mb-10 group">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon.svg" alt="Secure Link" width="36" height="36" />
           <span className="text-lg font-semibold text-foreground tracking-tight">Secure Link</span>
         </Link>
 
