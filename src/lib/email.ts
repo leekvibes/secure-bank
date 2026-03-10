@@ -6,7 +6,7 @@
 
 import { Resend } from "resend";
 
-// ── Client ────────────────────────────────────────────────────────────────────
+// ── Config ────────────────────────────────────────────────────────────────────
 
 function getClient(): Resend | null {
   if (!process.env.RESEND_API_KEY) return null;
@@ -21,6 +21,10 @@ const FROM_NOTIFICATIONS = "Secure Link <notifications@mysecurelink.co>";
 const LOGO_URL = `${APP_URL}/logo.svg`;
 
 // ── Shared HTML Template ──────────────────────────────────────────────────────
+
+function p(text: string) {
+  return `<p style="margin:0 0 14px;font-size:15px;color:#475569;line-height:1.7;">${text}</p>`;
+}
 
 function emailTemplate({
   heading,
@@ -37,17 +41,18 @@ function emailTemplate({
   notice?: string;
   fromSecurity?: boolean;
 }): string {
-  const ctaButton = ctaLabel && ctaUrl
-    ? `<div style="text-align:center;margin:32px 0;">
-        <a href="${ctaUrl}"
-           style="display:inline-block;background:linear-gradient(135deg,#00A3FF,#0057FF);
-                  color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;
-                  font-weight:700;font-size:15px;letter-spacing:0.3px;
-                  font-family:system-ui,-apple-system,sans-serif;">
-          ${ctaLabel}
-        </a>
-       </div>`
-    : "";
+  const ctaButton =
+    ctaLabel && ctaUrl
+      ? `<div style="text-align:center;margin:32px 0;">
+          <a href="${ctaUrl}"
+             style="display:inline-block;background:linear-gradient(135deg,#00A3FF,#0057FF);
+                    color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;
+                    font-weight:700;font-size:15px;letter-spacing:0.3px;
+                    font-family:system-ui,-apple-system,sans-serif;">
+            ${ctaLabel}
+          </a>
+         </div>`
+      : "";
 
   const noticeBlock = notice
     ? `<div style="background:#F0F7FF;border-left:4px solid #0057FF;border-radius:4px;
@@ -59,7 +64,8 @@ function emailTemplate({
   const securityNote = fromSecurity
     ? `<p style="margin:24px 0 0;font-size:12px;color:#94A3B8;text-align:center;line-height:1.6;">
          Secure Link will never ask for your password, banking information, or SSN via email.<br/>
-         If you did not request this, contact <a href="mailto:${SUPPORT_EMAIL}" style="color:#0057FF;">${SUPPORT_EMAIL}</a> immediately.
+         If you did not initiate this action, contact
+         <a href="mailto:${SUPPORT_EMAIL}" style="color:#0057FF;">${SUPPORT_EMAIL}</a> immediately.
        </p>`
     : "";
 
@@ -76,17 +82,17 @@ function emailTemplate({
       <td align="center">
         <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
 
-          <!-- Header -->
+          <!-- Dark header with logo -->
           <tr>
             <td style="background:#0D1117;border-radius:12px 12px 0 0;padding:32px 40px;text-align:center;">
               <img src="${LOGO_URL}" alt="Secure Link" height="52" style="display:block;margin:0 auto;"/>
             </td>
           </tr>
 
-          <!-- Body -->
+          <!-- White body -->
           <tr>
             <td style="background:#FFFFFF;padding:40px 48px;">
-              <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#0F172A;letter-spacing:-0.3px;">
+              <h1 style="margin:0 0 20px;font-size:22px;font-weight:700;color:#0F172A;letter-spacing:-0.3px;">
                 ${heading}
               </h1>
               <div style="font-size:15px;color:#475569;line-height:1.7;">
@@ -98,7 +104,7 @@ function emailTemplate({
             </td>
           </tr>
 
-          <!-- Footer -->
+          <!-- Gray footer -->
           <tr>
             <td style="background:#F8FAFC;border-top:1px solid #E2E8F0;border-radius:0 0 12px 12px;
                         padding:24px 48px;text-align:center;">
@@ -123,7 +129,7 @@ function emailTemplate({
 </html>`;
 }
 
-// ── Helper ────────────────────────────────────────────────────────────────────
+// ── Shared sender ─────────────────────────────────────────────────────────────
 
 async function send(args: {
   to: string | string[];
@@ -153,19 +159,21 @@ export async function sendEmailVerification(args: {
   toEmail: string;
   firstName: string;
   verifyUrl: string;
+  expiresIn?: string;
 }): Promise<void> {
-  const { toEmail, firstName, verifyUrl } = args;
+  const { toEmail, firstName, verifyUrl, expiresIn = "24 hours" } = args;
   await send({
     to: toEmail,
-    subject: "Verify your Secure Link email address",
+    subject: "Verify your email to secure your account",
     html: emailTemplate({
       heading: "Verify your email address",
-      body: `<p>Hi ${firstName},</p>
-             <p>Thanks for creating a Secure Link account. Click the button below to verify your email address and activate your account.</p>
-             <p>This verification link expires in <strong>24 hours</strong>.</p>`,
+      body:
+        p(`Hi ${firstName},`) +
+        p("Please verify your email address to finish setting up your account.") +
+        p(`This link expires in <strong>${expiresIn}</strong>.`),
       ctaLabel: "Verify Email Address",
       ctaUrl: verifyUrl,
-      notice: "If you did not create a Secure Link account, you can safely ignore this email. No account will be created without verification.",
+      notice: "If you didn't create this account, you can ignore this email. No account will be activated without verification.",
       fromSecurity: true,
     }),
   });
@@ -183,13 +191,15 @@ export async function sendWelcomeEmail(args: {
     subject: "Welcome to Secure Link",
     html: emailTemplate({
       heading: `Welcome, ${firstName}.`,
-      body: `<p>Your account is verified and ready. Secure Link lets you collect sensitive information from clients — banking details, SSNs, ID documents — through encrypted, expiring links.</p>
-             <p>Here's how to get started:</p>
-             <ol style="padding-left:20px;color:#475569;">
-               <li style="margin-bottom:8px;">Complete your profile and upload your logo</li>
-               <li style="margin-bottom:8px;">Create your first secure request link</li>
-               <li style="margin-bottom:8px;">Send it to your client and receive their submission encrypted</li>
-             </ol>`,
+      body:
+        p("Welcome aboard. Your account is ready, and you can start sending secure requests now.") +
+        p("Here's how to get started:") +
+        `<ol style="padding-left:20px;color:#475569;font-size:15px;line-height:1.8;margin:0 0 14px;">
+           <li>Complete your profile and upload your logo</li>
+           <li>Create your first secure request link</li>
+           <li>Send it to your client and receive their submission encrypted</li>
+         </ol>` +
+        p(`If you need help getting started, reply to this email and we'll help you quickly.`),
       ctaLabel: "Go to Dashboard",
       ctaUrl: `${APP_URL}/dashboard`,
     }),
@@ -210,12 +220,13 @@ export async function sendPasswordResetEmail(args: {
     subject: "Reset your Secure Link password",
     html: emailTemplate({
       heading: "Reset your password",
-      body: `<p>Hi ${toName},</p>
-             <p>We received a request to reset your Secure Link password. Click below to choose a new one.</p>
-             <p>This link expires in <strong>1 hour</strong>.</p>`,
+      body:
+        p(`Hi ${toName},`) +
+        p("We received a request to reset your Secure Link password. Click the button below to choose a new one.") +
+        p("This link expires in <strong>1 hour</strong>."),
       ctaLabel: "Reset Password",
       ctaUrl: resetUrl,
-      notice: "If you did not request a password reset, you can safely ignore this email. Your password will not change.",
+      notice: `If you didn't request this, you can safely ignore this email. Your password will not change.`,
       fromSecurity: true,
     }),
   });
@@ -232,15 +243,14 @@ export async function sendPasswordChangedEmail(args: {
   await send({
     to: toEmail,
     from: FROM_SECURITY,
-    subject: "Your Secure Link password was changed",
+    subject: "Your password was changed",
     html: emailTemplate({
       heading: "Password successfully changed",
-      body: `<p>Hi ${toName},</p>
-             <p>Your Secure Link password was changed on <strong>${changedAt}</strong>.</p>
-             <p>If you made this change, no action is needed.</p>`,
-      ctaLabel: "Contact Support",
-      ctaUrl: `mailto:${SUPPORT_EMAIL}`,
-      notice: "If you did not change your password, contact our support team immediately at support@mysecurelink.co. Your account may be compromised.",
+      body:
+        p(`Hi ${toName},`) +
+        p(`Your password was successfully changed on <strong>${changedAt}</strong>.`) +
+        p("If you made this change, no action is needed."),
+      notice: `If you did not make this change, contact us immediately at <a href="mailto:${SUPPORT_EMAIL}" style="color:#0057FF;">${SUPPORT_EMAIL}</a>. Your account may be at risk.`,
       fromSecurity: true,
     }),
   });
@@ -253,27 +263,33 @@ export async function sendSignInAlertEmail(args: {
   toName: string;
   time: string;
   browser: string;
+  ipApprox?: string;
 }): Promise<void> {
-  const { toEmail, toName, time, browser } = args;
+  const { toEmail, toName, time, browser, ipApprox } = args;
   await send({
     to: toEmail,
     from: FROM_SECURITY,
-    subject: "New sign-in to your Secure Link account",
+    subject: "New sign-in detected on your account",
     html: emailTemplate({
       heading: "New sign-in detected",
-      body: `<p>Hi ${toName},</p>
-             <p>A new sign-in to your Secure Link account was detected:</p>
-             <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-               <tr>
-                 <td style="padding:10px 0;border-bottom:1px solid #E2E8F0;color:#94A3B8;font-size:13px;width:40%;">Time</td>
-                 <td style="padding:10px 0;border-bottom:1px solid #E2E8F0;color:#0F172A;font-size:13px;">${time}</td>
-               </tr>
-               <tr>
-                 <td style="padding:10px 0;color:#94A3B8;font-size:13px;">Browser / Device</td>
-                 <td style="padding:10px 0;color:#0F172A;font-size:13px;">${browser}</td>
-               </tr>
-             </table>
-             <p>If this was you, no action is needed.</p>`,
+      body:
+        p(`Hi ${toName},`) +
+        p("We detected a new sign-in to your account.") +
+        `<table style="width:100%;border-collapse:collapse;margin:16px 0 20px;">
+           <tr>
+             <td style="padding:10px 0;border-bottom:1px solid #E2E8F0;color:#94A3B8;font-size:13px;width:40%;">Time</td>
+             <td style="padding:10px 0;border-bottom:1px solid #E2E8F0;color:#0F172A;font-size:13px;">${time}</td>
+           </tr>
+           <tr>
+             <td style="padding:10px 0;border-bottom:1px solid #E2E8F0;color:#94A3B8;font-size:13px;">Browser / Device</td>
+             <td style="padding:10px 0;border-bottom:1px solid #E2E8F0;color:#0F172A;font-size:13px;">${browser}</td>
+           </tr>
+           ${ipApprox ? `<tr>
+             <td style="padding:10px 0;color:#94A3B8;font-size:13px;">Approximate Location</td>
+             <td style="padding:10px 0;color:#0F172A;font-size:13px;">${ipApprox}</td>
+           </tr>` : ""}
+         </table>` +
+        p("If this was you, no action is needed."),
       ctaLabel: "Secure My Account",
       ctaUrl: `${APP_URL}/dashboard/settings`,
       fromSecurity: true,
@@ -294,7 +310,9 @@ export async function sendSecureLinkEmail(args: {
   const { toEmail, agentName, message } = args;
   const bodyHtml = message
     .split("\n")
-    .map((line) => `<p style="margin:0 0 12px;">${line.trim()}</p>`)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => p(line))
     .join("");
 
   try {
@@ -306,7 +324,7 @@ export async function sendSecureLinkEmail(args: {
       html: emailTemplate({
         heading: "You have a secure request",
         body: bodyHtml,
-        notice: "This secure link will expire. Please complete your submission as soon as possible. Secure Link will never ask you for your information via regular email.",
+        notice: "This secure link will expire. Please complete your submission as soon as possible. Secure Link will never ask for your information via regular email.",
       }),
     });
     return { success: true };
@@ -315,6 +333,33 @@ export async function sendSecureLinkEmail(args: {
     console.error("[email] Failed to send secure link:", msg);
     return { success: false, error: msg };
   }
+}
+
+// ── 8. Request Reminder → Client ─────────────────────────────────────────────
+
+export async function sendRequestReminder(args: {
+  toEmail: string;
+  clientName: string;
+  requestType: string;
+  expiresAt: string;
+  secureUrl: string;
+  agentName: string;
+}): Promise<void> {
+  const { toEmail, clientName, requestType, expiresAt, secureUrl, agentName } = args;
+  await send({
+    to: toEmail,
+    subject: `Reminder: your secure ${requestType} request expires soon`,
+    html: emailTemplate({
+      heading: "Don't forget — your secure request is waiting",
+      body:
+        p(`Hi ${clientName},`) +
+        p(`This is a reminder from <strong>${agentName}</strong>: your secure <strong>${requestType}</strong> request will expire at <strong>${expiresAt}</strong>.`) +
+        p(`If you need a new link after it expires, contact ${agentName} directly.`),
+      ctaLabel: "Complete Secure Request",
+      ctaUrl: secureUrl,
+      notice: "Secure Link will never ask you to re-enter information via email. Always use the secure link provided.",
+    }),
+  });
 }
 
 // ── 9. Submitted Confirmation → Client ───────────────────────────────────────
@@ -329,13 +374,14 @@ export async function sendSubmissionConfirmationToClient(args: {
   const { toEmail, clientName, requestType, submittedAt, agentName } = args;
   await send({
     to: toEmail,
-    subject: "Your information was received securely",
+    subject: `We received your secure ${requestType} submission`,
     html: emailTemplate({
-      heading: "Submission received",
-      body: `<p>Hi ${clientName},</p>
-             <p>Your <strong>${requestType}</strong> was securely submitted to <strong>${agentName}</strong> on ${submittedAt}.</p>
-             <p>Your information is encrypted and can only be accessed by your agent. You do not need to take any further action.</p>`,
-      notice: "Secure Link will never contact you asking to resubmit information or verify your details via email. If you receive such a request, do not respond — contact us at support@mysecurelink.co.",
+      heading: "Your submission was received",
+      body:
+        p(`Hi ${clientName},`) +
+        p(`Your secure <strong>${requestType}</strong> submission was received by <strong>${agentName}</strong> on <strong>${submittedAt}</strong>.`) +
+        p("No further action is needed right now."),
+      notice: `If you have questions, contact support at <a href="mailto:${SUPPORT_EMAIL}" style="color:#0057FF;">${SUPPORT_EMAIL}</a>.`,
     }),
   });
 }
@@ -355,12 +401,13 @@ export async function sendRequestOpenedNotification(args: {
   await send({
     to: agentEmail,
     from: FROM_NOTIFICATIONS,
-    subject: `${clientLabel} opened your secure request`,
+    subject: `${clientLabel} opened the secure ${requestType} request`,
     html: emailTemplate({
-      heading: "Request opened",
-      body: `<p>Hi ${agentName},</p>
-             <p><strong>${clientLabel}</strong> opened your <strong>${requestType}</strong> secure request at ${openedAt}.</p>
-             <p>They have not yet submitted. You'll receive another notification when they do.</p>`,
+      heading: "Secure request opened",
+      body:
+        p(`Hi ${agentName},`) +
+        p(`<strong>${clientLabel}</strong> opened the secure <strong>${requestType}</strong> request at <strong>${openedAt}</strong>.`) +
+        p("They haven't submitted yet. You'll receive another notification when they do."),
       ctaLabel: "View Request",
       ctaUrl: dashboardUrl,
     }),
@@ -395,12 +442,13 @@ export async function sendSubmissionNotification(args: {
     subject: `New submission from ${clientLabel}`,
     html: emailTemplate({
       heading: "New submission received",
-      body: `<p>Hi ${agentName},</p>
-             <p><strong>${clientLabel}</strong> has securely submitted their <strong>${typeLabel}</strong>.</p>
-             <p>The data is encrypted at rest. Open your dashboard to reveal and review it.</p>`,
+      body:
+        p(`Hi ${agentName},`) +
+        p(`<strong>${clientLabel}</strong> has securely submitted their <strong>${typeLabel}</strong>.`) +
+        p("The data is encrypted at rest. Open your dashboard to reveal and review it."),
       ctaLabel: "View Submission",
       ctaUrl: viewUrl,
-      notice: "This submission is encrypted. You will need to reveal it in your dashboard to view the contents.",
+      notice: "Submissions are encrypted with AES-256-GCM. You will need to reveal the data in your dashboard to view it.",
     }),
   });
 }
@@ -420,13 +468,14 @@ export async function sendRequestExpiredToAgent(args: {
   await send({
     to: agentEmail,
     from: FROM_NOTIFICATIONS,
-    subject: `Secure request expired — ${clientLabel}`,
+    subject: `Secure ${requestType} request expired for ${clientLabel}`,
     html: emailTemplate({
-      heading: "Request expired without submission",
-      body: `<p>Hi ${agentName},</p>
-             <p>The <strong>${requestType}</strong> secure request sent to <strong>${clientLabel}</strong> expired on ${expiredAt} without being completed.</p>
-             <p>You can create a new request and resend it from your dashboard.</p>`,
-      ctaLabel: "Create New Request",
+      heading: "Secure request expired",
+      body:
+        p(`Hi ${agentName},`) +
+        p(`The secure <strong>${requestType}</strong> request for <strong>${clientLabel}</strong> expired at <strong>${expiredAt}</strong> without being completed.`) +
+        p("You can send a new request from your dashboard."),
+      ctaLabel: "Send New Request",
       ctaUrl: resendUrl,
     }),
   });
@@ -443,13 +492,14 @@ export async function sendRequestExpiredToClient(args: {
   const { toEmail, clientName, agentName, requestType } = args;
   await send({
     to: toEmail,
-    subject: "Your secure request link has expired",
+    subject: `Your secure ${requestType} link has expired`,
     html: emailTemplate({
-      heading: "Your link has expired",
-      body: `<p>Hi ${clientName},</p>
-             <p>The <strong>${requestType}</strong> secure request from <strong>${agentName}</strong> has expired and is no longer accessible.</p>
-             <p>Please contact your agent to request a new link.</p>`,
-      notice: "For security, all Secure Link requests expire after a set period. Your agent can generate a new link at any time.",
+      heading: "Your secure link has expired",
+      body:
+        p(`Hi ${clientName},`) +
+        p(`Your secure <strong>${requestType}</strong> link from <strong>${agentName}</strong> has expired and is no longer accessible.`) +
+        p(`Please contact <strong>${agentName}</strong> to request a new secure link.`),
+      notice: `For help, email <a href="mailto:${SUPPORT_EMAIL}" style="color:#0057FF;">${SUPPORT_EMAIL}</a>.`,
     }),
   });
 }
@@ -469,13 +519,23 @@ export async function sendIdUploadNotification(args: {
   await send({
     to: agentEmail,
     from: FROM_NOTIFICATIONS,
-    subject: `ID document received from ${clientLabel}`,
+    subject: `ID upload received from ${clientLabel}`,
     html: emailTemplate({
-      heading: "ID document upload received",
-      body: `<p>Hi ${agentName},</p>
-             <p><strong>${clientLabel}</strong> uploaded a <strong>${documentType}</strong> on ${uploadedAt}.</p>
-             <p>The document is encrypted and stored securely. View it in your dashboard.</p>`,
-      ctaLabel: "View Document",
+      heading: "ID document received",
+      body:
+        p(`Hi ${agentName},`) +
+        p(`An ID upload was received from <strong>${clientLabel}</strong>.`) +
+        `<table style="width:100%;border-collapse:collapse;margin:16px 0 20px;">
+           <tr>
+             <td style="padding:10px 0;border-bottom:1px solid #E2E8F0;color:#94A3B8;font-size:13px;width:40%;">Document Type</td>
+             <td style="padding:10px 0;border-bottom:1px solid #E2E8F0;color:#0F172A;font-size:13px;">${documentType}</td>
+           </tr>
+           <tr>
+             <td style="padding:10px 0;color:#94A3B8;font-size:13px;">Received At</td>
+             <td style="padding:10px 0;color:#0F172A;font-size:13px;">${uploadedAt}</td>
+           </tr>
+         </table>`,
+      ctaLabel: "Review Document",
       ctaUrl: viewUrl,
       notice: "ID documents are encrypted with AES-256-GCM before storage. Only you can access them through your authenticated dashboard.",
     }),
@@ -491,16 +551,17 @@ export async function sendIdUploadConfirmationToClient(args: {
   uploadedAt: string;
   agentName: string;
 }): Promise<void> {
-  const { toEmail, clientName, documentType, uploadedAt, agentName } = args;
+  const { toEmail, clientName, uploadedAt, agentName } = args;
   await send({
     to: toEmail,
-    subject: "Your document was received securely",
+    subject: "Your ID upload was received",
     html: emailTemplate({
-      heading: "Document received",
-      body: `<p>Hi ${clientName},</p>
-             <p>Your <strong>${documentType}</strong> was securely uploaded to <strong>${agentName}</strong> on ${uploadedAt}.</p>
-             <p>Your document is encrypted and can only be accessed by your agent. No further action is required.</p>`,
-      notice: "Secure Link encrypts all uploaded documents before storage. We will never share your documents with third parties.",
+      heading: "Document received securely",
+      body:
+        p(`Hi ${clientName},`) +
+        p(`Your ID upload was successfully received by <strong>${agentName}</strong> at <strong>${uploadedAt}</strong>.`) +
+        p("No further action is required unless your agent contacts you."),
+      notice: `If you need help, contact <a href="mailto:${SUPPORT_EMAIL}" style="color:#0057FF;">${SUPPORT_EMAIL}</a>.`,
     }),
   });
 }
@@ -520,13 +581,24 @@ export async function sendExportNotification(args: {
   await send({
     to: agentEmail,
     from: FROM_SECURITY,
-    subject: `Submission exported — ${clientLabel}`,
+    subject: `Data export completed for ${clientLabel}`,
     html: emailTemplate({
       heading: "Submission data exported",
-      body: `<p>Hi ${agentName},</p>
-             <p>A submission from <strong>${clientLabel}</strong> was exported as <strong>${exportFormat.toUpperCase()}</strong> on ${exportedAt}.</p>
-             <p>This is a security notice confirming the export was performed under your account.</p>`,
-      ctaLabel: "View Submission",
+      body:
+        p(`Hi ${agentName},`) +
+        p(`A data export was completed for <strong>${clientLabel}</strong>.`) +
+        `<table style="width:100%;border-collapse:collapse;margin:16px 0 20px;">
+           <tr>
+             <td style="padding:10px 0;border-bottom:1px solid #E2E8F0;color:#94A3B8;font-size:13px;width:40%;">Export Type</td>
+             <td style="padding:10px 0;border-bottom:1px solid #E2E8F0;color:#0F172A;font-size:13px;">${exportFormat.toUpperCase()}</td>
+           </tr>
+           <tr>
+             <td style="padding:10px 0;color:#94A3B8;font-size:13px;">Exported At</td>
+             <td style="padding:10px 0;color:#0F172A;font-size:13px;">${exportedAt}</td>
+           </tr>
+         </table>` +
+        p("This is an automatic security notice confirming the export was performed under your account."),
+      ctaLabel: "View Details",
       ctaUrl: viewUrl,
       fromSecurity: true,
     }),
@@ -547,13 +619,14 @@ export async function sendRevealNotification(args: {
   await send({
     to: agentEmail,
     from: FROM_SECURITY,
-    subject: `Sensitive data revealed — ${clientLabel}`,
+    subject: `Sensitive data was revealed for ${clientLabel}`,
     html: emailTemplate({
-      heading: "Encrypted data was revealed",
-      body: `<p>Hi ${agentName},</p>
-             <p>Encrypted submission data for <strong>${clientLabel}</strong> was revealed on ${revealedAt}.</p>
-             <p>This is an automatic security notice logged to your audit trail.</p>`,
-      ctaLabel: "View Submission",
+      heading: "Encrypted data revealed",
+      body:
+        p(`Hi ${agentName},`) +
+        p(`Sensitive data for <strong>${clientLabel}</strong> was revealed at <strong>${revealedAt}</strong>.`) +
+        p("This is an automatic security notice logged to your audit trail."),
+      ctaLabel: "View Audit Details",
       ctaUrl: viewUrl,
       fromSecurity: true,
     }),
