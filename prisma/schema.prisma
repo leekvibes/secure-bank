@@ -33,16 +33,18 @@ model User {
   defaultExpirationHours Int @default(24)
   // Onboarding
   onboardingCompleted Boolean @default(false)
+  emailVerified       Boolean @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  links               SecureLink[]
-  linkTemplates       LinkTemplate[]
-  auditLogs           AuditLog[]
-  passwordResetTokens PasswordResetToken[]
-  idUploads           IdUpload[]
-  forms               Form[]
-  assets              AgentAsset[]
+  links                  SecureLink[]
+  linkTemplates          LinkTemplate[]
+  auditLogs              AuditLog[]
+  passwordResetTokens    PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  idUploads              IdUpload[]
+  forms                  Form[]
+  assets                 AgentAsset[]
 }
 
 model SecureLink {
@@ -62,6 +64,7 @@ model SecureLink {
   expiresAt     DateTime
   retentionDays Int        @default(7)
   status        String     @default("CREATED") // CREATED | OPENED | SUBMITTED | EXPIRED
+  reminderSentAt DateTime?
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
@@ -109,6 +112,17 @@ model IdUpload {
 }
 
 model PasswordResetToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmailVerificationToken {
   id        String    @id @default(cuid())
   token     String    @unique
   userId    String

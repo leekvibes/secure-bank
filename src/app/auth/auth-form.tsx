@@ -18,6 +18,16 @@ export function AuthForm() {
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
+  const verified = searchParams.get("verified") === "1";
+  const verifyError = searchParams.get("error");
+  const verifyBanner = verified
+    ? { type: "success", text: "Email verified! You can now sign in." }
+    : verifyError === "verify-expired"
+    ? { type: "error", text: "That verification link has expired. Please register again." }
+    : verifyError === "verify"
+    ? { type: "error", text: "Invalid verification link." }
+    : null;
+
   async function handleSignIn(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
@@ -94,7 +104,9 @@ export function AuthForm() {
         setError(loginData.error ?? "Account created, but sign-in failed. Please sign in manually.");
         return;
       }
-      window.location.href = "/onboarding";
+      // Show "check email" message before redirecting
+      setError(null);
+      window.location.href = "/onboarding?checkEmail=1";
     } catch {
       setError("Registration failed. Please try again.");
     } finally {
@@ -111,6 +123,16 @@ export function AuthForm() {
           </div>
           <span className="text-lg font-semibold text-foreground tracking-tight">Secure Link</span>
         </Link>
+
+        {verifyBanner && (
+          <div className={`mb-6 px-4 py-3 rounded-lg text-sm font-medium ${
+            verifyBanner.type === "success"
+              ? "bg-green-50 text-green-800 border border-green-200"
+              : "bg-red-50 text-red-800 border border-red-200"
+          }`}>
+            {verifyBanner.text}
+          </div>
+        )}
 
         <Card className="shadow-lg border-border">
           <CardHeader className="text-center pb-2">

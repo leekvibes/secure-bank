@@ -3,6 +3,18 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { signUpSchema } from "@/lib/schemas";
 import { generateSlug } from "@/lib/tokens";
+import { sendEmailVerification } from "@/lib/email";
+import { randomBytes } from "crypto";
+
+function prismaErrorCode(err: unknown): string | null {
+  if (!err || typeof err !== "object") return null;
+  const maybeCode = (err as { code?: unknown }).code;
+  return typeof maybeCode === "string" ? maybeCode : null;
+}
+
+function isUniqueConstraintError(err: unknown): boolean {
+  return prismaErrorCode(err) === "P2002";
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,17 +40,50 @@ export async function POST(req: NextRequest) {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const agentSlug = generateSlug(displayName);
+    const normalizedEmail = email.toLowerCase().trim();
+    let created = false;
 
-    await db.user.create({
-      data: {
-        email: email.toLowerCase().trim(),
-        passwordHash,
-        displayName,
-        agentSlug,
-        onboardingCompleted: false,
-      },
-    });
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        await db.user.create({
+          data: {
+            email: normalizedEmail,
+            passwordHash,
+            displayName,
+            agentSlug: generateSlug(displayName),
+            onboardingCompleted: false,
+          },
+        });
+        created = true;
+        break;
+      } catch (createErr) {
+        if (!isUniqueConstraintError(createErr)) throw createErr;
+      }
+    }
+
+    if (!created) {
+      return NextResponse.json(
+        { error: "Could not create account. Please try again." },
+        { status: 409 }
+      );
+    }
+
+    // Create email verification token and send verification email
+    const user = await db.user.findUnique({ where: { email: normalizedEmail } });
+    if (user) {
+      const verifyToken = randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      await db.emailVerificationToken.create({
+        data: { token: verifyToken, userId: user.id, expiresAt },
+      });
+      const verifyUrl = `${process.env.NEXTAUTH_URL}/api/auth/verify-email?token=${verifyToken}`;
+      sendEmailVerification({
+        toEmail: normalizedEmail,
+        firstName: displayName.split(" ")[0],
+        verifyUrl,
+        expiresIn: "24 hours",
+      });
+    }
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (err) {
