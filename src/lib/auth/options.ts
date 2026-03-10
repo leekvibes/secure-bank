@@ -72,13 +72,27 @@ export const authOptions: NextAuthOptions = {
           credentials.password,
           user.passwordHash
         );
-        if (!passwordMatch) return null;
+        if (!passwordMatch) {
+          // Fire and forget — don't await, don't break the auth flow
+          import("@/lib/audit").then(({ writeAuditLog }) => {
+            writeAuditLog({
+              event: "LOGIN_FAILED",
+              metadata: { email: credentials.email.toLowerCase().trim() },
+            });
+          });
+          return null;
+        }
+
+        if (user.bannedAt) {
+          throw new Error("BANNED");
+        }
 
         return {
           id: user.id,
           email: user.email,
           name: user.displayName,
           agentSlug: user.agentSlug,
+          role: user.role,
         };
       },
     }),
@@ -88,6 +102,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.agentSlug = (user as { agentSlug?: string }).agentSlug ?? "";
+        token.role = (user as { role?: string }).role ?? "AGENT";
       }
       return token;
     },
@@ -95,6 +110,7 @@ export const authOptions: NextAuthOptions = {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.agentSlug = token.agentSlug as string;
+        session.user.role = token.role as string;
       }
       return session;
     },

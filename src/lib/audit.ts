@@ -16,7 +16,11 @@ export type AuditEvent =
   | "ID_VIEWED"
   | "EXPORTED"
   | "DELETED"
-  | "EXPIRED";
+  | "EXPIRED"
+  | "LOGIN_FAILED"
+  | "ADMIN_BAN"
+  | "ADMIN_UNBAN"
+  | "ADMIN_DELETE_ACCOUNT";
 
 interface AuditOptions {
   event: AuditEvent;

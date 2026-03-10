@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
         email: user.email,
         name: user.displayName,
         agentSlug: user.agentSlug,
+        role: user.role,
         sub: user.id,
       },
       secret: process.env.NEXTAUTH_SECRET!,
