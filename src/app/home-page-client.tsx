@@ -153,7 +153,7 @@ export function HomePageClient() {
               href="/auth?mode=signup"
               className="text-sm font-semibold bg-[#00A3FF] hover:bg-[#0091E6] text-white px-5 py-2 rounded-lg transition-colors"
             >
-              START FREE
+              JOIN FREE
             </Link>
           </div>
         </div>
