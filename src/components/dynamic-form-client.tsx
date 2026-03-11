@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ClientTrustHeader } from "@/components/client-trust-header";
-import { cn } from "@/lib/utils";
+import { cn, fmtPhone } from "@/lib/utils";
 import { getErrorMessage, getFieldErrors } from "@/lib/error-message";
 
 function fmtSsn(raw: string): string {
@@ -14,13 +14,6 @@ function fmtSsn(raw: string): string {
   if (d.length <= 3) return d;
   if (d.length <= 5) return `${d.slice(0, 3)}-${d.slice(3)}`;
   return `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}`;
-}
-
-function fmtPhone(raw: string): string {
-  const d = raw.replace(/\D/g, "").slice(0, 10);
-  if (d.length <= 3) return d;
-  if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
-  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
 }
 
 type FormFieldType =

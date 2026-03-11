@@ -36,6 +36,13 @@ export const LINK_STATUS_LABELS: Record<string, string> = {
   EXPIRED: "Expired",
 };
 
+export function fmtPhone(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 10);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+}
+
 export const LINK_STATUS_COLORS: Record<string, string> = {
   CREATED: "bg-amber-50 text-amber-700 ring-amber-200/70",
   OPENED: "bg-amber-50 text-amber-700 ring-amber-200/70",

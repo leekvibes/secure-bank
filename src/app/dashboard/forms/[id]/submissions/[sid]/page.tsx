@@ -54,6 +54,16 @@ export default async function FormSubmissionPage({
   return (
     <div className="max-w-2xl space-y-6 animate-fade-in">
 
+      <nav className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
+        <Link href="/dashboard" className="hover:text-foreground transition-colors">Dashboard</Link>
+        <span className="text-muted-foreground/50">&gt;</span>
+        <Link href="/dashboard/forms" className="hover:text-foreground transition-colors">Forms</Link>
+        <span className="text-muted-foreground/50">&gt;</span>
+        <Link href={`/dashboard/forms/${params.id}`} className="hover:text-foreground transition-colors">{form.title}</Link>
+        <span className="text-muted-foreground/50">&gt;</span>
+        <span className="font-semibold text-foreground">Submission</span>
+      </nav>
+
       <Link
         href={`/dashboard/forms/${params.id}`}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"

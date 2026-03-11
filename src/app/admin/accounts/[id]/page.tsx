@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Building2, Phone, FileText, Shield, Clock, Link2, Inbox } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { AccountDetailActions } from "./account-detail-actions";
+import { VerificationEditor } from "./verification-editor";
 
 export const metadata = { title: "Account Detail — Admin" };
 
@@ -105,9 +106,7 @@ export default async function AdminAccountDetailPage({ params }: { params: { id:
                 {user.role === "ADMIN" && (
                   <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Admin</span>
                 )}
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${VERIFICATION_COLORS[user.verificationStatus]}`}>
-                  {user.verificationStatus}
-                </span>
+                <VerificationEditor userId={user.id} currentStatus={user.verificationStatus} />
               </div>
               <p className="text-sm text-muted-foreground">{user.email}</p>
               {companyName && (

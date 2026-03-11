@@ -7,6 +7,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { NO_STORE_HEADERS } from "@/lib/http";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { apiError } from "@/lib/api-response";
+import { sendExportNotification } from "@/lib/email";
 
 export async function GET(
   req: NextRequest,
@@ -75,6 +76,22 @@ export async function GET(
     request: req,
     metadata: { format, formId: params.id, submissionId: params.sid },
   });
+
+  // Security email on export — fire and forget
+  const agent = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { email: true, displayName: true },
+  });
+  if (agent) {
+    sendExportNotification({
+      agentEmail: agent.email,
+      agentName: agent.displayName,
+      clientName: submission.formLink.clientName,
+      exportFormat: format,
+      exportedAt: new Date().toLocaleString("en-US", { timeZone: "America/New_York" }),
+      viewUrl: `${process.env.NEXTAUTH_URL}/dashboard/forms/${params.id}/submissions/${params.sid}`,
+    });
+  }
 
   const clientName = submission.formLink.clientName ?? "Anonymous";
 

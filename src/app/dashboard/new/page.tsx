@@ -163,6 +163,8 @@ function NewLinkPage() {
 
   const [customForms, setCustomForms] = useState<ApiForm[]>([]);
   const [formsLoading, setFormsLoading] = useState(false);
+  const [formsLoaded, setFormsLoaded] = useState(false);
+  const [formsError, setFormsError] = useState<string | null>(null);
   const [selectedFormId, setSelectedFormId] = useState<string | null>(preselectedFormId);
 
   const [templates, setTemplates] = useState<ApiTemplate[]>([]);
@@ -203,17 +205,41 @@ function NewLinkPage() {
   }, []);
 
   useEffect(() => {
-    if (linkType === "CUSTOM_FORM" && customForms.length === 0 && !formsLoading) {
+    if (linkType !== "CUSTOM_FORM" || formsLoading || formsLoaded) return;
+
+    const controller = new AbortController();
+
+    async function loadForms() {
       setFormsLoading(true);
-      fetch("/api/forms")
-        .then((r) => r.json())
-        .then((d) => {
-          if (d.forms) setCustomForms(d.forms.filter((f: ApiForm) => f.status === "ACTIVE"));
-        })
-        .catch(() => {})
-        .finally(() => setFormsLoading(false));
+      setFormsError(null);
+      try {
+        const res = await fetch("/api/forms", { signal: controller.signal });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data?.error ?? "Failed to load forms.");
+        }
+        const activeForms = Array.isArray(data.forms)
+          ? data.forms.filter((f: ApiForm) => f.status === "ACTIVE")
+          : [];
+        setCustomForms(activeForms);
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return;
+        setFormsError(err instanceof Error ? err.message : "Failed to load forms.");
+      } finally {
+        setFormsLoading(false);
+        setFormsLoaded(true);
+      }
     }
-  }, [linkType, customForms.length, formsLoading]);
+
+    loadForms();
+
+    return () => controller.abort();
+  }, [linkType, formsLoading, formsLoaded]);
+
+  function retryLoadForms() {
+    setFormsLoaded(false);
+    setFormsError(null);
+  }
 
   function applyTemplate(t: ApiTemplate) {
     const type = t.linkType as LinkType;
@@ -826,6 +852,14 @@ function NewLinkPage() {
                         <div className="flex items-center gap-2 py-4 justify-center text-muted-foreground">
                           <Loader2 className="w-4 h-4 animate-spin" />
                           <span className="text-xs">Loading forms...</span>
+                        </div>
+                      ) : formsError ? (
+                        <div className="text-center py-4">
+                          <p className="text-xs text-red-500 mb-3">{formsError}</p>
+                          <Button type="button" size="sm" variant="outline" onClick={retryLoadForms}>
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            Retry
+                          </Button>
                         </div>
                       ) : customForms.length === 0 ? (
                         <div className="text-center py-4">

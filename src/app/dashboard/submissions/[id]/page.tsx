@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { SubmissionViewer } from "@/components/submission-viewer";
 import { decryptFields, maskValue } from "@/lib/crypto";
 
@@ -51,10 +52,19 @@ export default async function SubmissionPage({ params }: Props) {
   }
 
   return (
-    <SubmissionViewer
-      submission={submission}
-      auditLogs={auditLogs}
-      maskedSsn={maskedSsn}
-    />
+    <div className="space-y-0">
+      <nav className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap mb-4">
+        <Link href="/dashboard" className="hover:text-foreground transition-colors">Dashboard</Link>
+        <span className="text-muted-foreground/50">&gt;</span>
+        <Link href="/dashboard" className="hover:text-foreground transition-colors">Requests</Link>
+        <span className="text-muted-foreground/50">&gt;</span>
+        <span className="font-semibold text-foreground">Submission</span>
+      </nav>
+      <SubmissionViewer
+        submission={submission}
+        auditLogs={auditLogs}
+        maskedSsn={maskedSsn}
+      />
+    </div>
   );
 }

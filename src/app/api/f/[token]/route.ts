@@ -198,7 +198,10 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
     value: value.isEncrypted ? encrypt(value.value) : value.value,
   }));
 
-  const deleteAt = addDays(new Date(), link.form.retentionDays > 0 ? link.form.retentionDays : 3650);
+  const deleteAt =
+    link.form.retentionDays > 0
+      ? addDays(new Date(), link.form.retentionDays)
+      : new Date("9999-12-31T23:59:59.999Z");
 
   await db.$transaction([
     db.formSubmission.create({

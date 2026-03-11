@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export function useSecureCookies(): boolean {
   const url = process.env.NEXTAUTH_URL ?? "";
@@ -73,11 +74,21 @@ export const authOptions: NextAuthOptions = {
           user.passwordHash
         );
         if (!passwordMatch) {
+          // Rate limit failed login attempts by email (10 per 15 min)
+          const emailKey = credentials.email.toLowerCase().trim();
+          const { allowed } = await checkRateLimit(emailKey, {
+            maxRequests: 10,
+            windowMs: 15 * 60 * 1000,
+            prefix: "rate:login",
+          });
+          if (!allowed) {
+            throw new Error("TOO_MANY_ATTEMPTS");
+          }
           // Fire and forget — don't await, don't break the auth flow
           import("@/lib/audit").then(({ writeAuditLog }) => {
             writeAuditLog({
               event: "LOGIN_FAILED",
-              metadata: { email: credentials.email.toLowerCase().trim() },
+              metadata: { email: emailKey },
             });
           });
           return null;

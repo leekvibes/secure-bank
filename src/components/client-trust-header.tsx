@@ -190,6 +190,8 @@ function AgentCardDesktop({
           </p>
         )}
 
+        <VerificationBadgeInline status={agent.verificationStatus} />
+
         {agent.phone && (
           <a
             href={`tel:${agent.phone}`}
@@ -246,6 +248,8 @@ function AgentCardDrawer({
         </div>
       )}
 
+      <VerificationBadgeDrawer status={agent.verificationStatus} />
+
       {(agent.phone || agent.email) && (
         <div className="flex flex-col gap-2 pt-1 border-t border-gray-100">
           {agent.phone && (
@@ -268,6 +272,34 @@ function AgentCardDrawer({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+const VERIFICATION_BADGE_CONFIG: Record<string, { label: string; className: string } | undefined> = {
+  LICENSED: { label: "Licensed Professional", className: "bg-blue-50 text-blue-700 border-blue-200" },
+  CERTIFIED: { label: "Certified", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  REGULATED: { label: "Regulated", className: "bg-purple-50 text-purple-700 border-purple-200" },
+};
+
+function VerificationBadgeInline({ status }: { status: string }) {
+  const config = VERIFICATION_BADGE_CONFIG[status];
+  if (!config) return null;
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${config.className}`}>
+      <BadgeCheck className="w-3 h-3 shrink-0" />
+      {config.label}
+    </span>
+  );
+}
+
+function VerificationBadgeDrawer({ status }: { status: string }) {
+  const config = VERIFICATION_BADGE_CONFIG[status];
+  if (!config) return null;
+  return (
+    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${config.className}`}>
+      <BadgeCheck className="w-4 h-4 shrink-0" />
+      <p className="text-xs font-medium">{config.label}</p>
     </div>
   );
 }

@@ -8,19 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ClientTrustHeader, type AgentProfile } from "@/components/client-trust-header";
 import { getErrorMessage, getFieldErrors } from "@/lib/error-message";
+import { fmtPhone } from "@/lib/utils";
 
 function fmtSsn(raw: string): string {
   const d = raw.replace(/\D/g, "").slice(0, 9);
   if (d.length <= 3) return d;
   if (d.length <= 5) return `${d.slice(0, 3)}-${d.slice(3)}`;
   return `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}`;
-}
-
-function fmtPhone(raw: string): string {
-  const d = raw.replace(/\D/g, "").slice(0, 15);
-  if (d.length <= 3) return d;
-  if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
-  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6, 10)}${d.length > 10 ? ` ${d.slice(10)}` : ""}`;
 }
 
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
