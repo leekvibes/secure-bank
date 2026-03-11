@@ -26,8 +26,8 @@ export type SignUpInput = z.infer<typeof signUpSchema>;
 export const createLinkSchema = z.object({
   templateId: z.string().min(1).optional(),
   linkType: z.enum(["BANKING_INFO", "SSN_ONLY", "FULL_INTAKE", "ID_UPLOAD"]).optional(),
-  destination: z.string().min(2, "Destination is required").max(120).optional(),
-  destinationLabel: z.string().min(2, "Destination is required").max(120).optional(),
+  destination: z.string().max(120).optional().or(z.literal("")),
+  destinationLabel: z.string().max(120).optional().or(z.literal("")),
   message: z.string().max(4000).optional(),
   options: z.record(z.string(), z.unknown()).optional(),
   clientName: z.string().max(120).optional(),

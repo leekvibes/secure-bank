@@ -358,7 +358,7 @@ function NewLinkPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         linkType,
-        destinationLabel: effectiveDest,
+        destinationLabel: effectiveDest || undefined,
         message,
         options: Object.keys(options).length ? options : undefined,
         clientName: clientName || undefined,

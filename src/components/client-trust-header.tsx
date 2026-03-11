@@ -190,8 +190,6 @@ function AgentCardDesktop({
           </p>
         )}
 
-        <VerificationBadgeInline status={agent.verificationStatus} />
-
         {agent.phone && (
           <a
             href={`tel:${agent.phone}`}
@@ -239,16 +237,14 @@ function AgentCardDrawer({
       </div>
 
       {agent.licenseNumber && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200">
-          <BadgeCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200">
+          <BadgeCheck className="w-4 h-4 text-blue-600 shrink-0" />
           <div>
-            <p className="text-xs font-medium text-emerald-700">Licensed Professional</p>
-            <p className="text-xs text-emerald-600">License #{agent.licenseNumber}</p>
+            <p className="text-xs font-medium text-blue-700">Licensed Professional</p>
+            <p className="text-xs text-blue-600">License #{agent.licenseNumber}</p>
           </div>
         </div>
       )}
-
-      <VerificationBadgeDrawer status={agent.verificationStatus} />
 
       {(agent.phone || agent.email) && (
         <div className="flex flex-col gap-2 pt-1 border-t border-gray-100">

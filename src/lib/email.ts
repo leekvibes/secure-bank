@@ -15,9 +15,12 @@ function getClient(): Resend | null {
 
 const APP_URL = process.env.NEXTAUTH_URL ?? "https://mysecurelink.co";
 const SUPPORT_EMAIL = "support@mysecurelink.co";
+// All transactional emails use the single verified sender configured in RESEND_FROM_EMAIL.
+// Using multiple FROM addresses requires each one to be verified in Resend — using one
+// address avoids deliverability issues.
 const FROM_TRANSACTIONAL = process.env.RESEND_FROM_EMAIL ?? "Secure Link <no-reply@mysecurelink.co>";
-const FROM_SECURITY = "Secure Link Security <security@mysecurelink.co>";
-const FROM_NOTIFICATIONS = "Secure Link <notifications@mysecurelink.co>";
+const FROM_SECURITY = process.env.RESEND_FROM_EMAIL ?? "Secure Link <no-reply@mysecurelink.co>";
+const FROM_NOTIFICATIONS = process.env.RESEND_FROM_EMAIL ?? "Secure Link <no-reply@mysecurelink.co>";
 const LOGO_URL = `${APP_URL}/logo.svg`;
 
 // ── Shared HTML Template ──────────────────────────────────────────────────────

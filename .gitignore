@@ -15,6 +15,8 @@ out/
 *.db-journal
 prisma/migrations/
 uploads/
+!src/app/dashboard/uploads/
+!src/app/dashboard/uploads/**
 
 # Build outputs
 dist/
