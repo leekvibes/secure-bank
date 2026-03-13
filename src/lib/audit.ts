@@ -20,7 +20,9 @@ export type AuditEvent =
   | "LOGIN_FAILED"
   | "ADMIN_BAN"
   | "ADMIN_UNBAN"
-  | "ADMIN_DELETE_ACCOUNT";
+  | "ADMIN_DELETE_ACCOUNT"
+  | "TRANSFER_CREATED"
+  | "TRANSFER_DELETED";
 
 interface AuditOptions {
   event: AuditEvent;
