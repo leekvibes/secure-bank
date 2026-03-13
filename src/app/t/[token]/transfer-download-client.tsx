@@ -53,19 +53,19 @@ export function TransferDownloadClient({
     setActionError(null);
     try {
       const res = await fetch(`/api/t/${token}/sign?fileId=${fileId}&action=download`);
-      if (!res.ok) {
+      const a = document.createElement("a");
+      if (res.ok) {
+        const { signedToken } = await res.json() as { signedToken: string };
+        a.href = `/api/t/${token}/serve/${encodeURIComponent(signedToken)}`;
+      } else {
+        // Fallback path for environments where signing is unavailable/misconfigured.
+        a.href = `/api/t/${token}/download/${fileId}`;
         const d = await res.json().catch(() => ({} as Record<string, unknown>));
         const message =
           (d as { error?: { message?: string } }).error?.message ??
-          (d as { message?: string }).message ??
-          "Could not start download.";
-        setActionError(message);
-        setDownloading(null);
-        return;
+          (d as { message?: string }).message;
+        if (message) setActionError(`${message} Using fallback download...`);
       }
-      const { signedToken } = await res.json() as { signedToken: string };
-      const a = document.createElement("a");
-      a.href = `/api/t/${token}/serve/${encodeURIComponent(signedToken)}`;
       a.style.display = "none";
       document.body.appendChild(a);
       a.click();

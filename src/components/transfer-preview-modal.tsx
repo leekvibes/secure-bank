@@ -45,9 +45,21 @@ export function TransferPreviewModal({
           const d = await res.json().catch(() => ({}));
           const message =
             (d as { error?: { message?: string } }).error?.message ??
-            (d as { message?: string }).message ??
-            "Could not load preview.";
-          setState({ status: "error", message });
+            (d as { message?: string }).message;
+          // Fallback path for environments where signing is unavailable/misconfigured.
+          const fallbackUrl = `/api/t/${transferToken}/download/${fileId}?mode=preview`;
+
+          if (category === "text") {
+            const textRes = await fetch(fallbackUrl);
+            if (!textRes.ok) {
+              setState({ status: "error", message: message ?? "Could not load preview." });
+              return;
+            }
+            const text = await textRes.text();
+            setTextContent(text.slice(0, 20_000));
+          }
+
+          setState({ status: "ready", serveUrl: fallbackUrl });
           return;
         }
         const { signedToken } = await res.json() as { signedToken: string };
