@@ -42,41 +42,31 @@ export function TransferDownloadClient({
 }: Props) {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadingAll, setDownloadingAll] = useState(false);
-  const [downloadAllProgress, setDownloadAllProgress] = useState(0);
 
-  function triggerDownload(fileId: string) {
-    // Use our API route which redirects to getDownloadUrl() — Vercel Blob CDN
-    // returns Content-Disposition: attachment, forcing save-to-device on all browsers/iOS/Android.
+  function handleDownload(fileId: string) {
+    setDownloading(fileId);
+    // Our route redirects to getDownloadUrl() which adds Content-Disposition: attachment
     const a = document.createElement("a");
     a.href = `/api/t/${token}/download/${fileId}`;
     a.style.display = "none";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-  }
-
-  function handleDownload(fileId: string) {
-    setDownloading(fileId);
-    triggerDownload(fileId);
     setTimeout(() => setDownloading(null), 2500);
   }
 
-  async function handleDownloadAll() {
+  function handleDownloadAll() {
     if (downloadingAll) return;
     setDownloadingAll(true);
-    setDownloadAllProgress(0);
-
-    for (let i = 0; i < files.length; i++) {
-      setDownloadAllProgress(i + 1);
-      triggerDownload(files[i].id);
-      // Give the browser 800ms between each to queue the downloads properly
-      if (i < files.length - 1) {
-        await new Promise((r) => setTimeout(r, 800));
-      }
-    }
-
-    setDownloadingAll(false);
-    setDownloadAllProgress(0);
+    // Download as a single zip — files land in one folder named after the transfer
+    const a = document.createElement("a");
+    a.href = `/api/t/${token}/zip`;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Keep the loading state visible for a few seconds while the zip starts
+    setTimeout(() => setDownloadingAll(false), 5000);
   }
 
   const totalBytes = files.reduce((sum, f) => sum + parseInt(f.sizeBytes, 10), 0);
@@ -172,9 +162,7 @@ export function TransferDownloadClient({
                 className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors disabled:opacity-60"
               >
                 <Download className="w-3.5 h-3.5" />
-                {downloadingAll
-                  ? `Saving ${downloadAllProgress} of ${files.length}…`
-                  : "Download all"}
+                {downloadingAll ? "Preparing zip…" : "Download all as zip"}
               </button>
             )}
           </div>
