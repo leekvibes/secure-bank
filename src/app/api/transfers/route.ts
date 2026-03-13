@@ -86,24 +86,23 @@ export async function POST(req: NextRequest) {
 
   // Send email to each recipient
   if (recipientEmails && recipientEmails.length > 0) {
+    const uniqueEmails = Array.from(new Set(recipientEmails.map((email) => email.trim().toLowerCase()).filter(Boolean)));
     const agent = await db.user.findUnique({
       where: { id: session.user.id },
       select: { displayName: true, email: true },
     });
-    for (const email of recipientEmails) {
-      if (email.trim()) {
-        sendTransferEmail({
-          toEmail: email.trim(),
-          agentName: agent?.displayName ?? "Someone",
-          title: title || null,
-          message: message || null,
-          fileCount: files.length,
-          totalSizeBytes: Number(totalBytes),
-          transferUrl,
-          expiresAt,
-          viewOnce,
-        });
-      }
+    for (const email of uniqueEmails) {
+      sendTransferEmail({
+        toEmail: email,
+        agentName: agent?.displayName ?? "Someone",
+        title: title || null,
+        message: message || null,
+        fileCount: files.length,
+        totalSizeBytes: Number(totalBytes),
+        transferUrl,
+        expiresAt,
+        viewOnce,
+      });
     }
   }
 

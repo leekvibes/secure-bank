@@ -32,7 +32,6 @@ export default async function TransferPage({
       title={transfer.title}
       message={transfer.message}
       viewOnce={transfer.viewOnce}
-      isViewOnce={transfer.viewOnce}
       expiresAt={transfer.expiresAt.toISOString()}
       expired={expired}
       alreadyDownloaded={alreadyDownloaded}

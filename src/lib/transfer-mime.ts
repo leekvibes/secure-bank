@@ -23,10 +23,12 @@ export function isPreviewable(mimeType: string): boolean {
   return ["image","video","audio","pdf","text"].includes(cat);
 }
 
-// Returns "inline" for preview of previewable types; "attachment" for everything else or any download
+// Returns "inline" for previews and media downloads (better mobile behavior);
+// documents/archives/default still download as attachments.
 export function dispositionFor(action: "preview" | "download", mimeType: string): "inline" | "attachment" {
-  if (action === "download") return "attachment";
-  return isPreviewable(mimeType) ? "inline" : "attachment";
+  const cat = mimeCategory(mimeType);
+  if (action === "preview") return isPreviewable(mimeType) ? "inline" : "attachment";
+  return cat === "image" || cat === "video" ? "inline" : "attachment";
 }
 
 // 50 MB threshold: proxy below, redirect CDN above (for preview streaming)

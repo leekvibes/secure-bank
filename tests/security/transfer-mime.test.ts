@@ -16,9 +16,9 @@ describe("transfer-mime", () => {
   it("application/zip is NOT previewable", () => assert.equal(isPreviewable("application/zip"), false));
   it("application/octet-stream is NOT previewable", () => assert.equal(isPreviewable("application/octet-stream"), false));
 
-  it("download action always returns attachment", () => {
-    assert.equal(dispositionFor("download", "image/jpeg"), "attachment");
-    assert.equal(dispositionFor("download", "video/mp4"), "attachment");
+  it("download action returns inline for media and attachment for documents", () => {
+    assert.equal(dispositionFor("download", "image/jpeg"), "inline");
+    assert.equal(dispositionFor("download", "video/mp4"), "inline");
     assert.equal(dispositionFor("download", "application/pdf"), "attachment");
   });
 

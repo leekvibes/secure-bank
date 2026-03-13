@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Download, FileText, Clock, Shield, Eye, CheckCircle2, XCircle, FolderUp } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Download, FileText, Clock, Shield, Eye, CheckCircle2, XCircle, FolderUp, ChevronRight } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { TransferPreviewModal } from "@/components/transfer-preview-modal";
@@ -32,7 +32,6 @@ interface Props {
   title: string | null;
   message: string | null;
   viewOnce: boolean;
-  isViewOnce: boolean;
   expiresAt: string;
   expired: boolean;
   alreadyDownloaded: boolean;
@@ -46,6 +45,7 @@ export function TransferDownloadClient({
   const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadingAll, setDownloadingAll] = useState(false);
   const [previewFile, setPreviewFile] = useState<FileEntry | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
 
   async function handleDownload(fileId: string) {
     setDownloading(fileId);
@@ -80,6 +80,14 @@ export function TransferDownloadClient({
 
   const totalBytes = files.reduce((sum, f) => sum + parseInt(f.sizeBytes, 10), 0);
   const daysLeft = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+  const groupedFiles = useMemo(() => {
+    return files.reduce<Record<string, FileEntry[]>>((acc, file) => {
+      const folder = file.fileName.includes("/") ? file.fileName.split("/")[0] : "__root__";
+      acc[folder] ||= [];
+      acc[folder].push(file);
+      return acc;
+    }, {});
+  }, [files]);
 
   if (expired || alreadyDownloaded) {
     return (
@@ -177,42 +185,62 @@ export function TransferDownloadClient({
           </div>
 
           <div className="divide-y divide-gray-50">
-            {files.map((f) => (
-              <div key={f.id} className="flex items-center gap-3 px-5 py-3.5">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                  <FileText className="w-4 h-4 text-blue-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{f.fileName}</p>
-                  <p className="text-xs text-gray-400">{fmtBytes(f.sizeBytes)}</p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {isPreviewable(f.mimeType) && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setPreviewFile(f)}
-                      className="shrink-0 gap-1.5"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      Preview
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleDownload(f.id)}
-                    disabled={downloading === f.id}
-                    className="shrink-0 gap-1.5"
+            {Object.entries(groupedFiles).map(([folder, entries]) => (
+              <div key={folder} className="border-b border-gray-50 last:border-b-0">
+                {folder !== "__root__" && (
+                  <button
+                    type="button"
+                    onClick={() => setExpandedFolders((prev) => ({ ...prev, [folder]: !prev[folder] }))}
+                    className="w-full flex items-center gap-2 px-5 py-2.5 bg-gray-50/60 text-left"
                   >
-                    {downloading === f.id ? (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                    ) : (
-                      <Download className="w-3.5 h-3.5" />
-                    )}
-                    {downloading === f.id ? "Saved" : "Download"}
-                  </Button>
-                </div>
+                    <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expandedFolders[folder] ? "rotate-90" : ""}`} />
+                    <FolderUp className="w-3.5 h-3.5 text-blue-500" />
+                    <span className="text-xs font-semibold text-gray-700">{folder}</span>
+                    <span className="text-xs text-gray-400">({entries.length})</span>
+                  </button>
+                )}
+
+                {(folder === "__root__" || expandedFolders[folder]) && entries.map((f) => {
+                  const displayName = f.fileName.split("/").pop() || f.fileName;
+                  return (
+                    <div key={f.id} className="flex items-center gap-3 px-5 py-3.5">
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                        <FileText className="w-4 h-4 text-blue-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
+                        <p className="text-xs text-gray-400">{f.fileName} · {fmtBytes(f.sizeBytes)}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isPreviewable(f.mimeType) && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setPreviewFile(f)}
+                            className="shrink-0 gap-1.5"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            Preview
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDownload(f.id)}
+                          disabled={downloading === f.id}
+                          className="shrink-0 gap-1.5"
+                        >
+                          {downloading === f.id ? (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                          ) : (
+                            <Download className="w-3.5 h-3.5" />
+                          )}
+                          {downloading === f.id ? "Saved" : "Download"}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ))}
           </div>
@@ -233,7 +261,7 @@ export function TransferDownloadClient({
         <TransferPreviewModal
           transferToken={token}
           fileId={previewFile.id}
-          fileName={previewFile.fileName}
+          fileName={previewFile.fileName.split("/").pop() || previewFile.fileName}
           mimeType={previewFile.mimeType}
           onClose={() => setPreviewFile(null)}
           onDownload={(fid) => { setPreviewFile(null); handleDownload(fid); }}

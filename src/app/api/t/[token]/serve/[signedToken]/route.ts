@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { apiError } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTransferAccess } from "@/lib/transfer-signing";
-import { dispositionFor, PROXY_PREVIEW_THRESHOLD } from "@/lib/transfer-mime";
+import { dispositionFor, mimeCategory, PROXY_PREVIEW_THRESHOLD } from "@/lib/transfer-mime";
 import { writeAuditLog } from "@/lib/audit";
 import { getDownloadUrl } from "@vercel/blob";
 import { sendTransferDownloadNotification } from "@/lib/email";
@@ -28,6 +28,7 @@ export async function GET(
     include: {
       files: { where: { id: payload.fileId } },
       agent: { select: { email: true, displayName: true, notificationEmail: true } },
+      _count: { select: { files: true } },
     },
   });
 
@@ -38,15 +39,15 @@ export async function GET(
 
   const file = transfer.files[0];
 
-  // View-once enforcement: atomic compare-and-swap on status
-  if (transfer.viewOnce) {
-    const updated = await db.fileTransfer.updateMany({
-      where: { id: transfer.id, status: "ACTIVE" },
-      data: { status: "DOWNLOADED" },
-    });
-    if (updated.count === 0 && transfer.status !== "ACTIVE") {
-      return apiError(410, "ALREADY_ACCESSED", "This transfer was view-once and has already been accessed.");
-    }
+  // Transfer-level first access for both view-once enforcement and notification dedupe.
+  const firstAccess = await db.fileTransfer.updateMany({
+    where: { id: transfer.id, status: "ACTIVE" },
+    data: { status: "DOWNLOADED" },
+  });
+  const isFirstAccess = firstAccess.count > 0;
+
+  if (transfer.viewOnce && !isFirstAccess) {
+    return apiError(410, "ALREADY_ACCESSED", "This transfer was view-once and has already been accessed.");
   }
 
   // Update counters
@@ -54,14 +55,14 @@ export async function GET(
     await db.fileTransferFile.update({ where: { id: file.id }, data: { previewCount: { increment: 1 } } });
   } else {
     await db.fileTransferFile.update({ where: { id: file.id }, data: { downloadCount: { increment: 1 } } });
-    // Notify agent on first download
-    if (transfer.notifyOnDownload && file.downloadCount === 0) {
+    // Notify agent once per transfer, not once per file.
+    if (transfer.notifyOnDownload && isFirstAccess) {
       const notifyEmail = transfer.agent.notificationEmail ?? transfer.agent.email;
       sendTransferDownloadNotification({
         agentEmail: notifyEmail,
         agentName: transfer.agent.displayName,
         title: transfer.title,
-        fileName: file.fileName,
+        fileName: transfer._count.files === 1 ? file.fileName : `${transfer._count.files} files`,
       });
     }
   }
@@ -75,14 +76,21 @@ export async function GET(
   });
 
   const disposition = dispositionFor(payload.action, file.mimeType);
-  const safeFileName = file.fileName.replace(/[\x00-\x1f"\\]/g, "_");
+  const fileBaseName = file.fileName.split("/").pop() || file.fileName;
+  const safeFileName = fileBaseName.replace(/[\x00-\x1f"\\]/g, "_");
   const contentDispositionHeader =
-    `${disposition}; filename="${safeFileName}"; filename*=UTF-8''${encodeURIComponent(file.fileName)}`;
+    `${disposition}; filename="${safeFileName}"; filename*=UTF-8''${encodeURIComponent(fileBaseName)}`;
 
   // For downloads or large files: redirect to CDN (no proxy timeout risk)
   const fileSizeNum = Number(file.sizeBytes);
+  const mediaInline = mimeCategory(file.mimeType) === "image" || mimeCategory(file.mimeType) === "video";
   if (payload.action === "download" || fileSizeNum > PROXY_PREVIEW_THRESHOLD) {
-    const cdnUrl = payload.action === "download" ? getDownloadUrl(file.blobUrl) : file.blobUrl;
+    const cdnUrl =
+      payload.action === "download"
+        ? mediaInline
+          ? file.blobUrl
+          : getDownloadUrl(file.blobUrl)
+        : file.blobUrl;
     return NextResponse.redirect(cdnUrl, {
       headers: {
         "Content-Disposition": contentDispositionHeader,

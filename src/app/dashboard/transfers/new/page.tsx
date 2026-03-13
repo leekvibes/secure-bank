@@ -3,8 +3,22 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, Upload, X, CheckCircle2, Loader2, Copy, CheckCheck,
-  Plus, FolderUp, Eye, Mail, Clock, Bell, AlertCircle,
+  ArrowLeft,
+  Upload,
+  X,
+  CheckCircle2,
+  Loader2,
+  Copy,
+  CheckCheck,
+  Plus,
+  FolderUp,
+  Eye,
+  Mail,
+  Clock,
+  Bell,
+  AlertCircle,
+  ChevronRight,
+  RefreshCw,
 } from "lucide-react";
 import { upload } from "@vercel/blob/client";
 import { Button } from "@/components/ui/button";
@@ -32,10 +46,16 @@ function fmtEta(seconds: number): string {
 interface FileEntry {
   id: string;
   file: File;
+  relativePath: string;
   progress: number;
   status: "pending" | "uploading" | "done" | "error";
   blobUrl?: string;
   error?: string;
+}
+
+interface IncomingFile {
+  file: File;
+  relativePath?: string;
 }
 
 interface CreatedTransfer {
@@ -43,41 +63,88 @@ interface CreatedTransfer {
   token: string;
 }
 
-// Read all files from a dropped item, recursively traversing folders
-async function readEntry(entry: FileSystemEntry): Promise<File[]> {
+function normalizeRelativePath(file: File, relativePath?: string): string {
+  const webkitPath = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
+  const path = relativePath?.trim() || webkitPath?.trim() || file.name;
+  return path.replace(/^\/+/, "");
+}
+
+async function readEntry(entry: FileSystemEntry, parentPath = ""): Promise<IncomingFile[]> {
   if (entry.isFile) {
     return new Promise((resolve) => {
       (entry as FileSystemFileEntry).file(
-        (f) => resolve([f]),
+        (f) => resolve([{ file: f, relativePath: normalizeRelativePath(f, `${parentPath}${entry.name}`) }]),
         () => resolve([])
       );
     });
   }
+
   if (entry.isDirectory) {
     const reader = (entry as FileSystemDirectoryEntry).createReader();
-    const allFiles: File[] = [];
+    const out: IncomingFile[] = [];
+
     await new Promise<void>((resolve) => {
       function readBatch() {
         reader.readEntries(async (entries) => {
-          if (entries.length === 0) { resolve(); return; }
-          for (const e of entries) {
-            const nested = await readEntry(e);
-            allFiles.push(...nested);
+          if (entries.length === 0) {
+            resolve();
+            return;
+          }
+          for (const nested of entries) {
+            const children = await readEntry(nested, `${parentPath}${entry.name}/`);
+            out.push(...children);
           }
           readBatch();
         }, () => resolve());
       }
       readBatch();
     });
-    return allFiles;
+
+    return out;
   }
+
   return [];
+}
+
+async function collectDroppedFiles(dataTransfer: DataTransfer): Promise<IncomingFile[]> {
+  const items = Array.from(dataTransfer.items || []);
+  const allFiles: IncomingFile[] = [];
+
+  for (const item of items) {
+    const entry = item.webkitGetAsEntry?.();
+    if (entry) {
+      const nested = await readEntry(entry);
+      allFiles.push(...nested);
+    } else if (item.kind === "file") {
+      const file = item.getAsFile();
+      if (file) allFiles.push({ file, relativePath: normalizeRelativePath(file) });
+    }
+  }
+
+  if (allFiles.length === 0) {
+    return Array.from(dataTransfer.files).map((file) => ({ file, relativePath: normalizeRelativePath(file) }));
+  }
+
+  return allFiles;
+}
+
+function groupByFolder(entries: FileEntry[]): Record<string, FileEntry[]> {
+  return entries.reduce<Record<string, FileEntry[]>>((acc, entry) => {
+    const parts = entry.relativePath.split("/");
+    const folder = parts.length > 1 ? parts[0] : "__root__";
+    acc[folder] ||= [];
+    acc[folder].push(entry);
+    return acc;
+  }, {});
 }
 
 export default function NewTransferPage() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
   const [dragging, setDragging] = useState(false);
   const [files, setFiles] = useState<FileEntry[]>([]);
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [expirationDays, setExpirationDays] = useState(7);
@@ -89,63 +156,110 @@ export default function NewTransferPage() {
   const [created, setCreated] = useState<CreatedTransfer | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Upload progress tracking
   const [uploadedBytes, setUploadedBytes] = useState(0);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const uploadStartRef = useRef<number>(0);
   const [eta, setEta] = useState("");
+  const folderPickerProps = {
+    webkitdirectory: "",
+    directory: "",
+  } as Record<string, string>;
 
   const totalBytes = files.reduce((sum, f) => sum + f.file.size, 0);
   const overallProgress = totalBytes > 0 ? Math.round((uploadedBytes / totalBytes) * 100) : 0;
 
-  // Update ETA every second during upload
   useEffect(() => {
     if (!uploading || uploadedBytes === 0) return;
     const elapsed = (Date.now() - uploadStartRef.current) / 1000;
-    const speed = uploadedBytes / elapsed;
+    const speed = uploadedBytes / Math.max(elapsed, 1);
     const remaining = totalBytes - uploadedBytes;
     setEta(fmtEta(remaining / speed));
   }, [uploadedBytes, uploading, totalBytes]);
 
-  function addFiles(incoming: File[]) {
-    const filtered = incoming.filter((f) => f.size <= MAX_FILE_BYTES && f.size > 0);
-    setFiles((prev) =>
-      [...prev, ...filtered.map((f) => ({
-        id: Math.random().toString(36).slice(2),
-        file: f,
-        progress: 0,
-        status: "pending" as const,
-      }))].slice(0, MAX_FILES)
-    );
+  function addFiles(incoming: IncomingFile[]) {
+    const rejected: string[] = [];
+
+    setFiles((prev) => {
+      const next = [...prev];
+      for (const item of incoming) {
+        const relPath = normalizeRelativePath(item.file, item.relativePath);
+        if (item.file.size <= 0) {
+          rejected.push(`${relPath}: empty files are not allowed`);
+          continue;
+        }
+        if (item.file.size > MAX_FILE_BYTES) {
+          rejected.push(`${relPath}: exceeds 2 GB per-file limit`);
+          continue;
+        }
+        if (next.length >= MAX_FILES) {
+          rejected.push(`${relPath}: max ${MAX_FILES} files per transfer`);
+          continue;
+        }
+
+        next.push({
+          id: Math.random().toString(36).slice(2),
+          file: item.file,
+          relativePath: relPath,
+          progress: 0,
+          status: "pending",
+        });
+      }
+      return next;
+    });
+
+    if (rejected.length) {
+      const preview = rejected.slice(0, 3).join(" • ");
+      const extra = rejected.length > 3 ? ` (+${rejected.length - 3} more)` : "";
+      setError(`Some files were not added: ${preview}${extra}`);
+    } else {
+      setError(null);
+    }
   }
 
   function removeFile(id: string) {
     setFiles((prev) => prev.filter((f) => f.id !== id));
   }
 
+  function resetEntry(id: string) {
+    setFiles((prev) =>
+      prev.map((f) =>
+        f.id === id
+          ? { ...f, status: "pending", progress: 0, error: undefined, blobUrl: undefined }
+          : f
+      )
+    );
+  }
+
+  function resetAllFailed() {
+    setFiles((prev) =>
+      prev.map((f) =>
+        f.status === "error"
+          ? { ...f, status: "pending", progress: 0, error: undefined, blobUrl: undefined }
+          : f
+      )
+    );
+    setError(null);
+  }
+
+  async function cleanupUploadedBlobs(blobUrls: string[]) {
+    if (!blobUrls.length) return;
+    await fetch("/api/transfers/cleanup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ blobUrls }),
+    }).catch(() => {});
+  }
+
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
-
-    const items = Array.from(e.dataTransfer.items);
-    const allFiles: File[] = [];
-
-    for (const item of items) {
-      const entry = item.webkitGetAsEntry?.();
-      if (entry) {
-        const nested = await readEntry(entry);
-        allFiles.push(...nested);
-      } else if (item.kind === "file") {
-        const f = item.getAsFile();
-        if (f) allFiles.push(f);
-      }
-    }
-
-    addFiles(allFiles);
+    const dropped = await collectDroppedFiles(e.dataTransfer);
+    addFiles(dropped);
   }, []);
 
   async function handleSubmit() {
     if (files.length === 0 || uploading) return;
+
     if (totalBytes > MAX_TOTAL_BYTES) {
       setError("Total size exceeds 10 GB.");
       return;
@@ -157,40 +271,57 @@ export default function NewTransferPage() {
     setCurrentFileIndex(0);
     uploadStartRef.current = Date.now();
 
-    const uploadedFiles: Array<{ fileName: string; mimeType: string; sizeBytes: number; blobUrl: string }> = [];
-    let bytesBeforeThisFile = 0;
+    const working = [...files];
+    let bytesBeforeCurrent = working
+      .filter((f) => f.blobUrl)
+      .reduce((sum, f) => sum + f.file.size, 0);
 
-    for (let i = 0; i < files.length; i++) {
-      const entry = files[i];
+    for (let i = 0; i < working.length; i++) {
+      const entry = working[i];
+      if (entry.blobUrl && entry.status === "done") continue;
+
       setCurrentFileIndex(i);
-      setFiles((prev) => prev.map((f) => f.id === entry.id ? { ...f, status: "uploading" } : f));
+      working[i] = { ...entry, status: "uploading", error: undefined };
+      setFiles([...working]);
 
       try {
-        const blob = await upload(entry.file.name, entry.file, {
+        const blob = await upload(entry.relativePath, entry.file, {
           access: "public",
           handleUploadUrl: "/api/transfers/blob",
           onUploadProgress: ({ percentage }) => {
-            const fileBytes = entry.file.size * (percentage / 100);
-            setUploadedBytes(bytesBeforeThisFile + fileBytes);
-            setFiles((prev) => prev.map((f) => f.id === entry.id ? { ...f, progress: percentage } : f));
+            const uploadedForFile = entry.file.size * (percentage / 100);
+            setUploadedBytes(bytesBeforeCurrent + uploadedForFile);
+            setFiles((prev) => prev.map((f) => (f.id === entry.id ? { ...f, progress: percentage } : f)));
           },
         });
 
-        bytesBeforeThisFile += entry.file.size;
-        setUploadedBytes(bytesBeforeThisFile);
-        setFiles((prev) => prev.map((f) => f.id === entry.id ? { ...f, status: "done", progress: 100, blobUrl: blob.url } : f));
-        uploadedFiles.push({
-          fileName: entry.file.name,
-          mimeType: entry.file.type || "application/octet-stream",
-          sizeBytes: entry.file.size,
-          blobUrl: blob.url,
-        });
-      } catch {
-        setFiles((prev) => prev.map((f) => f.id === entry.id ? { ...f, status: "error", error: "Upload failed" } : f));
+        bytesBeforeCurrent += entry.file.size;
+        setUploadedBytes(bytesBeforeCurrent);
+        working[i] = { ...working[i], status: "done", progress: 100, blobUrl: blob.url };
+        setFiles([...working]);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Upload failed";
+        working[i] = { ...working[i], status: "error", error: message };
+        setFiles([...working]);
         setUploading(false);
-        setError("One or more files failed to upload. Please try again.");
+        setError(`Upload failed for ${entry.relativePath}: ${message}`);
         return;
       }
+    }
+
+    const uploadedFiles = working
+      .filter((f) => f.blobUrl)
+      .map((f) => ({
+        fileName: f.relativePath,
+        mimeType: f.file.type || "application/octet-stream",
+        sizeBytes: f.file.size,
+        blobUrl: f.blobUrl!,
+      }));
+
+    if (uploadedFiles.length === 0) {
+      setUploading(false);
+      setError("No uploaded files are ready. Retry failed files first.");
+      return;
     }
 
     const validEmails = recipientEmails.filter((e) => e.trim() && e.includes("@"));
@@ -208,25 +339,31 @@ export default function NewTransferPage() {
       }),
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setError(data.error?.message ?? "Failed to create transfer.");
+      await cleanupUploadedBlobs(uploadedFiles.map((f) => f.blobUrl));
+      setError(data.error?.message ?? data.error ?? "Failed to create transfer.");
       setUploading(false);
+      setFiles(working);
       return;
     }
 
+    setFiles(working);
     setCreated({ url: data.url, token: data.token });
     setUploading(false);
   }
 
   async function handleCopy() {
     if (!created) return;
-    await navigator.clipboard.writeText(created.url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    try {
+      await navigator.clipboard.writeText(created.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setError("Clipboard access failed in this browser.");
+    }
   }
 
-  // ── Upload progress screen ────────────────────────────────────────────────
   if (uploading) {
     const doneCount = files.filter((f) => f.status === "done").length;
 
@@ -237,16 +374,11 @@ export default function NewTransferPage() {
         </div>
 
         <h1 className="text-2xl font-bold text-foreground mb-1">Uploading your files</h1>
-        <p className="text-sm text-muted-foreground mb-8">
-          Please keep this tab open until the upload finishes.
-        </p>
+        <p className="text-sm text-muted-foreground mb-8">Please keep this tab open until the upload finishes.</p>
 
-        {/* Overall progress */}
         <div className="bg-card rounded-2xl border border-border p-6 mb-4 text-left">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-foreground">
-              {doneCount} of {files.length} files
-            </span>
+            <span className="text-sm font-semibold text-foreground">{doneCount} of {files.length} files</span>
             <span className="text-sm font-semibold text-blue-500">{overallProgress}%</span>
           </div>
           <div className="h-2.5 rounded-full bg-blue-100 overflow-hidden mb-1.5">
@@ -261,7 +393,6 @@ export default function NewTransferPage() {
           </div>
         </div>
 
-        {/* Per-file list */}
         <div className="space-y-2 max-h-64 overflow-y-auto">
           {files.map((entry, i) => (
             <div
@@ -271,13 +402,10 @@ export default function NewTransferPage() {
               }`}
             >
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-foreground truncate">{entry.file.name}</p>
+                <p className="text-xs font-medium text-foreground truncate">{entry.relativePath}</p>
                 {entry.status === "uploading" && (
                   <div className="mt-1 h-1 rounded-full bg-blue-100 overflow-hidden">
-                    <div
-                      className="h-full bg-blue-500 rounded-full transition-all duration-200"
-                      style={{ width: `${entry.progress}%` }}
-                    />
+                    <div className="h-full bg-blue-500 rounded-full transition-all duration-200" style={{ width: `${entry.progress}%` }} />
                   </div>
                 )}
                 {entry.status === "done" && (
@@ -304,7 +432,6 @@ export default function NewTransferPage() {
     );
   }
 
-  // ── Success screen ────────────────────────────────────────────────────────
   if (created) {
     return (
       <div className="max-w-lg mx-auto px-4 py-12 text-center">
@@ -312,9 +439,7 @@ export default function NewTransferPage() {
           <CheckCircle2 className="w-8 h-8 text-emerald-500" />
         </div>
         <h1 className="text-2xl font-bold text-foreground mb-2">Transfer Ready</h1>
-        <p className="text-muted-foreground text-sm mb-6">
-          Share this link with anyone — they can download your files directly.
-        </p>
+        <p className="text-muted-foreground text-sm mb-6">Share this link with anyone — they can download your files directly.</p>
         <div className="bg-card rounded-xl border border-border p-4 mb-4">
           <p className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">Your transfer link</p>
           <p className="font-mono text-sm text-foreground break-all mb-3">{created.url}</p>
@@ -324,7 +449,12 @@ export default function NewTransferPage() {
         </div>
         <div className="flex gap-3 justify-center">
           <Button variant="outline" onClick={() => {
-            setCreated(null); setFiles([]); setTitle(""); setMessage(""); setRecipientEmails([""]);
+            setCreated(null);
+            setFiles([]);
+            setTitle("");
+            setMessage("");
+            setRecipientEmails([""]);
+            setExpandedFolders({});
           }}>
             New Transfer
           </Button>
@@ -336,7 +466,8 @@ export default function NewTransferPage() {
     );
   }
 
-  // ── Form ──────────────────────────────────────────────────────────────────
+  const grouped = groupByFolder(files);
+
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
       <div className="flex items-center gap-3 mb-6">
@@ -350,62 +481,122 @@ export default function NewTransferPage() {
       </div>
 
       <div className="space-y-5">
-        {/* Drop zone */}
         <div
-          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false); }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false);
+          }}
           onDrop={handleDrop}
-          onClick={() => inputRef.current?.click()}
-          className={`rounded-2xl border-2 border-dashed p-10 text-center cursor-pointer transition-colors ${
+          className={`rounded-2xl border-2 border-dashed p-10 text-center transition-colors ${
             dragging ? "border-blue-400 bg-blue-50" : "border-border hover:border-blue-300 hover:bg-blue-50/30"
           }`}
         >
           <FolderUp className="w-10 h-10 text-blue-400 mx-auto mb-3" />
-          <p className="text-sm font-medium text-foreground">Drop files or folders here, or click to browse</p>
+          <p className="text-sm font-medium text-foreground">Drop files or folders here, or use the buttons below</p>
           <p className="text-xs text-muted-foreground mt-1">Up to {MAX_FILES} files · 2 GB per file · 10 GB total</p>
+
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => inputRef.current?.click()}>
+              Add files
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => folderInputRef.current?.click()}>
+              Add folder
+            </Button>
+          </div>
+
           <input
             ref={inputRef}
             type="file"
             multiple
             className="hidden"
-            onChange={(e) => addFiles(Array.from(e.target.files ?? []))}
+            onChange={(e) => addFiles(Array.from(e.target.files ?? []).map((file) => ({ file })))}
+          />
+          <input
+            {...folderPickerProps}
+            ref={folderInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => addFiles(Array.from(e.target.files ?? []).map((file) => ({ file })))}
           />
         </div>
 
-        {/* File list */}
         {files.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 {files.length} file{files.length !== 1 ? "s" : ""} · {fmtBytes(totalBytes)}
               </p>
-              {totalBytes > MAX_TOTAL_BYTES && (
-                <p className="text-xs text-red-500 font-medium">Exceeds 10 GB limit</p>
-              )}
+              <div className="flex items-center gap-2">
+                {files.some((f) => f.status === "error") && (
+                  <Button type="button" size="sm" variant="outline" onClick={resetAllFailed}>
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Retry failed
+                  </Button>
+                )}
+                {totalBytes > MAX_TOTAL_BYTES && <p className="text-xs text-red-500 font-medium">Exceeds 10 GB limit</p>}
+              </div>
             </div>
-            {files.map((entry) => (
-              <div key={entry.id} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{entry.file.name}</p>
-                  <p className="text-xs text-muted-foreground">{fmtBytes(entry.file.size)}</p>
-                  {entry.status === "error" && <p className="text-xs text-red-500 mt-0.5">{entry.error}</p>}
-                </div>
-                <button
-                  onClick={(e) => { e.stopPropagation(); removeFile(entry.id); }}
-                  className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+
+            {Object.entries(grouped).map(([folder, entries]) => (
+              <div key={folder} className="rounded-xl border border-border bg-card">
+                {folder !== "__root__" && (
+                  <button
+                    type="button"
+                    onClick={() => setExpandedFolders((prev) => ({ ...prev, [folder]: !prev[folder] }))}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 border-b border-border/60 text-left"
+                  >
+                    <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expandedFolders[folder] ? "rotate-90" : ""}`} />
+                    <FolderUp className="w-3.5 h-3.5 text-blue-500" />
+                    <span className="text-sm font-medium">{folder}</span>
+                    <span className="text-xs text-muted-foreground">({entries.length} files)</span>
+                  </button>
+                )}
+
+                {(folder === "__root__" || expandedFolders[folder]) && (
+                  <div className="divide-y divide-border/60">
+                    {entries.map((entry) => (
+                      <div key={entry.id} className="flex items-center gap-3 p-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{entry.relativePath.split("/").pop()}</p>
+                          <p className="text-xs text-muted-foreground">{entry.relativePath} · {fmtBytes(entry.file.size)}</p>
+                          {entry.status === "error" && <p className="text-xs text-red-500 mt-0.5">{entry.error}</p>}
+                        </div>
+
+                        {entry.status === "error" ? (
+                          <button
+                            type="button"
+                            onClick={() => resetEntry(entry.id)}
+                            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />Retry
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeFile(entry.id);
+                            }}
+                            className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
 
-        {/* Title */}
         <div>
-          <Label htmlFor="title" className="text-sm font-medium">
-            Title <span className="text-muted-foreground font-normal">(optional)</span>
-          </Label>
+          <Label htmlFor="title" className="text-sm font-medium">Title <span className="text-muted-foreground font-normal">(optional)</span></Label>
           <Input
             id="title"
             value={title}
@@ -416,11 +607,8 @@ export default function NewTransferPage() {
           />
         </div>
 
-        {/* Message */}
         <div>
-          <Label htmlFor="message" className="text-sm font-medium">
-            Message <span className="text-muted-foreground font-normal">(optional)</span>
-          </Label>
+          <Label htmlFor="message" className="text-sm font-medium">Message <span className="text-muted-foreground font-normal">(optional)</span></Label>
           <textarea
             id="message"
             value={message}
@@ -432,12 +620,9 @@ export default function NewTransferPage() {
           />
         </div>
 
-        {/* Settings */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <Label className="text-sm font-medium flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5" />Expires after
-            </Label>
+            <Label className="text-sm font-medium flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />Expires after</Label>
             <select
               value={expirationDays}
               onChange={(e) => setExpirationDays(Number(e.target.value))}
@@ -458,9 +643,7 @@ export default function NewTransferPage() {
               >
                 <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${viewOnce ? "translate-x-4" : "translate-x-0.5"}`} />
               </div>
-              <span className="text-sm font-medium flex items-center gap-1.5">
-                <Eye className="w-3.5 h-3.5 text-muted-foreground" />View once only
-              </span>
+              <span className="text-sm font-medium flex items-center gap-1.5"><Eye className="w-3.5 h-3.5 text-muted-foreground" />View once only</span>
             </label>
 
             <label className="flex items-center gap-3 cursor-pointer">
@@ -470,18 +653,13 @@ export default function NewTransferPage() {
               >
                 <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${notifyOnDownload ? "translate-x-4" : "translate-x-0.5"}`} />
               </div>
-              <span className="text-sm font-medium flex items-center gap-1.5">
-                <Bell className="w-3.5 h-3.5 text-muted-foreground" />Notify me on download
-              </span>
+              <span className="text-sm font-medium flex items-center gap-1.5"><Bell className="w-3.5 h-3.5 text-muted-foreground" />Notify me on download</span>
             </label>
           </div>
         </div>
 
-        {/* Recipient emails */}
         <div>
-          <Label className="text-sm font-medium flex items-center gap-1.5">
-            <Mail className="w-3.5 h-3.5" />Send to <span className="text-muted-foreground font-normal ml-1">(optional)</span>
-          </Label>
+          <Label className="text-sm font-medium flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" />Send to <span className="text-muted-foreground font-normal ml-1">(optional)</span></Label>
           <div className="mt-1.5 space-y-2">
             {recipientEmails.map((email, i) => (
               <div key={i} className="flex gap-2">
@@ -521,13 +699,13 @@ export default function NewTransferPage() {
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
-            {error}
+            <span>{error}</span>
           </div>
         )}
 
         <Button
           onClick={handleSubmit}
-          disabled={files.length === 0 || totalBytes > MAX_TOTAL_BYTES}
+          disabled={uploading || files.length === 0 || totalBytes > MAX_TOTAL_BYTES}
           size="lg"
           className="w-full gap-2"
         >

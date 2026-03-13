@@ -4,6 +4,7 @@ import { apiError } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { writeAuditLog } from "@/lib/audit";
 import { Zip, ZipPassThrough } from "fflate";
+import { sendTransferDownloadNotification } from "@/lib/email";
 
 // Allow up to 5 minutes for large video zip streams (Vercel Pro)
 export const maxDuration = 300;
@@ -27,7 +28,7 @@ export async function GET(
       files: {
         select: { id: true, fileName: true, mimeType: true, sizeBytes: true, blobUrl: true },
       },
-      agent: { select: { id: true } },
+      agent: { select: { id: true, email: true, displayName: true, notificationEmail: true } },
     },
   });
 
@@ -43,15 +44,24 @@ export async function GET(
     return NextResponse.json({ error: "No files" }, { status: 400 });
   }
 
-  // View-once enforcement: atomic compare-and-swap on status
-  if (transfer.viewOnce) {
-    const updated = await db.fileTransfer.updateMany({
-      where: { id: transfer.id, status: "ACTIVE" },
-      data: { status: "DOWNLOADED" },
+  const firstAccess = await db.fileTransfer.updateMany({
+    where: { id: transfer.id, status: "ACTIVE" },
+    data: { status: "DOWNLOADED" },
+  });
+  const isFirstAccess = firstAccess.count > 0;
+
+  if (transfer.viewOnce && !isFirstAccess) {
+    return NextResponse.json({ error: "Already accessed" }, { status: 410 });
+  }
+
+  if (transfer.notifyOnDownload && isFirstAccess) {
+    const notifyEmail = transfer.agent.notificationEmail ?? transfer.agent.email;
+    sendTransferDownloadNotification({
+      agentEmail: notifyEmail,
+      agentName: transfer.agent.displayName,
+      title: transfer.title,
+      fileName: `${transfer.files.length} files`,
     });
-    if (updated.count === 0 && transfer.status !== "ACTIVE") {
-      return NextResponse.json({ error: "Already accessed" }, { status: 410 });
-    }
   }
 
   await writeAuditLog({

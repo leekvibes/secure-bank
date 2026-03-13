@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Copy, CheckCheck, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "@/components/ui/use-toast";
 
 export function TransferActions({
   transferId,
@@ -19,15 +20,44 @@ export function TransferActions({
   const router = useRouter();
 
   async function handleDelete() {
-    setDeleting(true);
-    await fetch(`/api/transfers/${transferId}`, { method: "DELETE" });
-    router.refresh();
+    try {
+      setDeleting(true);
+      const res = await fetch(`/api/transfers/${transferId}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast({
+          title: "Delete failed",
+          description: "Could not delete transfer. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Transfer deleted",
+        description: "Transfer removed successfully.",
+      });
+      router.refresh();
+    } finally {
+      setDeleting(false);
+      setConfirming(false);
+    }
   }
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast({
+        title: "Link copied",
+        description: "Transfer link copied to clipboard.",
+      });
+    } catch {
+      toast({
+        title: "Clipboard failed",
+        description: "Unable to copy in this browser.",
+        variant: "destructive",
+      });
+    }
   }
 
   return (
