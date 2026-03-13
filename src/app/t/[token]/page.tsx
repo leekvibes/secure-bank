@@ -23,15 +23,8 @@ export default async function TransferPage({
 
   const now = new Date();
   const expired = transfer.expiresAt < now || transfer.status === "EXPIRED";
+  // Do NOT consume view-once on page open — only consume on actual file access via serve route
   const alreadyDownloaded = transfer.viewOnce && transfer.status === "DOWNLOADED";
-
-  // Mark as downloaded if view-once and first open
-  if (transfer.viewOnce && transfer.status === "ACTIVE") {
-    await db.fileTransfer.update({
-      where: { id: transfer.id },
-      data: { status: "DOWNLOADED" },
-    });
-  }
 
   return (
     <TransferDownloadClient
@@ -39,6 +32,7 @@ export default async function TransferPage({
       title={transfer.title}
       message={transfer.message}
       viewOnce={transfer.viewOnce}
+      isViewOnce={transfer.viewOnce}
       expiresAt={transfer.expiresAt.toISOString()}
       expired={expired}
       alreadyDownloaded={alreadyDownloaded}

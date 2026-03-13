@@ -228,3 +228,32 @@ export const createFormLinkSchema = z.object({
   assetIds: z.array(z.string().min(1)).max(10).optional().default([]),
 });
 export type CreateFormLinkInput = z.infer<typeof createFormLinkSchema>;
+
+// ── File Transfer ─────────────────────────────────────────────────────────────
+
+const ALLOWED_BLOB_HOSTS = ["vercel-storage.com", "public.blob.vercel-storage.com"];
+
+function isAllowedBlobUrl(url: string): boolean {
+  try {
+    const h = new URL(url).hostname;
+    return ALLOWED_BLOB_HOSTS.some((suffix) => h === suffix || h.endsWith("." + suffix));
+  } catch {
+    return false;
+  }
+}
+
+export const createTransferSchema = z.object({
+  title:            z.string().max(200).optional(),
+  message:          z.string().max(2000).optional(),
+  viewOnce:         z.boolean().default(false),
+  expirationDays:   z.number().int().refine((v) => [1, 3, 7, 30].includes(v), "Invalid expiration").default(7),
+  notifyOnDownload: z.boolean().default(true),
+  recipientEmails:  z.array(z.string().email()).max(20).default([]),
+  files: z.array(z.object({
+    fileName: z.string().min(1).max(260),
+    mimeType: z.string().min(1).max(127),
+    sizeBytes: z.number().int().min(1).max(2 * 1024 * 1024 * 1024),
+    blobUrl:  z.string().url().refine(isAllowedBlobUrl, "Invalid blob host"),
+  })).min(1, "At least one file is required").max(50, "Too many files"),
+});
+export type CreateTransferInput = z.infer<typeof createTransferSchema>;

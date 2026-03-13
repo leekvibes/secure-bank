@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Download, FileText, Clock, Shield, Eye, CheckCircle2, XCircle, FolderUp } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
+import { TransferPreviewModal } from "@/components/transfer-preview-modal";
+import { isPreviewable } from "@/lib/transfer-mime";
 
 function fmtBytes(n: number | string): string {
   const num = typeof n === "string" ? parseInt(n, 10) : n;
@@ -30,6 +32,7 @@ interface Props {
   title: string | null;
   message: string | null;
   viewOnce: boolean;
+  isViewOnce: boolean;
   expiresAt: string;
   expired: boolean;
   alreadyDownloaded: boolean;
@@ -42,17 +45,23 @@ export function TransferDownloadClient({
 }: Props) {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadingAll, setDownloadingAll] = useState(false);
+  const [previewFile, setPreviewFile] = useState<FileEntry | null>(null);
 
-  function handleDownload(fileId: string) {
+  async function handleDownload(fileId: string) {
     setDownloading(fileId);
-    // Our route redirects to getDownloadUrl() which adds Content-Disposition: attachment
-    const a = document.createElement("a");
-    a.href = `/api/t/${token}/download/${fileId}`;
-    a.style.display = "none";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => setDownloading(null), 2500);
+    try {
+      const res = await fetch(`/api/t/${token}/sign?fileId=${fileId}&action=download`);
+      if (!res.ok) { setDownloading(null); return; }
+      const { signedToken } = await res.json() as { signedToken: string };
+      const a = document.createElement("a");
+      a.href = `/api/t/${token}/serve/${signedToken}`;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } finally {
+      setTimeout(() => setDownloading(null), 2500);
+    }
   }
 
   function handleDownloadAll() {
@@ -177,20 +186,33 @@ export function TransferDownloadClient({
                   <p className="text-sm font-medium text-gray-900 truncate">{f.fileName}</p>
                   <p className="text-xs text-gray-400">{fmtBytes(f.sizeBytes)}</p>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleDownload(f.id)}
-                  disabled={downloading === f.id}
-                  className="shrink-0 gap-1.5"
-                >
-                  {downloading === f.id ? (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                  ) : (
-                    <Download className="w-3.5 h-3.5" />
+                <div className="flex items-center gap-2 shrink-0">
+                  {isPreviewable(f.mimeType) && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setPreviewFile(f)}
+                      className="shrink-0 gap-1.5"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      Preview
+                    </Button>
                   )}
-                  {downloading === f.id ? "Saved" : "Download"}
-                </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleDownload(f.id)}
+                    disabled={downloading === f.id}
+                    className="shrink-0 gap-1.5"
+                  >
+                    {downloading === f.id ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5" />
+                    )}
+                    {downloading === f.id ? "Saved" : "Download"}
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -206,6 +228,17 @@ export function TransferDownloadClient({
           </div>
         </div>
       </div>
+
+      {previewFile && (
+        <TransferPreviewModal
+          transferToken={token}
+          fileId={previewFile.id}
+          fileName={previewFile.fileName}
+          mimeType={previewFile.mimeType}
+          onClose={() => setPreviewFile(null)}
+          onDownload={(fid) => { setPreviewFile(null); handleDownload(fid); }}
+        />
+      )}
     </main>
   );
 }

@@ -1,11 +1,17 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { apiSuccess, apiError } from "@/lib/api-response";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { writeAuditLog } from "@/lib/audit";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { token: string } }
 ) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const rl = await checkRateLimit(`transfer:view:${params.token}:${ip}`);
+  if (!rl.allowed) return apiError(429, "RATE_LIMITED", "Too many requests.");
+
   const transfer = await db.fileTransfer.findUnique({
     where: { token: params.token },
     include: {
@@ -25,13 +31,12 @@ export async function GET(
     return apiError(410, "ALREADY_DOWNLOADED", "This transfer has already been accessed.");
   }
 
-  // Mark as downloaded if view-once and first open
-  if (transfer.viewOnce && transfer.status === "ACTIVE") {
-    await db.fileTransfer.update({
-      where: { id: transfer.id },
-      data: { status: "DOWNLOADED" },
-    });
-  }
+  await writeAuditLog({
+    event: "TRANSFER_PREVIEW_OPENED",
+    agentId: transfer.agentId,
+    request: req,
+    metadata: { transferId: transfer.id },
+  });
 
   return apiSuccess({
     id: transfer.id,

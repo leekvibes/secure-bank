@@ -22,7 +22,10 @@ export type AuditEvent =
   | "ADMIN_UNBAN"
   | "ADMIN_DELETE_ACCOUNT"
   | "TRANSFER_CREATED"
-  | "TRANSFER_DELETED";
+  | "TRANSFER_DELETED"
+  | "TRANSFER_PREVIEW_OPENED"
+  | "TRANSFER_FILE_PREVIEWED"
+  | "TRANSFER_FILE_DOWNLOADED";
 
 interface AuditOptions {
   event: AuditEvent;

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { apiError } from "@/lib/api-response";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { writeAuditLog } from "@/lib/audit";
 import { Zip, ZipPassThrough } from "fflate";
 
 // Allow up to 5 minutes for large video zip streams (Vercel Pro)
@@ -14,12 +17,17 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { token: string } }
 ) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const rl = await checkRateLimit(`transfer:zip:${params.token}:${ip}`);
+  if (!rl.allowed) return apiError(429, "RATE_LIMITED", "Too many requests.");
+
   const transfer = await db.fileTransfer.findUnique({
     where: { token: params.token },
     include: {
       files: {
         select: { id: true, fileName: true, mimeType: true, sizeBytes: true, blobUrl: true },
       },
+      agent: { select: { id: true } },
     },
   });
 
@@ -34,6 +42,24 @@ export async function GET(
   if (transfer.files.length === 0) {
     return NextResponse.json({ error: "No files" }, { status: 400 });
   }
+
+  // View-once enforcement: atomic compare-and-swap on status
+  if (transfer.viewOnce) {
+    const updated = await db.fileTransfer.updateMany({
+      where: { id: transfer.id, status: "ACTIVE" },
+      data: { status: "DOWNLOADED" },
+    });
+    if (updated.count === 0 && transfer.status !== "ACTIVE") {
+      return NextResponse.json({ error: "Already accessed" }, { status: 410 });
+    }
+  }
+
+  await writeAuditLog({
+    event: "TRANSFER_FILE_DOWNLOADED",
+    agentId: transfer.agentId,
+    request: req,
+    metadata: { transferId: transfer.id, action: "zip_all", fileCount: transfer.files.length },
+  });
 
   const folderName = slugify(transfer.title ?? "transfer");
   const zipName = `${folderName}.zip`;

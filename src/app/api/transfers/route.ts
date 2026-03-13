@@ -6,9 +6,7 @@ import { generateToken } from "@/lib/tokens";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { sendTransferEmail } from "@/lib/email";
 import { writeAuditLog } from "@/lib/audit";
-
-const MAX_TRANSFER_BYTES = BigInt(10 * 1024 * 1024 * 1024); // 10GB
-const MAX_FILES = 50;
+import { createTransferSchema } from "@/lib/schemas";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -27,50 +25,45 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return apiError(401, "UNAUTHORIZED", "Unauthorized");
 
-  let body: {
-    title?: string;
-    message?: string;
-    viewOnce?: boolean;
-    expirationDays?: number;
-    notifyOnDownload?: boolean;
-    recipientEmails?: string[];
-    files: Array<{ fileName: string; mimeType: string; sizeBytes: number; blobUrl: string }>;
-  };
-
+  let rawBody: unknown;
   try {
-    body = await req.json();
+    rawBody = await req.json();
   } catch {
     return apiError(400, "INVALID_JSON", "Invalid request body.");
   }
 
-  if (!body.files || body.files.length === 0) {
-    return apiError(400, "NO_FILES", "At least one file is required.");
+  const parsed = createTransferSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      const path = issue.path.join(".");
+      if (!fieldErrors[path]) fieldErrors[path] = issue.message;
+    }
+    return apiError(422, "VALIDATION_ERROR", "Invalid transfer data.", { fieldErrors });
   }
-  if (body.files.length > MAX_FILES) {
-    return apiError(400, "TOO_MANY_FILES", `Maximum ${MAX_FILES} files per transfer.`);
-  }
+  const { title, message, viewOnce, expirationDays, notifyOnDownload, recipientEmails, files } = parsed.data;
 
-  const totalBytes = body.files.reduce((sum, f) => sum + BigInt(f.sizeBytes), BigInt(0));
+  const MAX_TRANSFER_BYTES = BigInt(10 * 1024 * 1024 * 1024); // 10GB
+  const totalBytes = files.reduce((sum, f) => sum + BigInt(f.sizeBytes), BigInt(0));
   if (totalBytes > MAX_TRANSFER_BYTES) {
     return apiError(400, "TRANSFER_TOO_LARGE", "Total transfer size exceeds 10 GB.");
   }
 
-  const days = [1, 3, 7, 30].includes(body.expirationDays ?? 7) ? (body.expirationDays ?? 7) : 7;
-  const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  const expiresAt = new Date(Date.now() + expirationDays * 24 * 60 * 60 * 1000);
   const token = generateToken();
 
   const transfer = await db.fileTransfer.create({
     data: {
       token,
-      title: body.title?.trim() || null,
-      message: body.message?.trim() || null,
-      viewOnce: body.viewOnce ?? false,
+      title: title?.trim() || null,
+      message: message?.trim() || null,
+      viewOnce,
       expiresAt,
-      notifyOnDownload: body.notifyOnDownload ?? true,
+      notifyOnDownload,
       totalSizeBytes: totalBytes,
       agentId: session.user.id,
       files: {
-        create: body.files.map((f) => ({
+        create: files.map((f) => ({
           fileName: f.fileName,
           mimeType: f.mimeType,
           sizeBytes: BigInt(f.sizeBytes),
@@ -85,30 +78,30 @@ export async function POST(req: NextRequest) {
     event: "TRANSFER_CREATED",
     agentId: session.user.id,
     request: req,
-    metadata: { transferId: transfer.id, fileCount: body.files.length },
+    metadata: { transferId: transfer.id, fileCount: files.length },
   });
 
   const appUrl = process.env.NEXTAUTH_URL ?? "https://mysecurelink.co";
   const transferUrl = `${appUrl}/t/${token}`;
 
   // Send email to each recipient
-  if (body.recipientEmails && body.recipientEmails.length > 0) {
+  if (recipientEmails && recipientEmails.length > 0) {
     const agent = await db.user.findUnique({
       where: { id: session.user.id },
       select: { displayName: true, email: true },
     });
-    for (const email of body.recipientEmails) {
+    for (const email of recipientEmails) {
       if (email.trim()) {
         sendTransferEmail({
           toEmail: email.trim(),
           agentName: agent?.displayName ?? "Someone",
-          title: body.title || null,
-          message: body.message || null,
-          fileCount: body.files.length,
+          title: title || null,
+          message: message || null,
+          fileCount: files.length,
           totalSizeBytes: Number(totalBytes),
           transferUrl,
           expiresAt,
-          viewOnce: body.viewOnce ?? false,
+          viewOnce,
         });
       }
     }

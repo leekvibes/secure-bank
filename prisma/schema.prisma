@@ -352,6 +352,7 @@ model FileTransferFile {
   sizeBytes     BigInt
   blobUrl       String
   downloadCount Int      @default(0)
+  previewCount  Int      @default(0)
   createdAt     DateTime @default(now())
 
   transfer FileTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
