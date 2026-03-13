@@ -19,7 +19,6 @@ export async function POST(request: Request): Promise<NextResponse> {
         return {
           maximumSizeInBytes: 2 * 1024 * 1024 * 1024, // 2GB per file
           addRandomSuffix: true, // prevent "blob already exists" on re-upload
-          allowedContentTypes: ["*/*"], // allow any file type
         };
       },
       onUploadCompleted: async () => {},
