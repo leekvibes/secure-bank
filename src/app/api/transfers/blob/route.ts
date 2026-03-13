@@ -18,16 +18,8 @@ export async function POST(request: Request): Promise<NextResponse> {
       onBeforeGenerateToken: async () => {
         return {
           maximumSizeInBytes: 2 * 1024 * 1024 * 1024, // 2GB per file
-          allowedContentTypes: [
-            "image/*", "video/*", "audio/*",
-            "application/pdf", "application/zip",
-            "application/x-zip-compressed",
-            "application/msword",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "application/vnd.ms-excel",
-            "text/plain", "text/csv",
-          ],
+          addRandomSuffix: true, // prevent "blob already exists" on re-upload
+          allowedContentTypes: ["*/*"], // allow any file type
         };
       },
       onUploadCompleted: async () => {},

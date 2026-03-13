@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -67,6 +67,14 @@ function normalizeRelativePath(file: File, relativePath?: string): string {
   const webkitPath = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
   const path = relativePath?.trim() || webkitPath?.trim() || file.name;
   return path.replace(/^\/+/, "");
+}
+
+function buildUniqueBlobPath(relativePath: string): string {
+  const rand =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${rand}/${relativePath.replace(/^\/+/, "")}`;
 }
 
 async function readEntry(entry: FileSystemEntry, parentPath = ""): Promise<IncomingFile[]> {
@@ -156,25 +164,26 @@ export default function NewTransferPage() {
   const [created, setCreated] = useState<CreatedTransfer | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const [uploadedBytes, setUploadedBytes] = useState(0);
-  const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const uploadStartRef = useRef<number>(0);
-  const [eta, setEta] = useState("");
   const folderPickerProps = {
     webkitdirectory: "",
     directory: "",
   } as Record<string, string>;
 
   const totalBytes = files.reduce((sum, f) => sum + f.file.size, 0);
-  const overallProgress = totalBytes > 0 ? Math.round((uploadedBytes / totalBytes) * 100) : 0;
 
-  useEffect(() => {
-    if (!uploading || uploadedBytes === 0) return;
+  // Derived — no separate state needed
+  const uploadedBytes = files.reduce((sum, f) => {
+    if (f.status === "done") return sum + f.file.size;
+    if (f.status === "uploading") return sum + Math.round(f.file.size * (f.progress / 100));
+    return sum;
+  }, 0);
+  const overallProgress = totalBytes > 0 ? Math.round((uploadedBytes / totalBytes) * 100) : 0;
+  const eta = uploading && uploadedBytes > 0 ? (() => {
     const elapsed = (Date.now() - uploadStartRef.current) / 1000;
     const speed = uploadedBytes / Math.max(elapsed, 1);
-    const remaining = totalBytes - uploadedBytes;
-    setEta(fmtEta(remaining / speed));
-  }, [uploadedBytes, uploading, totalBytes]);
+    return fmtEta((totalBytes - uploadedBytes) / speed);
+  })() : "";
 
   function addFiles(incoming: IncomingFile[]) {
     const rejected: string[] = [];
@@ -267,60 +276,91 @@ export default function NewTransferPage() {
 
     setUploading(true);
     setError(null);
-    setUploadedBytes(0);
-    setCurrentFileIndex(0);
     uploadStartRef.current = Date.now();
 
-    const working = [...files];
-    let bytesBeforeCurrent = working
-      .filter((f) => f.blobUrl)
-      .reduce((sum, f) => sum + f.file.size, 0);
+    // Snapshot of already-done files (retry flow)
+    const snapshot = [...files];
+    const toUpload = snapshot.filter((f) => f.status !== "done");
 
-    for (let i = 0; i < working.length; i++) {
-      const entry = working[i];
-      if (entry.blobUrl && entry.status === "done") continue;
+    // Reset pending/error files to pending
+    setFiles((prev) =>
+      prev.map((f) =>
+        f.status !== "done" ? { ...f, status: "pending", progress: 0, error: undefined } : f
+      )
+    );
 
-      setCurrentFileIndex(i);
-      working[i] = { ...entry, status: "uploading", error: undefined };
-      setFiles([...working]);
+    // Collect results outside React state so we can read them after awaits
+    const blobUrls = new Map<string, string>(); // id → blobUrl
+    const uploadErrors = new Map<string, string>(); // id → error message
 
-      try {
-        const blob = await upload(entry.relativePath, entry.file, {
-          access: "public",
-          handleUploadUrl: "/api/transfers/blob",
-          onUploadProgress: ({ percentage }) => {
-            const uploadedForFile = entry.file.size * (percentage / 100);
-            setUploadedBytes(bytesBeforeCurrent + uploadedForFile);
-            setFiles((prev) => prev.map((f) => (f.id === entry.id ? { ...f, progress: percentage } : f)));
-          },
-        });
+    // Parallel worker pool — 3 concurrent uploads
+    const CONCURRENCY = 3;
+    let cursor = 0;
 
-        bytesBeforeCurrent += entry.file.size;
-        setUploadedBytes(bytesBeforeCurrent);
-        working[i] = { ...working[i], status: "done", progress: 100, blobUrl: blob.url };
-        setFiles([...working]);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Upload failed";
-        working[i] = { ...working[i], status: "error", error: message };
-        setFiles([...working]);
-        setUploading(false);
-        setError(`Upload failed for ${entry.relativePath}: ${message}`);
-        return;
+    async function worker() {
+      while (true) {
+        const i = cursor++;
+        if (i >= toUpload.length) break;
+        const entry = toUpload[i];
+
+        setFiles((prev) =>
+          prev.map((f) => (f.id === entry.id ? { ...f, status: "uploading", progress: 0 } : f))
+        );
+
+        try {
+          const blob = await upload(buildUniqueBlobPath(entry.relativePath), entry.file, {
+            access: "public",
+            handleUploadUrl: "/api/transfers/blob",
+            onUploadProgress: ({ percentage }) => {
+              setFiles((prev) =>
+                prev.map((f) => (f.id === entry.id ? { ...f, progress: percentage } : f))
+              );
+            },
+          });
+
+          blobUrls.set(entry.id, blob.url);
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.id === entry.id ? { ...f, status: "done", progress: 100, blobUrl: blob.url } : f
+            )
+          );
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Upload failed";
+          uploadErrors.set(entry.id, msg);
+          setFiles((prev) =>
+            prev.map((f) => (f.id === entry.id ? { ...f, status: "error", error: msg } : f))
+          );
+        }
       }
     }
 
-    const uploadedFiles = working
-      .filter((f) => f.blobUrl)
+    await Promise.all(
+      Array.from({ length: Math.min(CONCURRENCY, toUpload.length) }, worker)
+    );
+
+    // If any uploads failed, surface errors and let user retry
+    if (uploadErrors.size > 0) {
+      const count = uploadErrors.size;
+      setError(
+        `${count} file${count > 1 ? "s" : ""} failed to upload — see errors above. Fix or remove them, then try again.`
+      );
+      setUploading(false);
+      return;
+    }
+
+    // Build file list from pre-existing done files + newly uploaded
+    const uploadedFiles = snapshot
+      .filter((f) => blobUrls.has(f.id) || (f.status === "done" && f.blobUrl))
       .map((f) => ({
         fileName: f.relativePath,
         mimeType: f.file.type || "application/octet-stream",
         sizeBytes: f.file.size,
-        blobUrl: f.blobUrl!,
+        blobUrl: blobUrls.get(f.id) ?? f.blobUrl!,
       }));
 
     if (uploadedFiles.length === 0) {
       setUploading(false);
-      setError("No uploaded files are ready. Retry failed files first.");
+      setError("No files were uploaded successfully.");
       return;
     }
 
@@ -344,11 +384,9 @@ export default function NewTransferPage() {
       await cleanupUploadedBlobs(uploadedFiles.map((f) => f.blobUrl));
       setError(data.error?.message ?? data.error ?? "Failed to create transfer.");
       setUploading(false);
-      setFiles(working);
       return;
     }
 
-    setFiles(working);
     setCreated({ url: data.url, token: data.token });
     setUploading(false);
   }
@@ -366,6 +404,8 @@ export default function NewTransferPage() {
 
   if (uploading) {
     const doneCount = files.filter((f) => f.status === "done").length;
+    const errorCount = files.filter((f) => f.status === "error").length;
+    const activeCount = files.filter((f) => f.status === "uploading").length;
 
     return (
       <div className="max-w-lg mx-auto px-4 py-16 text-center">
@@ -374,11 +414,17 @@ export default function NewTransferPage() {
         </div>
 
         <h1 className="text-2xl font-bold text-foreground mb-1">Uploading your files</h1>
-        <p className="text-sm text-muted-foreground mb-8">Please keep this tab open until the upload finishes.</p>
+        <p className="text-sm text-muted-foreground mb-8">
+          Please keep this tab open.
+          {activeCount > 0 && ` Uploading ${activeCount} file${activeCount > 1 ? "s" : ""} at once.`}
+        </p>
 
         <div className="bg-card rounded-2xl border border-border p-6 mb-4 text-left">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-foreground">{doneCount} of {files.length} files</span>
+            <span className="text-sm font-semibold text-foreground">
+              {doneCount} of {files.length} files
+              {errorCount > 0 && <span className="text-red-500 ml-2">· {errorCount} failed</span>}
+            </span>
             <span className="text-sm font-semibold text-blue-500">{overallProgress}%</span>
           </div>
           <div className="h-2.5 rounded-full bg-blue-100 overflow-hidden mb-1.5">
@@ -393,13 +439,13 @@ export default function NewTransferPage() {
           </div>
         </div>
 
-        <div className="space-y-2 max-h-64 overflow-y-auto">
-          {files.map((entry, i) => (
+        <div className="space-y-2 max-h-72 overflow-y-auto">
+          {files.map((entry) => (
             <div
               key={entry.id}
-              className={`flex items-center gap-3 p-3 rounded-xl border bg-card text-left transition-opacity ${
-                i > currentFileIndex + 1 ? "opacity-40" : ""
-              }`}
+              className={`flex items-center gap-3 p-3 rounded-xl border bg-card text-left ${
+                entry.status === "error" ? "border-red-200 bg-red-50/40" : ""
+              } ${entry.status === "pending" ? "opacity-40" : ""}`}
             >
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-foreground truncate">{entry.relativePath}</p>
@@ -412,6 +458,9 @@ export default function NewTransferPage() {
                   <div className="mt-1 h-1 rounded-full bg-emerald-100 overflow-hidden">
                     <div className="h-full bg-emerald-500 rounded-full w-full" />
                   </div>
+                )}
+                {entry.status === "error" && entry.error && (
+                  <p className="mt-0.5 text-xs text-red-500 break-words">{entry.error}</p>
                 )}
               </div>
               <div className="shrink-0">
