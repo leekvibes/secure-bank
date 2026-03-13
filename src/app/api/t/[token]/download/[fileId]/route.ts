@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { getDownloadUrl } from "@vercel/blob";
 import { sendTransferDownloadNotification } from "@/lib/email";
 
 export async function GET(
@@ -41,5 +42,9 @@ export async function GET(
     });
   }
 
-  return NextResponse.redirect(file.blobUrl);
+  // getDownloadUrl adds ?download=1 which makes Vercel Blob's CDN send
+  // Content-Disposition: attachment — forces save-to-device instead of playing inline.
+  // This works for any file size with no proxying or timeout risk.
+  const downloadUrl = getDownloadUrl(file.blobUrl);
+  return NextResponse.redirect(downloadUrl);
 }

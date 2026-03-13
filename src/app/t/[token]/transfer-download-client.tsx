@@ -41,24 +41,42 @@ export function TransferDownloadClient({
   token, title, message, viewOnce, expiresAt, expired, alreadyDownloaded, files, agent,
 }: Props) {
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [downloadingAll, setDownloadingAll] = useState(false);
+  const [downloadAllProgress, setDownloadAllProgress] = useState(0);
 
-  function getDownloadUrl(fileId: string) {
-    return `/api/t/${token}/download/${fileId}`;
-  }
-
-  function handleDownload(fileId: string, fileName: string) {
-    setDownloading(fileId);
+  function triggerDownload(fileId: string) {
+    // Use our API route which redirects to getDownloadUrl() — Vercel Blob CDN
+    // returns Content-Disposition: attachment, forcing save-to-device on all browsers/iOS/Android.
     const a = document.createElement("a");
-    a.href = getDownloadUrl(fileId);
-    a.download = fileName;
+    a.href = `/api/t/${token}/download/${fileId}`;
+    a.style.display = "none";
+    document.body.appendChild(a);
     a.click();
-    setTimeout(() => setDownloading(null), 2000);
+    document.body.removeChild(a);
   }
 
-  function handleDownloadAll() {
-    files.forEach((f, i) => {
-      setTimeout(() => handleDownload(f.id, f.fileName), i * 300);
-    });
+  function handleDownload(fileId: string) {
+    setDownloading(fileId);
+    triggerDownload(fileId);
+    setTimeout(() => setDownloading(null), 2500);
+  }
+
+  async function handleDownloadAll() {
+    if (downloadingAll) return;
+    setDownloadingAll(true);
+    setDownloadAllProgress(0);
+
+    for (let i = 0; i < files.length; i++) {
+      setDownloadAllProgress(i + 1);
+      triggerDownload(files[i].id);
+      // Give the browser 800ms between each to queue the downloads properly
+      if (i < files.length - 1) {
+        await new Promise((r) => setTimeout(r, 800));
+      }
+    }
+
+    setDownloadingAll(false);
+    setDownloadAllProgress(0);
   }
 
   const totalBytes = files.reduce((sum, f) => sum + parseInt(f.sizeBytes, 10), 0);
@@ -150,10 +168,13 @@ export function TransferDownloadClient({
             {files.length > 1 && (
               <button
                 onClick={handleDownloadAll}
-                className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                disabled={downloadingAll}
+                className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors disabled:opacity-60"
               >
                 <Download className="w-3.5 h-3.5" />
-                Download all
+                {downloadingAll
+                  ? `Saving ${downloadAllProgress} of ${files.length}…`
+                  : "Download all"}
               </button>
             )}
           </div>
@@ -171,7 +192,7 @@ export function TransferDownloadClient({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => handleDownload(f.id, f.fileName)}
+                  onClick={() => handleDownload(f.id)}
                   disabled={downloading === f.id}
                   className="shrink-0 gap-1.5"
                 >
@@ -180,7 +201,7 @@ export function TransferDownloadClient({
                   ) : (
                     <Download className="w-3.5 h-3.5" />
                   )}
-                  {downloading === f.id ? "Done" : "Download"}
+                  {downloading === f.id ? "Saved" : "Download"}
                 </Button>
               </div>
             ))}
