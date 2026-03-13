@@ -4,10 +4,10 @@ import { apiError } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTransferAccess } from "@/lib/transfer-signing";
 import { writeAuditLog } from "@/lib/audit";
-import { getDownloadUrl } from "@vercel/blob";
 import { sendTransferDownloadNotification } from "@/lib/email";
 
-export const maxDuration = 60;
+// Enough time to proxy large file downloads through to the browser
+export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 export async function GET(
@@ -15,8 +15,6 @@ export async function GET(
   { params }: { params: { token: string; signedToken: string } }
 ) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  // Preview/download handlers can trigger multiple immediate requests (media buffering, retries).
-  // Keep this limit higher to avoid false positives while still protecting abuse.
   const rl = await checkRateLimit(`transfer:serve:${params.signedToken.slice(0, 16)}:${ip}`, {
     maxRequests: 300,
     windowMs: 15 * 60 * 1000,
@@ -43,7 +41,7 @@ export async function GET(
 
   const file = transfer.files[0];
 
-  // Transfer-level first access for both view-once enforcement and notification dedupe.
+  // Atomic CAS — enforces view-once and dedupes the first-access notification
   const firstAccess = await db.fileTransfer.updateMany({
     where: { id: transfer.id, status: "ACTIVE" },
     data: { status: "DOWNLOADED" },
@@ -54,12 +52,11 @@ export async function GET(
     return apiError(410, "ALREADY_ACCESSED", "This transfer was view-once and has already been accessed.");
   }
 
-  // Update counters
+  // Counters + notification
   if (payload.action === "preview") {
     await db.fileTransferFile.update({ where: { id: file.id }, data: { previewCount: { increment: 1 } } });
   } else {
     await db.fileTransferFile.update({ where: { id: file.id }, data: { downloadCount: { increment: 1 } } });
-    // Notify agent once per transfer, not once per file.
     if (transfer.notifyOnDownload && isFirstAccess) {
       const notifyEmail = transfer.agent.notificationEmail ?? transfer.agent.email;
       sendTransferDownloadNotification({
@@ -71,7 +68,6 @@ export async function GET(
     }
   }
 
-  // Audit
   await writeAuditLog({
     event: payload.action === "preview" ? "TRANSFER_FILE_PREVIEWED" : "TRANSFER_FILE_DOWNLOADED",
     agentId: transfer.agentId,
@@ -79,13 +75,30 @@ export async function GET(
     metadata: { transferId: transfer.id, fileId: file.id, fileName: file.fileName, action: payload.action },
   });
 
-  // Download: force attachment via getDownloadUrl (?download=1 tells Vercel Blob CDN
-  // to send Content-Disposition: attachment — works for any MIME type including video).
-  // Preview: redirect directly to the blob URL so the CDN serves it with the correct
-  // Content-Type and full Range-request support (required for video seeking).
-  const cdnUrl = payload.action === "download"
-    ? getDownloadUrl(file.blobUrl)
-    : file.blobUrl;
+  const fileBaseName = file.fileName.split("/").pop() || file.fileName;
+  const safeFileName = fileBaseName.replace(/[\x00-\x1f"\\]/g, "_");
 
-  return NextResponse.redirect(cdnUrl);
+  if (payload.action === "download") {
+    // Proxy the file bytes through our server with an explicit attachment header.
+    // This guarantees the browser saves it to disk regardless of MIME type — no CDN
+    // configuration required, no redirect for the browser to misinterpret as inline.
+    const upstream = await fetch(file.blobUrl);
+    if (!upstream.ok || !upstream.body) {
+      return apiError(502, "UPSTREAM_ERROR", "Could not fetch file from storage.");
+    }
+    const headers: Record<string, string> = {
+      "Content-Type": file.mimeType || "application/octet-stream",
+      "Content-Disposition": `attachment; filename="${safeFileName}"; filename*=UTF-8''${encodeURIComponent(fileBaseName)}`,
+      "Cache-Control": "private, no-store",
+    };
+    const upstreamLength = upstream.headers.get("content-length");
+    if (upstreamLength) headers["Content-Length"] = upstreamLength;
+    return new NextResponse(upstream.body, { headers });
+  }
+
+  // Preview: redirect directly to the blob URL.
+  // The client (transfer-preview-modal) follows this redirect once via fetch(),
+  // reads response.url (the final CDN URL), then points <img>/<video>/<iframe>
+  // at that CDN URL directly — so range requests for video go to the CDN, not here.
+  return NextResponse.redirect(file.blobUrl);
 }

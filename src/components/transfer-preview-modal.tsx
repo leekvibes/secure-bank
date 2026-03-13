@@ -37,43 +37,45 @@ export function TransferPreviewModal({
 
     async function fetchSignedUrl() {
       try {
-        const res = await fetch(
+        const signRes = await fetch(
           `/api/t/${transferToken}/sign?fileId=${fileId}&action=preview`
         );
         if (cancelled) return;
-        if (!res.ok) {
-          const d = await res.json().catch(() => ({}));
-          const message =
+        if (!signRes.ok) {
+          const d = await signRes.json().catch(() => ({}));
+          const msg =
             (d as { error?: { message?: string } }).error?.message ??
-            (d as { message?: string }).message;
-          // Fallback path for environments where signing is unavailable/misconfigured.
-          const fallbackUrl = `/api/t/${transferToken}/download/${fileId}?mode=preview`;
-
-          if (category === "text") {
-            const textRes = await fetch(fallbackUrl);
-            if (!textRes.ok) {
-              setState({ status: "error", message: message ?? "Could not load preview." });
-              return;
-            }
-            const text = await textRes.text();
-            setTextContent(text.slice(0, 20_000));
-          }
-
-          setState({ status: "ready", serveUrl: fallbackUrl });
+            (d as { message?: string }).message ??
+            "Could not load preview.";
+          setState({ status: "error", message: msg });
           return;
         }
-        const { signedToken } = await res.json() as { signedToken: string };
+
+        const { signedToken } = await signRes.json() as { signedToken: string };
         const serveUrl = `/api/t/${transferToken}/serve/${encodeURIComponent(signedToken)}`;
 
+        // Follow the redirect once. This hits the serve route exactly once
+        // (recording audit + counters + view-once CAS) and gives us the direct
+        // CDN URL. We then point <img>/<video>/<iframe> at that CDN URL so the
+        // browser's range requests for seeking go straight to the CDN — never
+        // back through our serve route, eliminating rate-limit / black-screen.
+        const followed = await fetch(serveUrl, { redirect: "follow" });
+        if (cancelled) return;
+        if (!followed.ok) {
+          setState({ status: "error", message: "Could not load file." });
+          return;
+        }
+
+        // response.url is the final URL after all redirects (the CDN blob URL)
+        const cdnUrl = followed.url;
+
         if (category === "text") {
-          const textRes = await fetch(serveUrl);
+          const text = await followed.text();
           if (cancelled) return;
-          if (!textRes.ok) { setState({ status: "error", message: "Could not load file." }); return; }
-          const text = await textRes.text();
           setTextContent(text.slice(0, 20_000));
         }
 
-        if (!cancelled) setState({ status: "ready", serveUrl });
+        if (!cancelled) setState({ status: "ready", serveUrl: cdnUrl });
       } catch {
         if (!cancelled) setState({ status: "error", message: "Network error." });
       }
