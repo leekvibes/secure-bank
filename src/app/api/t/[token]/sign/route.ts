@@ -9,7 +9,8 @@ export async function GET(
   { params }: { params: { token: string } }
 ) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  const rl = await checkRateLimit(`transfer:sign:${params.token}:${ip}`);
+  // Higher limit — a single transfer can have up to 50 files, each needing a sign call
+  const rl = await checkRateLimit(`transfer:sign:${params.token}:${ip}`, { maxRequests: 200, windowMs: 15 * 60 * 1000 });
   if (!rl.allowed) return apiError(429, "RATE_LIMITED", "Too many requests.");
 
   const { searchParams } = req.nextUrl;

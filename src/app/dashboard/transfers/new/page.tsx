@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -28,6 +28,8 @@ import { Label } from "@/components/ui/label";
 const MAX_FILE_BYTES = 2 * 1024 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 10 * 1024 * 1024 * 1024;
 const MAX_FILES = 50;
+const STALL_UI_MS = 15_000;
+const STALL_RETRY_MS = 90_000;
 
 function fmtBytes(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -43,12 +45,24 @@ function fmtEta(seconds: number): string {
   return `${(seconds / 3600).toFixed(1)}h left`;
 }
 
+function fmtElapsed(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return `${m}m ${rem}s`;
+}
+
 interface FileEntry {
   id: string;
   file: File;
   relativePath: string;
   progress: number;
   status: "pending" | "uploading" | "done" | "error";
+  retries: number;
+  startedAtMs?: number;
+  lastProgressAtMs?: number;
+  stalled?: boolean;
   blobUrl?: string;
   error?: string;
 }
@@ -163,6 +177,7 @@ export default function NewTransferPage() {
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedTransfer | null>(null);
   const [copied, setCopied] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   const uploadStartRef = useRef<number>(0);
   const folderPickerProps = {
@@ -184,6 +199,28 @@ export default function NewTransferPage() {
     const speed = uploadedBytes / Math.max(elapsed, 1);
     return fmtEta((totalBytes - uploadedBytes) / speed);
   })() : "";
+
+  useEffect(() => {
+    if (!uploading) return;
+    const timer = setInterval(() => {
+      const now = Date.now();
+      setNowMs(now);
+      setFiles((prev) => {
+        let changed = false;
+        const next = prev.map((f) => {
+          if (f.status !== "uploading") return f;
+          const stalled = !!f.lastProgressAtMs && now - f.lastProgressAtMs > STALL_UI_MS;
+          if (stalled !== !!f.stalled) {
+            changed = true;
+            return { ...f, stalled };
+          }
+          return f;
+        });
+        return changed ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [uploading]);
 
   function addFiles(incoming: IncomingFile[]) {
     const rejected: string[] = [];
@@ -211,6 +248,7 @@ export default function NewTransferPage() {
           relativePath: relPath,
           progress: 0,
           status: "pending",
+          retries: 0,
         });
       }
       return next;
@@ -233,7 +271,17 @@ export default function NewTransferPage() {
     setFiles((prev) =>
       prev.map((f) =>
         f.id === id
-          ? { ...f, status: "pending", progress: 0, error: undefined, blobUrl: undefined }
+          ? {
+              ...f,
+              status: "pending",
+              progress: 0,
+              retries: 0,
+              startedAtMs: undefined,
+              lastProgressAtMs: undefined,
+              stalled: false,
+              error: undefined,
+              blobUrl: undefined,
+            }
           : f
       )
     );
@@ -243,7 +291,17 @@ export default function NewTransferPage() {
     setFiles((prev) =>
       prev.map((f) =>
         f.status === "error"
-          ? { ...f, status: "pending", progress: 0, error: undefined, blobUrl: undefined }
+          ? {
+              ...f,
+              status: "pending",
+              progress: 0,
+              retries: 0,
+              startedAtMs: undefined,
+              lastProgressAtMs: undefined,
+              stalled: false,
+              error: undefined,
+              blobUrl: undefined,
+            }
           : f
       )
     );
@@ -257,6 +315,54 @@ export default function NewTransferPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ blobUrls }),
     }).catch(() => {});
+  }
+
+  async function uploadWithInactivityWatchdog(
+    entry: FileEntry,
+    onProgress: (percentage: number) => void
+  ) {
+    return await new Promise<{ url: string }>((resolve, reject) => {
+      let settled = false;
+      let timeout: ReturnType<typeof setTimeout> | null = null;
+
+      const clearTimer = () => {
+        if (timeout) clearTimeout(timeout);
+        timeout = null;
+      };
+
+      const resetTimer = () => {
+        clearTimer();
+        timeout = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(new Error("Upload stalled. Retrying automatically..."));
+        }, STALL_RETRY_MS);
+      };
+
+      resetTimer();
+
+      upload(buildUniqueBlobPath(entry.relativePath), entry.file, {
+        access: "public",
+        handleUploadUrl: "/api/transfers/blob",
+        onUploadProgress: ({ percentage }) => {
+          if (settled) return;
+          resetTimer();
+          onProgress(percentage);
+        },
+      })
+        .then((blob) => {
+          if (settled) return;
+          settled = true;
+          clearTimer();
+          resolve({ url: blob.url });
+        })
+        .catch((err) => {
+          if (settled) return;
+          settled = true;
+          clearTimer();
+          reject(err);
+        });
+    });
   }
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
@@ -280,12 +386,23 @@ export default function NewTransferPage() {
 
     // Snapshot of already-done files (retry flow)
     const snapshot = [...files];
-    const toUpload = snapshot.filter((f) => f.status !== "done");
+    // Largest-first reduces the "slow surprise" at the very end.
+    const toUpload = snapshot
+      .filter((f) => f.status !== "done")
+      .sort((a, b) => b.file.size - a.file.size);
 
     // Reset pending/error files to pending
     setFiles((prev) =>
       prev.map((f) =>
-        f.status !== "done" ? { ...f, status: "pending", progress: 0, error: undefined } : f
+        f.status !== "done"
+          ? {
+              ...f,
+              status: "pending",
+              progress: 0,
+              stalled: false,
+              error: undefined,
+            }
+          : f
       )
     );
 
@@ -302,34 +419,68 @@ export default function NewTransferPage() {
         const i = cursor++;
         if (i >= toUpload.length) break;
         const entry = toUpload[i];
+        let success = false;
 
-        setFiles((prev) =>
-          prev.map((f) => (f.id === entry.id ? { ...f, status: "uploading", progress: 0 } : f))
-        );
-
-        try {
-          const blob = await upload(buildUniqueBlobPath(entry.relativePath), entry.file, {
-            access: "public",
-            handleUploadUrl: "/api/transfers/blob",
-            onUploadProgress: ({ percentage }) => {
-              setFiles((prev) =>
-                prev.map((f) => (f.id === entry.id ? { ...f, progress: percentage } : f))
-              );
-            },
-          });
-
-          blobUrls.set(entry.id, blob.url);
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const startedAt = Date.now();
           setFiles((prev) =>
             prev.map((f) =>
-              f.id === entry.id ? { ...f, status: "done", progress: 100, blobUrl: blob.url } : f
+              f.id === entry.id
+                ? {
+                    ...f,
+                    status: "uploading",
+                    progress: 0,
+                    retries: attempt,
+                    startedAtMs: f.startedAtMs ?? startedAt,
+                    lastProgressAtMs: startedAt,
+                    stalled: false,
+                    error: undefined,
+                  }
+                : f
             )
           );
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : "Upload failed";
-          uploadErrors.set(entry.id, msg);
-          setFiles((prev) =>
-            prev.map((f) => (f.id === entry.id ? { ...f, status: "error", error: msg } : f))
-          );
+
+          try {
+            const blob = await uploadWithInactivityWatchdog(entry, (percentage) => {
+              const now = Date.now();
+              setFiles((prev) =>
+                prev.map((f) =>
+                  f.id === entry.id
+                    ? { ...f, progress: percentage, lastProgressAtMs: now, stalled: false }
+                    : f
+                )
+              );
+            });
+
+            blobUrls.set(entry.id, blob.url);
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.id === entry.id
+                  ? { ...f, status: "done", progress: 100, stalled: false, blobUrl: blob.url }
+                  : f
+              )
+            );
+            success = true;
+            break;
+          } catch (err) {
+            const baseMsg = err instanceof Error ? err.message : "Upload failed";
+            const shouldRetry = attempt === 0;
+            const msg = shouldRetry ? "Slow network detected. Retrying once..." : baseMsg;
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.id === entry.id
+                  ? { ...f, status: shouldRetry ? "pending" : "error", stalled: false, error: msg }
+                  : f
+              )
+            );
+            if (!shouldRetry) {
+              uploadErrors.set(entry.id, baseMsg);
+            }
+          }
+        }
+
+        if (!success && !uploadErrors.has(entry.id)) {
+          uploadErrors.set(entry.id, "Upload failed");
         }
       }
     }
@@ -347,6 +498,13 @@ export default function NewTransferPage() {
       setUploading(false);
       return;
     }
+
+    console.info("[transfers] upload metrics", {
+      fileCount: files.length,
+      totalBytes,
+      durationMs: Date.now() - uploadStartRef.current,
+      stalledFiles: files.filter((f) => f.stalled).length,
+    });
 
     // Build file list from pre-existing done files + newly uploaded
     const uploadedFiles = snapshot
@@ -406,6 +564,8 @@ export default function NewTransferPage() {
     const doneCount = files.filter((f) => f.status === "done").length;
     const errorCount = files.filter((f) => f.status === "error").length;
     const activeCount = files.filter((f) => f.status === "uploading").length;
+    const stalledCount = files.filter((f) => f.status === "uploading" && f.stalled).length;
+    const finalizing = stalledCount > 0 && doneCount >= files.length - 1;
 
     return (
       <div className="max-w-lg mx-auto px-4 py-16 text-center">
@@ -417,6 +577,7 @@ export default function NewTransferPage() {
         <p className="text-sm text-muted-foreground mb-8">
           Please keep this tab open.
           {activeCount > 0 && ` Uploading ${activeCount} file${activeCount > 1 ? "s" : ""} at once.`}
+          {finalizing && " Finalizing last file..."}
         </p>
 
         <div className="bg-card rounded-2xl border border-border p-6 mb-4 text-left">
@@ -427,7 +588,7 @@ export default function NewTransferPage() {
             </span>
             <span className="text-sm font-semibold text-blue-500">{overallProgress}%</span>
           </div>
-          <div className="h-2.5 rounded-full bg-blue-100 overflow-hidden mb-1.5">
+          <div className={`h-2.5 rounded-full bg-blue-100 overflow-hidden mb-1.5 ${stalledCount > 0 ? "animate-pulse" : ""}`}>
             <div
               className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-300"
               style={{ width: `${overallProgress}%` }}
@@ -435,7 +596,7 @@ export default function NewTransferPage() {
           </div>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>{fmtBytes(uploadedBytes)} of {fmtBytes(totalBytes)}</span>
-            <span>{eta}</span>
+            <span>{stalledCount > 0 ? "Connection slow..." : eta}</span>
           </div>
         </div>
 
@@ -451,13 +612,24 @@ export default function NewTransferPage() {
                 <p className="text-xs font-medium text-foreground truncate">{entry.relativePath}</p>
                 {entry.status === "uploading" && (
                   <div className="mt-1 h-1 rounded-full bg-blue-100 overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full transition-all duration-200" style={{ width: `${entry.progress}%` }} />
+                    <div
+                      className={`h-full rounded-full transition-all duration-200 ${entry.stalled ? "bg-amber-500 animate-pulse" : "bg-blue-500"}`}
+                      style={{ width: `${Math.max(entry.progress, entry.stalled ? 6 : 0)}%` }}
+                    />
                   </div>
                 )}
                 {entry.status === "done" && (
                   <div className="mt-1 h-1 rounded-full bg-emerald-100 overflow-hidden">
                     <div className="h-full bg-emerald-500 rounded-full w-full" />
                   </div>
+                )}
+                {entry.status === "uploading" && (
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Elapsed {fmtElapsed(nowMs - (entry.startedAtMs ?? nowMs))}
+                    {entry.lastProgressAtMs ? ` · Last update ${fmtElapsed(nowMs - entry.lastProgressAtMs)} ago` : ""}
+                    {entry.retries > 0 ? ` · Retry ${entry.retries}/1` : ""}
+                    {entry.stalled ? " · Finalizing..." : ""}
+                  </p>
                 )}
                 {entry.status === "error" && entry.error && (
                   <p className="mt-0.5 text-xs text-red-500 break-words">{entry.error}</p>

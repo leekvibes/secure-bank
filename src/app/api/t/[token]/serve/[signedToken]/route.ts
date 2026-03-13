@@ -3,7 +3,6 @@ import { db } from "@/lib/db";
 import { apiError } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTransferAccess } from "@/lib/transfer-signing";
-import { dispositionFor, mimeCategory, PROXY_PREVIEW_THRESHOLD } from "@/lib/transfer-mime";
 import { writeAuditLog } from "@/lib/audit";
 import { getDownloadUrl } from "@vercel/blob";
 import { sendTransferDownloadNotification } from "@/lib/email";
@@ -75,41 +74,13 @@ export async function GET(
     metadata: { transferId: transfer.id, fileId: file.id, fileName: file.fileName, action: payload.action },
   });
 
-  const disposition = dispositionFor(payload.action, file.mimeType);
-  const fileBaseName = file.fileName.split("/").pop() || file.fileName;
-  const safeFileName = fileBaseName.replace(/[\x00-\x1f"\\]/g, "_");
-  const contentDispositionHeader =
-    `${disposition}; filename="${safeFileName}"; filename*=UTF-8''${encodeURIComponent(fileBaseName)}`;
+  // Download: force attachment via getDownloadUrl (?download=1 tells Vercel Blob CDN
+  // to send Content-Disposition: attachment — works for any MIME type including video).
+  // Preview: redirect directly to the blob URL so the CDN serves it with the correct
+  // Content-Type and full Range-request support (required for video seeking).
+  const cdnUrl = payload.action === "download"
+    ? getDownloadUrl(file.blobUrl)
+    : file.blobUrl;
 
-  // For downloads or large files: redirect to CDN (no proxy timeout risk)
-  const fileSizeNum = Number(file.sizeBytes);
-  const mediaInline = mimeCategory(file.mimeType) === "image" || mimeCategory(file.mimeType) === "video";
-  if (payload.action === "download" || fileSizeNum > PROXY_PREVIEW_THRESHOLD) {
-    const cdnUrl =
-      payload.action === "download"
-        ? mediaInline
-          ? file.blobUrl
-          : getDownloadUrl(file.blobUrl)
-        : file.blobUrl;
-    return NextResponse.redirect(cdnUrl, {
-      headers: {
-        "Content-Disposition": contentDispositionHeader,
-      },
-    });
-  }
-
-  // Proxy for preview of small files (preserves our Content-Disposition + Content-Type control)
-  const upstream = await fetch(file.blobUrl);
-  if (!upstream.ok || !upstream.body) {
-    return apiError(502, "UPSTREAM_ERROR", "Could not fetch file.");
-  }
-
-  return new NextResponse(upstream.body, {
-    headers: {
-      "Content-Type": file.mimeType || "application/octet-stream",
-      "Content-Disposition": contentDispositionHeader,
-      "Cache-Control": "private, max-age=600",
-      "Content-Length": fileSizeNum > 0 ? String(fileSizeNum) : "",
-    },
-  });
+  return NextResponse.redirect(cdnUrl);
 }
