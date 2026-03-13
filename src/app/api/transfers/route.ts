@@ -1,0 +1,118 @@
+import { NextRequest } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth/options";
+import { db } from "@/lib/db";
+import { generateToken } from "@/lib/tokens";
+import { apiSuccess, apiError } from "@/lib/api-response";
+import { sendTransferEmail } from "@/lib/email";
+import { writeAuditLog } from "@/lib/audit";
+
+const MAX_TRANSFER_BYTES = BigInt(10 * 1024 * 1024 * 1024); // 10GB
+const MAX_FILES = 50;
+
+export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return apiError(401, "UNAUTHORIZED", "Unauthorized");
+
+  const transfers = await db.fileTransfer.findMany({
+    where: { agentId: session.user.id },
+    include: { files: { select: { id: true, fileName: true, sizeBytes: true, mimeType: true, downloadCount: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return apiSuccess(transfers);
+}
+
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return apiError(401, "UNAUTHORIZED", "Unauthorized");
+
+  let body: {
+    title?: string;
+    message?: string;
+    viewOnce?: boolean;
+    expirationDays?: number;
+    notifyOnDownload?: boolean;
+    recipientEmails?: string[];
+    files: Array<{ fileName: string; mimeType: string; sizeBytes: number; blobUrl: string }>;
+  };
+
+  try {
+    body = await req.json();
+  } catch {
+    return apiError(400, "INVALID_JSON", "Invalid request body.");
+  }
+
+  if (!body.files || body.files.length === 0) {
+    return apiError(400, "NO_FILES", "At least one file is required.");
+  }
+  if (body.files.length > MAX_FILES) {
+    return apiError(400, "TOO_MANY_FILES", `Maximum ${MAX_FILES} files per transfer.`);
+  }
+
+  const totalBytes = body.files.reduce((sum, f) => sum + BigInt(f.sizeBytes), BigInt(0));
+  if (totalBytes > MAX_TRANSFER_BYTES) {
+    return apiError(400, "TRANSFER_TOO_LARGE", "Total transfer size exceeds 10 GB.");
+  }
+
+  const days = [1, 3, 7, 30].includes(body.expirationDays ?? 7) ? (body.expirationDays ?? 7) : 7;
+  const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  const token = generateToken();
+
+  const transfer = await db.fileTransfer.create({
+    data: {
+      token,
+      title: body.title?.trim() || null,
+      message: body.message?.trim() || null,
+      viewOnce: body.viewOnce ?? false,
+      expiresAt,
+      notifyOnDownload: body.notifyOnDownload ?? true,
+      totalSizeBytes: totalBytes,
+      agentId: session.user.id,
+      files: {
+        create: body.files.map((f) => ({
+          fileName: f.fileName,
+          mimeType: f.mimeType,
+          sizeBytes: BigInt(f.sizeBytes),
+          blobUrl: f.blobUrl,
+        })),
+      },
+    },
+    include: { files: true },
+  });
+
+  await writeAuditLog({
+    event: "TRANSFER_CREATED",
+    agentId: session.user.id,
+    request: req,
+    metadata: { transferId: transfer.id, fileCount: body.files.length },
+  });
+
+  const appUrl = process.env.NEXTAUTH_URL ?? "https://mysecurelink.co";
+  const transferUrl = `${appUrl}/t/${token}`;
+
+  // Send email to each recipient
+  if (body.recipientEmails && body.recipientEmails.length > 0) {
+    const agent = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { displayName: true, email: true },
+    });
+    for (const email of body.recipientEmails) {
+      if (email.trim()) {
+        sendTransferEmail({
+          toEmail: email.trim(),
+          agentName: agent?.displayName ?? "Someone",
+          title: body.title || null,
+          message: body.message || null,
+          fileCount: body.files.length,
+          totalSizeBytes: Number(totalBytes),
+          transferUrl,
+          expiresAt,
+          viewOnce: body.viewOnce ?? false,
+        });
+      }
+    }
+  }
+
+  return apiSuccess({ id: transfer.id, token, url: transferUrl }, 201);
+}

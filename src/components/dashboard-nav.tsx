@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, Plus, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Plus, Settings, LogOut, FolderUp } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ export function DashboardNav({ user }: Props) {
 
   const navItems = [
     { href: "/dashboard", label: "Links", icon: LayoutDashboard },
+    { href: "/dashboard/transfers", label: "Transfers", icon: FolderUp },
     { href: "/dashboard/new", label: "New link", icon: Plus },
     { href: "/dashboard/settings", label: "Settings", icon: Settings },
   ];

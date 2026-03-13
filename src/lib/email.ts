@@ -611,6 +611,103 @@ export async function sendExportNotification(args: {
   });
 }
 
+// ── 18. Transfer Sent → Recipient ────────────────────────────────────────────
+
+export async function sendTransferEmail({
+  toEmail,
+  agentName,
+  title,
+  message,
+  fileCount,
+  totalSizeBytes,
+  transferUrl,
+  expiresAt,
+  viewOnce,
+}: {
+  toEmail: string;
+  agentName: string;
+  title: string | null;
+  message: string | null;
+  fileCount: number;
+  totalSizeBytes: number;
+  transferUrl: string;
+  expiresAt: Date;
+  viewOnce: boolean;
+}) {
+  const resend = getClient();
+  if (!resend) return;
+
+  function fmtBytes(n: number): string {
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+    if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+    return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
+  }
+
+  const expiry = expiresAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const sizeStr = fmtBytes(totalSizeBytes);
+
+  const body = [
+    p(`<strong>${agentName}</strong> sent you ${fileCount} file${fileCount !== 1 ? "s" : ""} (${sizeStr}) via SecureLink.`),
+    message ? p(`"${message}"`) : "",
+    viewOnce ? p(`<strong>Note:</strong> This link can only be opened once.`) : "",
+    p(`The files are available until <strong>${expiry}</strong>.`),
+  ].join("");
+
+  const html = emailTemplate({
+    heading: title ? `📁 ${title}` : `${agentName} shared ${fileCount} file${fileCount !== 1 ? "s" : ""} with you`,
+    body,
+    ctaLabel: "Download Files",
+    ctaUrl: transferUrl,
+    notice: `This transfer expires on ${expiry}. Download before then.`,
+  });
+
+  try {
+    await resend.emails.send({
+      from: FROM_NOTIFICATIONS,
+      to: toEmail,
+      subject: title
+        ? `${agentName} shared "${title}" with you`
+        : `${agentName} sent you ${fileCount} file${fileCount !== 1 ? "s" : ""}`,
+      html,
+    });
+  } catch (err) {
+    console.error("[email] Failed to send transfer email:", err);
+  }
+}
+
+export async function sendTransferDownloadNotification({
+  agentEmail,
+  agentName,
+  title,
+  fileName,
+}: {
+  agentEmail: string;
+  agentName: string;
+  title: string | null;
+  fileName: string;
+}) {
+  const resend = getClient();
+  if (!resend) return;
+
+  const html = emailTemplate({
+    heading: "Your transfer was downloaded",
+    body: [
+      p(`Someone just downloaded <strong>${fileName}</strong> from your transfer${title ? ` "<strong>${title}</strong>"` : ""}.`),
+    ].join(""),
+  });
+
+  try {
+    await resend.emails.send({
+      from: FROM_NOTIFICATIONS,
+      to: agentEmail,
+      subject: `Transfer downloaded — ${fileName}`,
+      html,
+    });
+  } catch (err) {
+    console.error("[email] Failed to send transfer download notification:", err);
+  }
+}
+
 // ── 17. Data Revealed → Agent ─────────────────────────────────────────────────
 
 export async function sendRevealNotification(args: {

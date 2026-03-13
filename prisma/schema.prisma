@@ -48,6 +48,7 @@ model User {
   idUploads              IdUpload[]
   forms                  Form[]
   assets                 AgentAsset[]
+  fileTransfers          FileTransfer[]
 }
 
 model SecureLink {
@@ -321,6 +322,39 @@ model FormLinkAsset {
 
   @@unique([formLinkId, assetId])
   @@index([formLinkId, order])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+model FileTransfer {
+  id               String   @id @default(cuid())
+  token            String   @unique
+  title            String?
+  message          String?
+  viewOnce         Boolean  @default(false)
+  expiresAt        DateTime
+  status           String   @default("ACTIVE") // ACTIVE | EXPIRED | DOWNLOADED
+  notifyOnDownload Boolean  @default(true)
+  totalSizeBytes   BigInt   @default(0)
+  createdAt        DateTime @default(now())
+
+  agentId String
+  agent   User   @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  files FileTransferFile[]
+}
+
+model FileTransferFile {
+  id            String   @id @default(cuid())
+  transferId    String
+  fileName      String
+  mimeType      String
+  sizeBytes     BigInt
+  blobUrl       String
+  downloadCount Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  transfer FileTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
