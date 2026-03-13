@@ -43,11 +43,15 @@ export function TransferPreviewModal({
         if (cancelled) return;
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));
-          setState({ status: "error", message: (d as { message?: string }).message ?? "Could not load preview." });
+          const message =
+            (d as { error?: { message?: string } }).error?.message ??
+            (d as { message?: string }).message ??
+            "Could not load preview.";
+          setState({ status: "error", message });
           return;
         }
         const { signedToken } = await res.json() as { signedToken: string };
-        const serveUrl = `/api/t/${transferToken}/serve/${signedToken}`;
+        const serveUrl = `/api/t/${transferToken}/serve/${encodeURIComponent(signedToken)}`;
 
         if (category === "text") {
           const textRes = await fetch(serveUrl);

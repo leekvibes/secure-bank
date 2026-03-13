@@ -15,7 +15,12 @@ export async function GET(
   { params }: { params: { token: string; signedToken: string } }
 ) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  const rl = await checkRateLimit(`transfer:serve:${params.signedToken.slice(0, 16)}:${ip}`);
+  // Preview/download handlers can trigger multiple immediate requests (media buffering, retries).
+  // Keep this limit higher to avoid false positives while still protecting abuse.
+  const rl = await checkRateLimit(`transfer:serve:${params.signedToken.slice(0, 16)}:${ip}`, {
+    maxRequests: 300,
+    windowMs: 15 * 60 * 1000,
+  });
   if (!rl.allowed) return apiError(429, "RATE_LIMITED", "Too many requests.");
 
   const payload = verifyTransferAccess(params.signedToken);

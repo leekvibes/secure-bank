@@ -46,19 +46,32 @@ export function TransferDownloadClient({
   const [downloadingAll, setDownloadingAll] = useState(false);
   const [previewFile, setPreviewFile] = useState<FileEntry | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+  const [actionError, setActionError] = useState<string | null>(null);
 
   async function handleDownload(fileId: string) {
     setDownloading(fileId);
+    setActionError(null);
     try {
       const res = await fetch(`/api/t/${token}/sign?fileId=${fileId}&action=download`);
-      if (!res.ok) { setDownloading(null); return; }
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({} as Record<string, unknown>));
+        const message =
+          (d as { error?: { message?: string } }).error?.message ??
+          (d as { message?: string }).message ??
+          "Could not start download.";
+        setActionError(message);
+        setDownloading(null);
+        return;
+      }
       const { signedToken } = await res.json() as { signedToken: string };
       const a = document.createElement("a");
-      a.href = `/api/t/${token}/serve/${signedToken}`;
+      a.href = `/api/t/${token}/serve/${encodeURIComponent(signedToken)}`;
       a.style.display = "none";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+    } catch {
+      setActionError("Network error while starting download.");
     } finally {
       setTimeout(() => setDownloading(null), 2500);
     }
@@ -245,6 +258,11 @@ export function TransferDownloadClient({
             ))}
           </div>
         </div>
+        {actionError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+            {actionError}
+          </div>
+        )}
 
         {/* Footer */}
         <div className="text-center pt-2 pb-4">
