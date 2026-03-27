@@ -316,42 +316,41 @@ export function HomePageClient() {
       </section>
 
       {/* ── Marquee ticker ─────────────────────────────────────────────────── */}
-      <section className="bg-[#00A3FF] py-3 overflow-hidden">
+      <section className="bg-[#00A3FF] py-5 overflow-hidden">
         <style>{`
           @keyframes marquee {
             0%   { transform: translateX(0); }
             100% { transform: translateX(-50%); }
           }
-          .marquee-track { animation: marquee 28s linear infinite; }
+          .marquee-track { animation: marquee 32s linear infinite; }
         `}</style>
         <div className="flex whitespace-nowrap">
           <div className="marquee-track flex items-center gap-0 shrink-0">
             {[
-              { icon: "🔒", text: "256-bit AES Encryption" },
-              { icon: "⚡", text: "Send a request in under 30 seconds" },
-              { icon: "🛡️", text: "Zero sensitive data in plaintext" },
-              { icon: "🕐", text: "24/7 audit log on every action" },
-              { icon: "📱", text: "No app required for clients" },
-              { icon: "👁️", text: "View-once data protection" },
-              { icon: "⏱️", text: "Auto-expiring secure links" },
-              { icon: "🔐", text: "Encrypted in transit & at rest" },
-              { icon: "✅", text: "Built for compliance-driven industries" },
-              { icon: "📲", text: "Mobile-friendly on any device" },
-              { icon: "🔒", text: "256-bit AES Encryption" },
-              { icon: "⚡", text: "Send a request in under 30 seconds" },
-              { icon: "🛡️", text: "Zero sensitive data in plaintext" },
-              { icon: "🕐", text: "24/7 audit log on every action" },
-              { icon: "📱", text: "No app required for clients" },
-              { icon: "👁️", text: "View-once data protection" },
-              { icon: "⏱️", text: "Auto-expiring secure links" },
-              { icon: "🔐", text: "Encrypted in transit & at rest" },
-              { icon: "✅", text: "Built for compliance-driven industries" },
-              { icon: "📲", text: "Mobile-friendly on any device" },
-            ].map(({ icon, text }, i) => (
-              <span key={i} className="inline-flex items-center gap-2 text-white text-xs font-semibold px-6">
-                <span>{icon}</span>
-                <span>{text}</span>
-                <span className="text-white/30 ml-4">·</span>
+              "256-bit AES Encryption",
+              "Send a request in under 30 seconds",
+              "Zero sensitive data in plaintext",
+              "24/7 audit log on every action",
+              "No app required for clients",
+              "View-once data protection",
+              "Auto-expiring secure links",
+              "Encrypted in transit & at rest",
+              "Built for compliance-driven industries",
+              "Mobile-friendly on any device",
+              "256-bit AES Encryption",
+              "Send a request in under 30 seconds",
+              "Zero sensitive data in plaintext",
+              "24/7 audit log on every action",
+              "No app required for clients",
+              "View-once data protection",
+              "Auto-expiring secure links",
+              "Encrypted in transit & at rest",
+              "Built for compliance-driven industries",
+              "Mobile-friendly on any device",
+            ].map((text, i) => (
+              <span key={i} className="inline-flex items-center text-white text-xs font-semibold tracking-wide px-7">
+                {text}
+                <span className="text-white/40 ml-7">◆</span>
               </span>
             ))}
           </div>
@@ -359,28 +358,28 @@ export function HomePageClient() {
       </section>
 
       {/* ── How it works ───────────────────────────────────────────────────── */}
-      <section className="bg-[#0F172A] py-24 px-5">
+      <section className="bg-white py-24 px-5">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-xs font-semibold text-[#00A3FF] tracking-widest uppercase mb-3">How it works</p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
+            <h2 className="text-3xl sm:text-4xl font-bold text-[#0F172A] tracking-tight">
               From request to received in minutes
             </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-            <div className="hidden md:block absolute top-8 left-[calc(16.66%+2rem)] right-[calc(16.66%+2rem)] h-px bg-gradient-to-r from-transparent via-[#00A3FF]/40 to-transparent" />
+            <div className="hidden md:block absolute top-8 left-[calc(16.66%+2rem)] right-[calc(16.66%+2rem)] h-px bg-gradient-to-r from-transparent via-[#00A3FF]/30 to-transparent" />
             {[
               { n: "1", title: "Build your request form", desc: "Choose what to collect — banking info, IDs, signatures, or custom fields. Takes 30 seconds." },
               { n: "2", title: "Send a secure link", desc: "Copy the link or send it by text. Your client opens it on any device, no account needed." },
               { n: "3", title: "Receive encrypted data", desc: "Data arrives in your dashboard, encrypted and ready to reveal when you need it." },
             ].map(({ n, title, desc }) => (
               <div key={n} className="flex flex-col items-center text-center px-4">
-                <div className="w-14 h-14 rounded-2xl bg-[#00A3FF] flex items-center justify-center mb-6 shadow-lg shadow-[#00A3FF]/30">
+                <div className="w-14 h-14 rounded-2xl bg-[#00A3FF] flex items-center justify-center mb-6 shadow-lg shadow-[#00A3FF]/20">
                   <span className="text-2xl font-black text-white">{n}</span>
                 </div>
-                <h3 className="text-base font-bold text-white mb-2">{title}</h3>
-                <p className="text-sm text-white/45 leading-relaxed">{desc}</p>
+                <h3 className="text-base font-bold text-[#0F172A] mb-2">{title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
