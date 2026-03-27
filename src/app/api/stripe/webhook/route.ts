@@ -1,10 +1,15 @@
 import { NextRequest } from "next/server";
-import { getStripe, planFromPriceId } from "@/lib/stripe";
+import { getStripe, planFromPriceId, isStripeConfigured } from "@/lib/stripe";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  if (!isStripeConfigured()) {
+    console.error("[stripe/webhook] STRIPE_SECRET_KEY not set");
+    return new Response("Stripe not configured", { status: 500 });
+  }
+
   const body = await req.text();
   const sig = req.headers.get("stripe-signature") ?? "";
   const secret = process.env.STRIPE_WEBHOOK_SECRET;

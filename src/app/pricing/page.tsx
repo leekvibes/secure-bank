@@ -104,12 +104,14 @@ const PLANS = [
 export default function PricingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleUpgrade(planKey: string) {
     if (planKey === "FREE") {
       router.push("/auth?mode=signup");
       return;
     }
+    setError(null);
     setLoading(planKey);
     try {
       const res = await fetch("/api/stripe/checkout", {
@@ -118,12 +120,19 @@ export default function PricingPage() {
         body: JSON.stringify({ plan: planKey }),
       });
       const data = await res.json();
-      if (data.data?.url) {
-        window.location.href = data.data.url;
-      } else if (res.status === 401) {
+      if (typeof data?.url === "string" && data.url.length > 0) {
+        window.location.href = data.url;
+        return;
+      }
+
+      if (res.status === 401) {
         router.push(`/auth?mode=signup&redirect=/pricing`);
+      } else {
+        setError(data?.error?.message ?? "Unable to start checkout right now.");
       }
     } catch {
+      setError("Unable to start checkout right now.");
+    } finally {
       setLoading(null);
     }
   }
@@ -159,6 +168,12 @@ export default function PricingPage() {
 
       {/* Plan cards */}
       <section className="pb-24 px-5">
+        {error ? (
+          <div className="max-w-6xl mx-auto mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        ) : null}
+
         <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {PLANS.map((plan) => (
             <div key={plan.key}

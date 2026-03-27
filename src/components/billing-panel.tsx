@@ -33,7 +33,9 @@ export function BillingPanel({ plan, hasSubscription }: Props) {
     try {
       const res = await fetch("/api/stripe/portal", { method: "POST" });
       const data = await res.json();
-      if (data.data?.url) window.location.href = data.data.url;
+      if (typeof data?.url === "string" && data.url.length > 0) {
+        window.location.href = data.url;
+      }
     } finally {
       setLoading(false);
     }

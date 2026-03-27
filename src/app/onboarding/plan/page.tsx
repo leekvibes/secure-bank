@@ -48,6 +48,7 @@ export default function OnboardingPlanPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Preserve the link url/message params through to the success page
   const successParams = new URLSearchParams();
@@ -58,6 +59,7 @@ export default function OnboardingPlanPage() {
   const successUrl = `/onboarding/success${successParams.toString() ? `?${successParams.toString()}` : ""}`;
 
   async function handleSelect(planKey: string) {
+    setError(null);
     setLoading(planKey);
 
     if (planKey === "FREE") {
@@ -77,12 +79,14 @@ export default function OnboardingPlanPage() {
         }),
       });
       const data = await res.json();
-      if (data.data?.url) {
-        window.location.href = data.data.url;
+      if (typeof data?.url === "string" && data.url.length > 0) {
+        window.location.href = data.url;
       } else {
+        setError(data?.error?.message ?? "Unable to start checkout right now.");
         setLoading(null);
       }
     } catch {
+      setError("Unable to start checkout right now.");
       setLoading(null);
     }
   }
@@ -95,6 +99,9 @@ export default function OnboardingPlanPage() {
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
             Start free or unlock more with a paid plan. You can upgrade anytime from your dashboard.
           </p>
+          {error ? (
+            <p className="text-sm text-red-600">{error}</p>
+          ) : null}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
