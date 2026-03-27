@@ -3,8 +3,14 @@ import Stripe from "stripe";
 let _stripe: Stripe | null = null;
 
 function getStripeSecretKey(): string | null {
-  // Support legacy key name while standardizing on STRIPE_SECRET_KEY.
-  return process.env.STRIPE_SECRET_KEY ?? process.env.StripeSecretKey ?? null;
+  // Support legacy/misnamed variants to avoid staging outages.
+  return (
+    process.env.STRIPE_SECRET_KEY ??
+    process.env.STRIPE_SECRET ??
+    process.env.STRIPE_API_KEY ??
+    process.env.StripeSecretKey ??
+    null
+  );
 }
 
 export function isStripeConfigured(): boolean {

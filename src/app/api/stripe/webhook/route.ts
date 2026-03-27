@@ -12,7 +12,10 @@ export async function POST(req: NextRequest) {
 
   const body = await req.text();
   const sig = req.headers.get("stripe-signature") ?? "";
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  const secret =
+    process.env.STRIPE_WEBHOOK_SECRET ??
+    process.env.STRIPE_WEBHOOK_SIGNING_SECRET ??
+    null;
 
   if (!secret) {
     console.error("[stripe/webhook] STRIPE_WEBHOOK_SECRET not set");
