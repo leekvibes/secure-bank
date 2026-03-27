@@ -6,7 +6,7 @@ import { signOut } from "next-auth/react";
 import { useState } from "react";
 import {
   Lock, LayoutDashboard, Inbox,
-  Upload, Settings, LogOut, Link2, Menu, X, FolderUp, FileSignature, MessageSquare,
+  Upload, Settings, LogOut, Link2, Menu, X, FolderUp, MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,6 @@ const NAV = [
   { href: "/dashboard/submissions", label: "Submissions", icon: Inbox },
   { href: "/dashboard/uploads", label: "Uploads", icon: Upload },
   { href: "/dashboard/transfers", label: "Transfers", icon: FolderUp },
-  { href: "/dashboard/docsign", label: "Signing", icon: FileSignature },
   { href: "/dashboard/feedback", label: "Feedback", icon: MessageSquare },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
