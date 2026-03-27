@@ -49,19 +49,28 @@ interface Props {
 export function BillingPanel({ plan, hasSubscription }: Props) {
   const [portalLoading, setPortalLoading] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function openPortal() {
+    setError(null);
     setPortalLoading(true);
     try {
       const res = await fetch("/api/stripe/portal", { method: "POST" });
       const data = await res.json();
-      if (data.url) window.location.href = data.url;
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setError(data?.error?.message ?? "Unable to open billing portal.");
+      }
+    } catch {
+      setError("Network error. Please try again.");
     } finally {
       setPortalLoading(false);
     }
   }
 
   async function startUpgrade(planKey: string) {
+    setError(null);
     setUpgradeLoading(planKey);
     try {
       const res = await fetch("/api/stripe/checkout", {
@@ -70,8 +79,14 @@ export function BillingPanel({ plan, hasSubscription }: Props) {
         body: JSON.stringify({ plan: planKey }),
       });
       const data = await res.json();
-      if (data.url) window.location.href = data.url;
-    } finally {
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setError(data?.error?.message ?? "Unable to start checkout.");
+        setUpgradeLoading(null);
+      }
+    } catch {
+      setError("Network error. Please try again.");
       setUpgradeLoading(null);
     }
   }
@@ -90,6 +105,13 @@ export function BillingPanel({ plan, hasSubscription }: Props) {
           {PLAN_LABELS[plan] ?? "Free"}
         </span>
       </div>
+
+      {/* Error */}
+      {error && (
+        <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          {error}
+        </div>
+      )}
 
       {/* Current plan description */}
       {plan === "FREE" && (
