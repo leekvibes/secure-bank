@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { stripe, planFromPriceId } from "@/lib/stripe";
+import { getStripe, planFromPriceId } from "@/lib/stripe";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
   let event: import("stripe").Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(body, sig, secret);
+    event = getStripe().webhooks.constructEvent(body, sig, secret);
   } catch (err) {
     console.error("[stripe/webhook] Signature verification failed:", err);
     return new Response("Invalid signature", { status: 400 });

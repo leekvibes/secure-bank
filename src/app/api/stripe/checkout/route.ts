@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
-import { stripe, PRICE_IDS } from "@/lib/stripe";
+import { getStripe, PRICE_IDS } from "@/lib/stripe";
 import { apiError, apiSuccess } from "@/lib/api-response";
 
 type PriceKey = keyof typeof PRICE_IDS;
@@ -26,12 +26,12 @@ export async function POST(req: NextRequest) {
   // Reuse existing Stripe customer or create one
   let customerId = user.stripeCustomerId ?? undefined;
   if (!customerId) {
-    const customer = await stripe.customers.create({ email: user.email });
+    const customer = await getStripe().customers.create({ email: user.email });
     customerId = customer.id;
     await db.user.update({ where: { id: session.user.id }, data: { stripeCustomerId: customerId } });
   }
 
-  const checkoutSession = await stripe.checkout.sessions.create({
+  const checkoutSession = await getStripe().checkout.sessions.create({
     customer: customerId,
     mode: "subscription",
     line_items: [{ price: priceId, quantity: 1 }],
