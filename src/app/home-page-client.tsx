@@ -50,9 +50,10 @@ function EmailCTA({ size = "md", dark = false }: { size?: "sm" | "md"; dark?: bo
         </button>
       </form>
       <p className="mt-2.5 text-[11px] text-gray-400 leading-relaxed">
-        No credit card required ·{" "}
-        <Link href="/terms" className="underline hover:text-gray-600 transition-colors">Terms</Link>
-        {" "}apply
+        By clicking Start Free, you agree to SecureLink&apos;s{" "}
+        <Link href="/terms" className="underline hover:text-gray-600 transition-colors">Terms and Conditions</Link>
+        {" "}and{" "}
+        <Link href="/privacy" className="underline hover:text-gray-600 transition-colors">Privacy Policy</Link>
       </p>
     </div>
   );
@@ -283,20 +284,16 @@ export function HomePageClient() {
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00A3FF]/10 border border-[#00A3FF]/20 mb-7">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#00A3FF] animate-pulse" />
-                <span className="text-xs font-medium text-[#00A3FF]">Built for financial & insurance professionals</span>
+                <span className="text-xs font-medium text-[#00A3FF]">Trusted by real estate, financing &amp; legal professionals</span>
               </div>
 
               <h1 className="text-4xl sm:text-5xl font-extrabold text-white leading-[1.1] tracking-tight mb-6">
-                Stop collecting{" "}
-                <span className="relative inline-block">
-                  <span className="text-gray-500 line-through decoration-red-400">sensitive data</span>
-                </span>
-                <br />
-                over text and email.
+                Everything you need to securely collect{" "}
+                <span className="text-[#00A3FF]">client information</span>
               </h1>
 
               <p className="text-lg text-white/55 leading-relaxed mb-8 max-w-lg">
-                SecureLink lets you collect banking info, SSNs, IDs, and signatures through encrypted one-time links — in seconds.
+                Send encrypted requests for banking details, documents, and signatures — in seconds.
               </p>
 
               <EmailCTA dark />
