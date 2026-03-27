@@ -99,7 +99,7 @@ export default function FirstRequestPage() {
               <Button
                 onClick={() => {
                   const params = new URLSearchParams({ url: createdLink.url, message: createdLink.message });
-                  router.push(`/onboarding/success?${params.toString()}`);
+                  router.push(`/onboarding/plan?${params.toString()}`);
                 }}
                 className="h-10 px-6 rounded-xl font-medium"
               >

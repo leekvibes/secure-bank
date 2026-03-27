@@ -10,6 +10,7 @@ const STEPS = [
   { label: "Trust", path: "/onboarding/trust" },
   { label: "Branding", path: "/onboarding/branding" },
   { label: "First Request", path: "/onboarding/first-request" },
+  { label: "Choose Plan", path: "/onboarding/plan" },
   { label: "Done", path: "/onboarding/success" },
 ];
 

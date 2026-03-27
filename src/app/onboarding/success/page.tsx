@@ -35,7 +35,7 @@ export default function SuccessPage() {
   }
 
   return (
-    <OnboardingShell currentStep={5}>
+    <OnboardingShell currentStep={6}>
       <div className="space-y-6">
         <div className="text-center space-y-3">
           <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto ring-4 ring-emerald-500/10">
