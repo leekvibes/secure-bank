@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Check, Loader2, X, ArrowRight } from "lucide-react";
+import { Check, Loader2, X, ArrowRight, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 
 const PLANS = [
@@ -22,12 +22,7 @@ const PLANS = [
       "MySecureLink branding",
       "Email notifications",
     ],
-    locked: [
-      "File transfers",
-      "Custom forms",
-      "Priority support",
-      "Advanced analytics",
-    ],
+    locked: ["File transfers", "Custom forms", "Priority support", "Advanced analytics"],
     cta: "Get started free",
     ctaStyle: "bg-white border border-gray-300 text-gray-800 hover:bg-gray-50",
   },
@@ -47,11 +42,7 @@ const PLANS = [
       "Basic analytics",
       "Email support",
     ],
-    locked: [
-      "File transfers",
-      "Custom forms",
-      "Priority support",
-    ],
+    locked: ["File transfers", "Custom forms", "Priority support"],
     cta: "Start Beginner",
     ctaStyle: "bg-[#0F172A] text-white hover:bg-[#1E293B]",
   },
@@ -101,12 +92,20 @@ const PLANS = [
   },
 ];
 
+type Step = "email" | "signup" | "signin";
+
 export default function PricingPage() {
   const router = useRouter();
+
+  // Modal state
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
-  const [checking, setChecking] = useState(false);
-  const [emailError, setEmailError] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function openModal(planKey: string) {
     if (planKey === "FREE") {
@@ -114,23 +113,29 @@ export default function PricingPage() {
       return;
     }
     setSelectedPlan(planKey);
+    setStep("email");
     setEmail("");
-    setEmailError(null);
+    setName("");
+    setPassword("");
+    setError(null);
+    setShowPassword(false);
   }
 
   function closeModal() {
     setSelectedPlan(null);
+    setStep("email");
     setEmail("");
-    setEmailError(null);
-    setChecking(false);
+    setName("");
+    setPassword("");
+    setError(null);
+    setLoading(false);
   }
 
-  async function handleEmailSubmit(e: React.FormEvent) {
+  async function handleEmailStep(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim() || !selectedPlan) return;
-    setEmailError(null);
-    setChecking(true);
-
+    if (!email.trim()) return;
+    setError(null);
+    setLoading(true);
     try {
       const res = await fetch("/api/auth/check-email", {
         method: "POST",
@@ -138,21 +143,85 @@ export default function PricingPage() {
         body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
       const data = await res.json();
-      const encodedEmail = encodeURIComponent(email.trim());
-      const checkoutPath = `/checkout?plan=${selectedPlan}&next=/onboarding/first-request`;
-
-      if (data.exists) {
-        // Existing user → sign in, then go to checkout
-        router.push(`/auth?mode=signin&email=${encodedEmail}&redirect=${encodeURIComponent(checkoutPath)}`);
-      } else {
-        // New user → sign up, then go to checkout
-        router.push(`/auth?mode=signup&email=${encodedEmail}&redirect=${encodeURIComponent(checkoutPath)}`);
-      }
+      setStep(data.exists ? "signin" : "signup");
     } catch {
-      setEmailError("Something went wrong. Please try again.");
-      setChecking(false);
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
   }
+
+  async function handleSignup(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || !password) return;
+    setError(null);
+    setLoading(true);
+    try {
+      // Register
+      const regRes = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+          confirmPassword: password,
+          displayName: name.trim(),
+        }),
+      });
+      const regData = await regRes.json();
+      if (!regRes.ok) {
+        setError(regData.error ?? "Registration failed. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      // Auto sign in
+      const loginRes = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+      });
+      if (!loginRes.ok) {
+        setError("Account created! Please sign in to continue.");
+        setLoading(false);
+        return;
+      }
+
+      // Go directly to checkout
+      window.location.href = `/checkout?plan=${selectedPlan}&next=${encodeURIComponent("/onboarding/first-request")}`;
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
+    }
+  }
+
+  async function handleSignin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!password) return;
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Incorrect password. Please try again.");
+        setLoading(false);
+        return;
+      }
+      window.location.href = `/checkout?plan=${selectedPlan}&next=${encodeURIComponent("/dashboard/settings")}`;
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
+    }
+  }
+
+  const planInfo = PLANS.find((p) => p.key === selectedPlan);
 
   return (
     <main className="min-h-screen bg-white text-gray-900">
@@ -194,7 +263,6 @@ export default function PricingPage() {
                   {plan.badge}
                 </div>
               )}
-
               <div className="mb-6">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">{plan.name}</p>
                 <div className="flex items-end gap-1 mb-2">
@@ -205,93 +273,179 @@ export default function PricingPage() {
                 </div>
                 <p className="text-sm text-gray-500">{plan.desc}</p>
               </div>
-
               <button
                 onClick={() => openModal(plan.key)}
                 className={`w-full h-11 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 mb-7 ${plan.ctaStyle}`}
               >
                 {plan.cta}
               </button>
-
               <ul className="space-y-2.5 flex-1">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2.5 text-sm text-gray-700">
-                    <Check className="w-4 h-4 text-[#00A3FF] shrink-0 mt-0.5" />
-                    {f}
+                    <Check className="w-4 h-4 text-[#00A3FF] shrink-0 mt-0.5" />{f}
                   </li>
                 ))}
                 {plan.locked.map((f) => (
                   <li key={f} className="flex items-start gap-2.5 text-sm text-gray-300 line-through">
-                    <Check className="w-4 h-4 text-gray-200 shrink-0 mt-0.5" />
-                    {f}
+                    <Check className="w-4 h-4 text-gray-200 shrink-0 mt-0.5" />{f}
                   </li>
                 ))}
               </ul>
             </div>
           ))}
         </div>
-
         <p className="text-center text-sm text-gray-400 mt-10">
           Payments secured by Stripe · Cancel anytime from your dashboard · No credit card required for Free
         </p>
       </section>
 
-      {/* Email-first modal */}
+      {/* Inline auth modal */}
       {selectedPlan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative">
-            <button
-              onClick={closeModal}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
-            >
+            <button onClick={closeModal} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors">
               <X className="w-5 h-5" />
             </button>
 
-            <div className="mb-6">
-              <p className="text-xs font-semibold text-[#00A3FF] uppercase tracking-widest mb-1">
-                {PLANS.find(p => p.key === selectedPlan)?.name} Plan — ${PLANS.find(p => p.key === selectedPlan)?.price}/mo
-              </p>
-              <h2 className="text-xl font-bold text-gray-900">Enter your email to get started</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Already have an account? We&apos;ll sign you in. New here? We&apos;ll set you up.
-              </p>
-            </div>
-
-            <form onSubmit={handleEmailSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Email address
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="w-full h-11 px-4 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A3FF] focus:border-transparent"
-                />
-                {emailError && (
-                  <p className="text-xs text-red-600 mt-1">{emailError}</p>
-                )}
+            {/* Plan badge */}
+            {planInfo && (
+              <div className="mb-6">
+                <div className="inline-flex items-center gap-2 bg-[#00A3FF]/8 text-[#0077CC] text-xs font-semibold px-3 py-1.5 rounded-full mb-3">
+                  {planInfo.name} Plan — ${planInfo.price}/mo
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {step === "email" && "Enter your email to get started"}
+                  {step === "signup" && "Create your account"}
+                  {step === "signin" && "Welcome back"}
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  {step === "email" && "We'll check if you have an account or create one for you."}
+                  {step === "signup" && email}
+                  {step === "signin" && email}
+                </p>
               </div>
+            )}
 
-              <button
-                type="submit"
-                disabled={checking || !email.trim()}
-                className="w-full h-11 rounded-xl bg-[#00A3FF] text-white font-semibold text-sm hover:bg-[#0091E6] transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                {checking ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    Continue <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            </form>
+            {error && (
+              <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+                {error}
+              </div>
+            )}
 
-            <p className="text-xs text-gray-400 text-center mt-4">
+            {/* Step 1: Email */}
+            {step === "email" && (
+              <form onSubmit={handleEmailStep} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>
+                  <input
+                    type="email"
+                    required
+                    autoFocus
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full h-11 px-4 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A3FF] focus:border-transparent"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading || !email.trim()}
+                  className="w-full h-11 rounded-xl bg-[#00A3FF] text-white font-semibold text-sm hover:bg-[#0091E6] transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Continue <ArrowRight className="w-4 h-4" /></>}
+                </button>
+                <p className="text-xs text-gray-400 text-center">
+                  Already have an account? Just enter your email.
+                </p>
+              </form>
+            )}
+
+            {/* Step 2a: Sign up */}
+            {step === "signup" && (
+              <form onSubmit={handleSignup} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Full name</label>
+                  <input
+                    type="text"
+                    required
+                    autoFocus
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Jordan Taylor"
+                    className="w-full h-11 px-4 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A3FF] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      required
+                      minLength={8}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="At least 8 characters"
+                      className="w-full h-11 px-4 pr-10 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A3FF] focus:border-transparent"
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading || !name.trim() || password.length < 8}
+                  className="w-full h-11 rounded-xl bg-[#00A3FF] text-white font-semibold text-sm hover:bg-[#0091E6] transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Create account & continue <ArrowRight className="w-4 h-4" /></>}
+                </button>
+                <button type="button" onClick={() => { setStep("email"); setError(null); setPassword(""); }}
+                  className="w-full flex items-center justify-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+                  <ArrowLeft className="w-3.5 h-3.5" /> Use a different email
+                </button>
+              </form>
+            )}
+
+            {/* Step 2b: Sign in */}
+            {step === "signin" && (
+              <form onSubmit={handleSignin} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      required
+                      autoFocus
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      className="w-full h-11 px-4 pr-10 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A3FF] focus:border-transparent"
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <div className="text-right mt-1">
+                    <Link href="/auth/reset" className="text-xs text-[#00A3FF] hover:underline">Forgot password?</Link>
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading || !password}
+                  className="w-full h-11 rounded-xl bg-[#00A3FF] text-white font-semibold text-sm hover:bg-[#0091E6] transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Sign in & continue <ArrowRight className="w-4 h-4" /></>}
+                </button>
+                <button type="button" onClick={() => { setStep("email"); setError(null); setPassword(""); }}
+                  className="w-full flex items-center justify-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+                  <ArrowLeft className="w-3.5 h-3.5" /> Use a different email
+                </button>
+              </form>
+            )}
+
+            <p className="text-xs text-gray-400 text-center mt-5">
               Payments secured by Stripe · Cancel anytime
             </p>
           </div>

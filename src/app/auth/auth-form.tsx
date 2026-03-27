@@ -216,7 +216,7 @@ export function AuthForm() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Work email</Label>
+                  <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
                     name="email"
