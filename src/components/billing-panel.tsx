@@ -69,26 +69,10 @@ export function BillingPanel({ plan, hasSubscription }: Props) {
     }
   }
 
-  async function startUpgrade(planKey: string) {
+  function startUpgrade(planKey: string) {
     setError(null);
     setUpgradeLoading(planKey);
-    try {
-      const res = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: planKey }),
-      });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setError(data?.error?.message ?? "Unable to start checkout.");
-        setUpgradeLoading(null);
-      }
-    } catch {
-      setError("Network error. Please try again.");
-      setUpgradeLoading(null);
-    }
+    window.location.href = `/checkout?plan=${planKey}&next=/dashboard/settings`;
   }
 
   const isPaid = plan !== "FREE";

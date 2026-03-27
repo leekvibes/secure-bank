@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Check, Loader2, ArrowRight } from "lucide-react";
 import { OnboardingShell } from "../onboarding-shell";
 
@@ -46,14 +46,11 @@ const PLANS = [
 
 export default function OnboardingPlanPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [loading, setLoading] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   const nextUrl = "/onboarding/first-request";
 
   async function handleSelect(planKey: string) {
-    setError(null);
     setLoading(planKey);
 
     if (planKey === "FREE") {
@@ -61,33 +58,7 @@ export default function OnboardingPlanPage() {
       return;
     }
 
-    try {
-      const appUrl = window.location.origin;
-      const res = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plan: planKey,
-          successUrl: `${appUrl}${nextUrl}`,
-          cancelUrl: `${appUrl}/onboarding/plan`,
-        }),
-      });
-      const data = await res.json();
-      if (typeof data?.url === "string" && data.url.length > 0) {
-        window.location.href = data.url;
-        return;
-      }
-      if (res.status === 401) {
-        window.location.href = `/auth?mode=signin&redirect=/onboarding/plan`;
-
-        return;
-      }
-      setError(data?.error?.message ?? "Unable to start checkout. Please try again.");
-      setLoading(null);
-    } catch {
-      setError("Unable to start checkout right now.");
-      setLoading(null);
-    }
+    router.push(`/checkout?plan=${planKey}&next=${encodeURIComponent(nextUrl)}`);
   }
 
   return (
@@ -98,9 +69,7 @@ export default function OnboardingPlanPage() {
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
             Start free or unlock more with a paid plan. You can upgrade anytime from your dashboard.
           </p>
-          {error ? (
-            <p className="text-sm text-red-600">{error}</p>
-          ) : null}
+
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

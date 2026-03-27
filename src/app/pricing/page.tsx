@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, X, ArrowRight } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 
 const PLANS = [
@@ -103,37 +103,54 @@ const PLANS = [
 
 export default function PricingPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
-  async function handleUpgrade(planKey: string) {
+  function openModal(planKey: string) {
     if (planKey === "FREE") {
       router.push("/auth?mode=signup");
       return;
     }
-    setError(null);
-    setLoading(planKey);
+    setSelectedPlan(planKey);
+    setEmail("");
+    setEmailError(null);
+  }
+
+  function closeModal() {
+    setSelectedPlan(null);
+    setEmail("");
+    setEmailError(null);
+    setChecking(false);
+  }
+
+  async function handleEmailSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim() || !selectedPlan) return;
+    setEmailError(null);
+    setChecking(true);
+
     try {
-      const res = await fetch("/api/stripe/checkout", {
+      const res = await fetch("/api/auth/check-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: planKey }),
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
       const data = await res.json();
-      if (typeof data?.url === "string" && data.url.length > 0) {
-        window.location.href = data.url;
-        return;
-      }
+      const encodedEmail = encodeURIComponent(email.trim());
+      const checkoutPath = `/checkout?plan=${selectedPlan}&next=/onboarding/first-request`;
 
-      if (res.status === 401) {
-        router.push(`/auth?mode=signup&redirect=/pricing`);
+      if (data.exists) {
+        // Existing user → sign in, then go to checkout
+        router.push(`/auth?mode=signin&email=${encodedEmail}&redirect=${encodeURIComponent(checkoutPath)}`);
       } else {
-        setError(data?.error?.message ?? "Unable to start checkout right now.");
+        // New user → sign up, then go to checkout
+        router.push(`/auth?mode=signup&email=${encodedEmail}&redirect=${encodeURIComponent(checkoutPath)}`);
       }
     } catch {
-      setError("Unable to start checkout right now.");
-    } finally {
-      setLoading(null);
+      setEmailError("Something went wrong. Please try again.");
+      setChecking(false);
     }
   }
 
@@ -168,12 +185,6 @@ export default function PricingPage() {
 
       {/* Plan cards */}
       <section className="pb-24 px-5">
-        {error ? (
-          <div className="max-w-6xl mx-auto mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        ) : null}
-
         <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {PLANS.map((plan) => (
             <div key={plan.key}
@@ -196,11 +207,10 @@ export default function PricingPage() {
               </div>
 
               <button
-                onClick={() => handleUpgrade(plan.key)}
-                disabled={loading === plan.key}
-                className={`w-full h-11 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 mb-7 disabled:opacity-60 ${plan.ctaStyle}`}
+                onClick={() => openModal(plan.key)}
+                className={`w-full h-11 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 mb-7 ${plan.ctaStyle}`}
               >
-                {loading === plan.key ? <Loader2 className="w-4 h-4 animate-spin" /> : plan.cta}
+                {plan.cta}
               </button>
 
               <ul className="space-y-2.5 flex-1">
@@ -221,11 +231,72 @@ export default function PricingPage() {
           ))}
         </div>
 
-        {/* Trust line */}
         <p className="text-center text-sm text-gray-400 mt-10">
           Payments secured by Stripe · Cancel anytime from your dashboard · No credit card required for Free
         </p>
       </section>
+
+      {/* Email-first modal */}
+      {selectedPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative">
+            <button
+              onClick={closeModal}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="mb-6">
+              <p className="text-xs font-semibold text-[#00A3FF] uppercase tracking-widest mb-1">
+                {PLANS.find(p => p.key === selectedPlan)?.name} Plan — ${PLANS.find(p => p.key === selectedPlan)?.price}/mo
+              </p>
+              <h2 className="text-xl font-bold text-gray-900">Enter your email to get started</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Already have an account? We&apos;ll sign you in. New here? We&apos;ll set you up.
+              </p>
+            </div>
+
+            <form onSubmit={handleEmailSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Email address
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full h-11 px-4 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A3FF] focus:border-transparent"
+                />
+                {emailError && (
+                  <p className="text-xs text-red-600 mt-1">{emailError}</p>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={checking || !email.trim()}
+                className="w-full h-11 rounded-xl bg-[#00A3FF] text-white font-semibold text-sm hover:bg-[#0091E6] transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {checking ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    Continue <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <p className="text-xs text-gray-400 text-center mt-4">
+              Payments secured by Stripe · Cancel anytime
+            </p>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
