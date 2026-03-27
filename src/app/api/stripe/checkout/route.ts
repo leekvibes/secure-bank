@@ -8,47 +8,54 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 type PriceKey = keyof typeof PRICE_IDS;
 
 export async function POST(req: NextRequest) {
-  if (!isStripeConfigured()) {
-    return apiError(
-      503,
-      "STRIPE_NOT_CONFIGURED",
-      "Billing is temporarily unavailable. Please try again later."
-    );
+  try {
+    if (!isStripeConfigured()) {
+      console.error("[stripe/checkout] Stripe not configured — STRIPE_SECRET_KEY missing");
+      return apiError(503, "STRIPE_NOT_CONFIGURED", "Billing is not configured.");
+    }
+
+    const session = await getServerSession(authOptions);
+    if (!session) return apiError(401, "UNAUTHORIZED", "Please sign in to continue.");
+
+    const body = await req.json() as { plan: string; successUrl?: string; cancelUrl?: string };
+    const { plan } = body;
+    const priceId = PRICE_IDS[plan as PriceKey];
+    if (!priceId) return apiError(400, "INVALID_PLAN", "Invalid plan selected.");
+
+    const user = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { email: true, stripeCustomerId: true },
+    });
+    if (!user) return apiError(404, "NOT_FOUND", "User not found.");
+
+    const appUrl = process.env.NEXTAUTH_URL ?? "https://mysecurelink.co";
+
+    let customerId = user.stripeCustomerId ?? undefined;
+    if (!customerId) {
+      const customer = await getStripe().customers.create({ email: user.email });
+      customerId = customer.id;
+      await db.user.update({ where: { id: session.user.id }, data: { stripeCustomerId: customerId } });
+    }
+
+    const checkoutSession = await getStripe().checkout.sessions.create({
+      customer: customerId,
+      mode: "subscription",
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: body.successUrl ?? `${appUrl}/dashboard/settings?upgraded=1`,
+      cancel_url: body.cancelUrl ?? `${appUrl}/pricing`,
+      metadata: { userId: session.user.id, plan },
+      subscription_data: { metadata: { userId: session.user.id, plan } },
+    });
+
+    if (!checkoutSession.url) {
+      console.error("[stripe/checkout] Stripe returned null URL for session", checkoutSession.id);
+      return apiError(500, "NO_CHECKOUT_URL", "Stripe did not return a checkout URL.");
+    }
+
+    return apiSuccess({ url: checkoutSession.url });
+  } catch (err) {
+    console.error("[stripe/checkout] Unexpected error:", err);
+    const message = err instanceof Error ? err.message : "Unexpected error";
+    return apiError(500, "CHECKOUT_FAILED", message);
   }
-
-  const session = await getServerSession(authOptions);
-  if (!session) return apiError(401, "UNAUTHORIZED", "Unauthorized");
-
-  const body = await req.json() as { plan: string; successUrl?: string; cancelUrl?: string };
-  const { plan } = body;
-  const priceId = PRICE_IDS[plan as PriceKey];
-  if (!priceId) return apiError(400, "INVALID_PLAN", "Invalid plan.");
-
-  const user = await db.user.findUnique({
-    where: { id: session.user.id },
-    select: { email: true, stripeCustomerId: true },
-  });
-  if (!user) return apiError(404, "NOT_FOUND", "User not found.");
-
-  const appUrl = process.env.NEXTAUTH_URL ?? "https://mysecurelink.co";
-
-  // Reuse existing Stripe customer or create one
-  let customerId = user.stripeCustomerId ?? undefined;
-  if (!customerId) {
-    const customer = await getStripe().customers.create({ email: user.email });
-    customerId = customer.id;
-    await db.user.update({ where: { id: session.user.id }, data: { stripeCustomerId: customerId } });
-  }
-
-  const checkoutSession = await getStripe().checkout.sessions.create({
-    customer: customerId,
-    mode: "subscription",
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: body.successUrl ?? `${appUrl}/dashboard/settings?upgraded=1`,
-    cancel_url: body.cancelUrl ?? `${appUrl}/pricing`,
-    metadata: { userId: session.user.id, plan },
-    subscription_data: { metadata: { userId: session.user.id, plan } },
-  });
-
-  return apiSuccess({ url: checkoutSession.url });
 }

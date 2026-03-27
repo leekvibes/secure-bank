@@ -81,10 +81,14 @@ export default function OnboardingPlanPage() {
       const data = await res.json();
       if (typeof data?.url === "string" && data.url.length > 0) {
         window.location.href = data.url;
-      } else {
-        setError(data?.error?.message ?? "Unable to start checkout right now.");
-        setLoading(null);
+        return;
       }
+      if (res.status === 401) {
+        window.location.href = `/auth?mode=signin&redirect=/onboarding/plan`;
+        return;
+      }
+      setError(data?.error?.message ?? "Unable to start checkout. Please try again.");
+      setLoading(null);
     } catch {
       setError("Unable to start checkout right now.");
       setLoading(null);
