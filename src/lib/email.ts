@@ -708,6 +708,85 @@ export async function sendTransferDownloadNotification({
   }
 }
 
+// ── DocSign: Request Sent → Client ────────────────────────────────────────────
+
+export async function sendDocSignRequestEmail(args: {
+  toEmail: string;
+  agentName: string;
+  title: string | null;
+  message: string | null;
+  signUrl: string;
+  expiresAt: Date;
+}): Promise<void> {
+  const { toEmail, agentName, title, message, signUrl, expiresAt } = args;
+  const expiry = expiresAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  await send({
+    to: toEmail,
+    subject: title ? `${agentName} sent you a document to sign: "${title}"` : `${agentName} sent you a document to sign`,
+    html: emailTemplate({
+      heading: title ? `Please sign: ${title}` : "You have a document to sign",
+      body:
+        p(`<strong>${agentName}</strong> has sent you a document that requires your signature.`) +
+        (message ? p(`"${message}"`) : "") +
+        p(`This signing link expires on <strong>${expiry}</strong>.`),
+      ctaLabel: "Review & Sign Document",
+      ctaUrl: signUrl,
+      notice: "Secure Link will never ask for your password or financial details via email. Only use the secure signing link above.",
+    }),
+  });
+}
+
+// ── DocSign: Completed → Agent ────────────────────────────────────────────────
+
+export async function sendDocSignCompletedEmail(args: {
+  agentEmail: string;
+  agentName: string;
+  clientName: string | null;
+  title: string | null;
+  completedAt: string;
+  viewUrl: string;
+}): Promise<void> {
+  const { agentEmail, agentName, clientName, title, completedAt, viewUrl } = args;
+  const clientLabel = clientName ?? "Your client";
+  await send({
+    to: agentEmail,
+    from: FROM_NOTIFICATIONS,
+    subject: `Document signed by ${clientLabel}`,
+    html: emailTemplate({
+      heading: "Document signed",
+      body:
+        p(`Hi ${agentName},`) +
+        p(`<strong>${clientLabel}</strong> has signed ${title ? `"<strong>${title}</strong>"` : "your document"} at <strong>${completedAt}</strong>.`) +
+        p("The signed document is available in your dashboard."),
+      ctaLabel: "View Signed Document",
+      ctaUrl: viewUrl,
+    }),
+  });
+}
+
+// ── Feedback Notification → Support ──────────────────────────────────────────
+
+export async function sendFeedbackNotification(args: {
+  agentEmail: string;
+  agentName: string;
+  category: string;
+  message: string;
+}): Promise<void> {
+  const { agentEmail, agentName, category, message } = args;
+  const labels: Record<string, string> = { BUG: "Bug Report", FEATURE: "Feature Request", UX: "UI/UX Feedback", OTHER: "General Feedback" };
+  await send({
+    to: SUPPORT_EMAIL,
+    subject: `[${labels[category] ?? category}] Feedback from ${agentName}`,
+    html: emailTemplate({
+      heading: `${labels[category] ?? category}`,
+      body:
+        p(`<strong>From:</strong> ${agentName} (${agentEmail})`) +
+        p(`<strong>Category:</strong> ${labels[category] ?? category}`) +
+        `<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:16px 20px;margin:16px 0;font-size:15px;color:#334155;line-height:1.7;">${message}</div>`,
+    }),
+  });
+}
+
 // ── 17. Data Revealed → Agent ─────────────────────────────────────────────────
 
 export async function sendRevealNotification(args: {

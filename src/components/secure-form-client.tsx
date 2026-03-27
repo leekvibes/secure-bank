@@ -34,7 +34,7 @@ const LINK_TYPE_LABELS: Record<string, string> = {
   BANKING_INFO: "banking information",
   SSN_ONLY: "identity verification details",
   FULL_INTAKE: "personal and financial information",
-  ID_UPLOAD: "identification document",
+  ID_UPLOAD: "document",
 };
 
 export function SecureFormClient({
@@ -175,23 +175,36 @@ export function SecureFormClient({
       });
     }
 
-    const res = await fetch(`/api/secure/${token}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      const res = await fetch(`/api/secure/${token}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      const parsedFieldErrors = getFieldErrors(data);
-      if (Object.keys(parsedFieldErrors).length > 0) setFieldErrors(parsedFieldErrors);
-      setError(getErrorMessage(data, "Submission failed. Please try again."));
+      if (!res.ok) {
+        const parsedFieldErrors = getFieldErrors(data);
+        if (Object.keys(parsedFieldErrors).length > 0) setFieldErrors(parsedFieldErrors);
+        setError(getErrorMessage(data, "Submission failed. Please try again."));
+        setLoading(false);
+        submitLockRef.current = false;
+        return;
+      }
+      setSubmitted(true);
+    } catch (err) {
+      const msg = err instanceof Error && err.name === "AbortError"
+        ? "Request timed out. Please check your connection and try again."
+        : "Network error. Please check your connection and try again.";
+      setError(msg);
       setLoading(false);
       submitLockRef.current = false;
-      return;
     }
-    setSubmitted(true);
   }
 
   async function handleIdUpload() {
@@ -206,22 +219,35 @@ export function SecureFormClient({
     fd.append("front", frontFile);
     if (backFile) fd.append("back", backFile);
 
-    const res = await fetch(`/api/id-uploads?token=${token}`, {
-      method: "POST",
-      body: fd,
-    });
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+      const res = await fetch(`/api/id-uploads?token=${token}`, {
+        method: "POST",
+        body: fd,
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      const parsedFieldErrors = getFieldErrors(data);
-      if (Object.keys(parsedFieldErrors).length > 0) setFieldErrors(parsedFieldErrors);
-      setError(getErrorMessage(data, "Upload failed. Please try again."));
+      if (!res.ok) {
+        const parsedFieldErrors = getFieldErrors(data);
+        if (Object.keys(parsedFieldErrors).length > 0) setFieldErrors(parsedFieldErrors);
+        setError(getErrorMessage(data, "Upload failed. Please try again."));
+        setLoading(false);
+        submitLockRef.current = false;
+        return;
+      }
+      setSubmitted(true);
+    } catch (err) {
+      const msg = err instanceof Error && err.name === "AbortError"
+        ? "Upload timed out. Please check your connection and try again."
+        : "Network error. Please check your connection and try again.";
+      setError(msg);
       setLoading(false);
       submitLockRef.current = false;
-      return;
     }
-    setSubmitted(true);
   }
 
   function validateUploadSelection(file: File | null): string | undefined {
@@ -236,7 +262,7 @@ export function SecureFormClient({
   const sectionTitle =
     linkType === "BANKING_INFO" ? "Secure Banking Information" :
     linkType === "SSN_ONLY" ? "Secure Identity Verification" :
-    linkType === "ID_UPLOAD" ? "Secure ID Upload" :
+    linkType === "ID_UPLOAD" ? "Secure Document Upload" :
     "Secure Client Intake";
 
   const greetingLine = clientName

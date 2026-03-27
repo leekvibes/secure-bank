@@ -49,6 +49,8 @@ model User {
   forms                  Form[]
   assets                 AgentAsset[]
   fileTransfers          FileTransfer[]
+  feedback               Feedback[]
+  docSignRequests        DocSignRequest[]
 }
 
 model SecureLink {
@@ -372,4 +374,56 @@ model AuditLog {
   agent   User?       @relation(fields: [agentId], references: [id], onDelete: SetNull)
   linkId  String?
   link    SecureLink? @relation(fields: [linkId], references: [id], onDelete: SetNull)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Feedback {
+  id        String   @id @default(cuid())
+  category  String   // BUG | FEATURE | UX | OTHER
+  message   String
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Document Signing
+
+model DocSignRequest {
+  id            String   @id @default(cuid())
+  token         String   @unique
+  title         String?
+  message       String?
+  status        String   @default("DRAFT") // DRAFT | SENT | OPENED | COMPLETED | EXPIRED
+  // Encrypted storage paths for original and final signed PDF
+  originalFilePath String
+  signedFilePath   String?
+  originalName     String?
+  // Field placement data as JSON array
+  fieldsJson    String?
+  // Agent pre-sign data as JSON
+  agentSignJson String?
+  clientName    String?
+  clientEmail   String?
+  expiresAt     DateTime
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  agentId String
+  agent   User   @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  auditLogs DocSignAuditLog[]
+}
+
+model DocSignAuditLog {
+  id        String   @id @default(cuid())
+  event     String   // CREATED | SENT | OPENED | SIGNED | COMPLETED
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  requestId String
+  request   DocSignRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 }

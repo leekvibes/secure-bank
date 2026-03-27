@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@800&amp;family=JetBrains+Mono:wght@500&amp;display=swap');
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1000" height="1000" fill="#FFFFFF"/>
+
+  <!-- Subtle border ring -->
+  <rect x="30" y="30" width="940" height="940" rx="60" ry="60"
+        fill="none" stroke="#E2E8F0" stroke-width="3"/>
+
+  <!-- Lock icon mark -->
+  <g transform="translate(500, 310)">
+    <!-- Shackle -->
+    <path d="M-42,-30 A42,42 0 0,1 42,-30 L42,0 L-42,0 Z"
+          fill="none" stroke="#0F172A" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Body -->
+    <rect x="-54" y="0" width="108" height="82" rx="12" ry="12" fill="#0F172A"/>
+    <!-- Keyhole -->
+    <circle cx="0" cy="36" r="12" fill="#FFFFFF"/>
+    <rect x="-5" y="40" width="10" height="18" rx="4" fill="#FFFFFF"/>
+  </g>
+
+  <!-- "Secure" + "Link" wordmark -->
+  <text
+    x="500" y="490"
+    text-anchor="middle"
+    dominant-baseline="auto"
+    font-family="'Inter', 'Arial Black', 'Helvetica Neue', Arial, sans-serif"
+    font-weight="800"
+    font-size="120"
+    letter-spacing="-2">
+    <tspan fill="#0F172A">Secure</tspan><tspan fill="#00A3FF">Link</tspan>
+  </text>
+
+  <!-- Tagline -->
+  <text
+    x="500" y="546"
+    text-anchor="middle"
+    dominant-baseline="auto"
+    font-family="'JetBrains Mono', 'Courier New', Courier, monospace"
+    font-weight="500"
+    font-size="28"
+    fill="#00A3FF"
+    letter-spacing="10">
+    SECURE. SIMPLE. FAST.
+  </text>
+</svg>
