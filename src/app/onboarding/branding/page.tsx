@@ -256,14 +256,14 @@ export default function BrandingPage() {
               </button>
               <button
                 type="button"
-                onClick={() => router.push("/onboarding/first-request")}
+                onClick={() => router.push("/onboarding/plan")}
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Skip
               </button>
             </div>
             <Button
-              onClick={() => router.push("/onboarding/first-request")}
+              onClick={() => router.push("/onboarding/plan")}
               className="h-10 px-6 rounded-xl font-medium"
             >
               <span className="flex items-center gap-2">

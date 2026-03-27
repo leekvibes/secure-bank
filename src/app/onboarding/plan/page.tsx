@@ -50,20 +50,14 @@ export default function OnboardingPlanPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Preserve the link url/message params through to the success page
-  const successParams = new URLSearchParams();
-  const url = searchParams.get("url");
-  const message = searchParams.get("message");
-  if (url) successParams.set("url", url);
-  if (message) successParams.set("message", message);
-  const successUrl = `/onboarding/success${successParams.toString() ? `?${successParams.toString()}` : ""}`;
+  const nextUrl = "/onboarding/first-request";
 
   async function handleSelect(planKey: string) {
     setError(null);
     setLoading(planKey);
 
     if (planKey === "FREE") {
-      router.push(successUrl);
+      router.push(nextUrl);
       return;
     }
 
@@ -74,8 +68,8 @@ export default function OnboardingPlanPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           plan: planKey,
-          successUrl: `${appUrl}${successUrl}`,
-          cancelUrl: `${appUrl}/onboarding/plan${successParams.toString() ? `?${successParams.toString()}` : ""}`,
+          successUrl: `${appUrl}${nextUrl}`,
+          cancelUrl: `${appUrl}/onboarding/plan`,
         }),
       });
       const data = await res.json();
@@ -85,6 +79,7 @@ export default function OnboardingPlanPage() {
       }
       if (res.status === 401) {
         window.location.href = `/auth?mode=signin&redirect=/onboarding/plan`;
+
         return;
       }
       setError(data?.error?.message ?? "Unable to start checkout. Please try again.");
@@ -96,7 +91,7 @@ export default function OnboardingPlanPage() {
   }
 
   return (
-    <OnboardingShell currentStep={5}>
+    <OnboardingShell currentStep={4}>
       <div className="space-y-6">
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Choose your plan</h1>

@@ -9,8 +9,8 @@ const STEPS = [
   { label: "Profile", path: "/onboarding/profile" },
   { label: "Trust", path: "/onboarding/trust" },
   { label: "Branding", path: "/onboarding/branding" },
-  { label: "First Request", path: "/onboarding/first-request" },
   { label: "Choose Plan", path: "/onboarding/plan" },
+  { label: "First Request", path: "/onboarding/first-request" },
   { label: "Done", path: "/onboarding/success" },
 ];
 

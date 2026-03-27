@@ -59,7 +59,7 @@ export default function FirstRequestPage() {
 
   if (createdLink) {
     return (
-      <OnboardingShell currentStep={4}>
+      <OnboardingShell currentStep={5}>
         <div className="space-y-6">
           <div className="text-center space-y-2">
             <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto ring-4 ring-emerald-500/10">
@@ -99,7 +99,7 @@ export default function FirstRequestPage() {
               <Button
                 onClick={() => {
                   const params = new URLSearchParams({ url: createdLink.url, message: createdLink.message });
-                  router.push(`/onboarding/plan?${params.toString()}`);
+                  router.push(`/onboarding/success?${params.toString()}`);
                 }}
                 className="h-10 px-6 rounded-xl font-medium"
               >
@@ -116,7 +116,7 @@ export default function FirstRequestPage() {
   }
 
   return (
-    <OnboardingShell currentStep={4}>
+    <OnboardingShell currentStep={5}>
       <div className="space-y-6">
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Create your first request</h1>
@@ -206,7 +206,7 @@ export default function FirstRequestPage() {
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => router.push("/onboarding/branding")}
+                  onClick={() => router.push("/onboarding/plan")}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
