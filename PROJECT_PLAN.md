@@ -33,7 +33,7 @@
 
 ### High priority
 
-- [ ] **Deletion job** — Background cron (or Vercel cron) to delete submissions past `deleteAt`. Currently the field is set; the actual deletion needs a job runner.
+- [x] **Deletion job** — Cron cleanup endpoint now deletes submissions/uploads past `deleteAt` and can be scheduled with Vercel cron.
 - [ ] **Email notification** — Notify agent when a client submits (Resend API, simple transactional email).
 - [ ] **Link deletion** — Allow agents to manually delete a link and its submission.
 - [ ] **Export submission** — Download decrypted submission as JSON or PDF for carrier forms.

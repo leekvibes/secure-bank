@@ -35,7 +35,7 @@ export const createLinkSchema = z.object({
   clientPhone: z.string().max(30).optional().refine((v) => isValidPhoneNumber(v ?? ""), "Invalid phone number"),
   clientEmail: z.string().optional().or(z.literal("")).refine((v) => isValidEmailAddress(v ?? ""), "Invalid email address"),
   expirationHours: z.number().int().min(1).max(168).default(24),
-  retentionDays: z.number().int().min(-1).max(365).default(-1),
+  retentionDays: z.number().int().min(-1).max(365).optional(),
   assetIds: z.array(z.string().min(1)).max(10).optional().default([]),
 });
 export type CreateLinkInput = z.infer<typeof createLinkSchema>;
@@ -215,7 +215,7 @@ export type FormFieldInput = z.infer<typeof formFieldSchema>;
 export const createFormSchema = z.object({
   title: z.string().min(1, "Title required").max(120),
   description: z.string().max(500).optional(),
-  retentionDays: z.number().int().min(-1).max(365).default(-1),
+  retentionDays: z.number().int().min(-1).max(365).optional(),
   fields: z.array(formFieldSchema).min(1, "At least one field required"),
 });
 export type CreateFormInput = z.infer<typeof createFormSchema>;

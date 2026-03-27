@@ -217,7 +217,6 @@ export default function NewFormPage() {
   const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const retentionDays = -1;
   const [fields, setFields] = useState<FieldDraft[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [started, setStarted] = useState(false);
@@ -281,7 +280,6 @@ export default function NewFormPage() {
     const payload = {
       title: title.trim(),
       description: description.trim() || undefined,
-      retentionDays,
       fields: fields.map((f, idx) => ({
         label: f.label.trim(),
         fieldType: f.fieldType,

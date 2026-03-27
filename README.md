@@ -209,7 +209,7 @@ Generated with `nanoid` using a custom 55-character alphabet (no ambiguous chara
 
 ### Retention
 
-Submissions have a `deleteAt` timestamp set at creation time. Default: 7 days. Background deletion is not yet implemented (see backlog); for MVP, the field is set and visible in the UI.
+Submissions and uploads have a `deleteAt` timestamp set at creation time. A scheduled cleanup job (`/api/cron/cleanup`) permanently deletes records past retention.
 
 ### Audit logs
 
@@ -242,4 +242,4 @@ Every client form requires an explicit consent checkbox before submission can pr
 3. Store `ENCRYPTION_KEY` in a secrets manager (never commit to source)
 4. Replace in-memory rate limiter in `src/lib/rate-limit.ts` with Redis/Upstash
 5. Set `NEXTAUTH_URL` to your production domain
-6. Add a cron job to delete submissions past their `deleteAt` date
+6. Configure `CRON_SECRET` and keep `/api/cron/cleanup` scheduled daily so retention deletions continue to run

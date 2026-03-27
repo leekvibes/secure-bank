@@ -31,6 +31,10 @@ model User {
   dataRetentionDays  Int     @default(30)            // 30 | 60 | 90 | -1 (manual)
   trustMessage       String?
   defaultExpirationHours Int @default(24)
+  // Billing
+  plan                 String  @default("FREE")  // FREE | BEGINNER | PRO | AGENCY
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
   // Onboarding
   onboardingCompleted Boolean @default(false)
   role               String    @default("AGENT") // AGENT | ADMIN

@@ -6,6 +6,7 @@ import {
   sendRequestExpiredToAgent,
   sendRequestExpiredToClient,
 } from "@/lib/email";
+import { deleteFile } from "@/lib/files";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ export const dynamic = "force-dynamic";
  * 1) Sends 24-hour reminder emails to clients who haven't submitted
  * 2) Marks expired links as EXPIRED + emails agent + client
  * 3) Marks expired form links as EXPIRED
+ * 4) Deletes sensitive records past retention (`deleteAt`)
  *
  * Protected by CRON_SECRET env var.
  * Vercel calls this with: Authorization: Bearer <CRON_SECRET>
@@ -129,11 +131,44 @@ export async function GET(req: NextRequest) {
     data: { status: "EXPIRED" },
   });
 
+  // ── 4. Retention deletion ────────────────────────────────────────────────
+  const expiredUploads = await db.idUpload.findMany({
+    where: { deleteAt: { lt: now } },
+    select: { id: true, frontFilePath: true, backFilePath: true },
+    take: 500,
+  });
+
+  await Promise.allSettled(
+    expiredUploads.flatMap((upload) => {
+      const paths = [upload.frontFilePath, upload.backFilePath].filter(
+        (path): path is string => Boolean(path)
+      );
+      return paths.map((path) => deleteFile(path));
+    })
+  );
+
+  let deletedUploads = 0;
+  if (expiredUploads.length > 0) {
+    const result = await db.idUpload.deleteMany({
+      where: { id: { in: expiredUploads.map((upload) => upload.id) } },
+    });
+    deletedUploads = result.count;
+  }
+
+  const [{ count: deletedSubmissions }, { count: deletedFormSubmissions }] =
+    await Promise.all([
+      db.submission.deleteMany({ where: { deleteAt: { lt: now } } }),
+      db.formSubmission.deleteMany({ where: { deleteAt: { lt: now } } }),
+    ]);
+
   return apiSuccess({
     success: true,
     remindersSent,
     expiredLinks,
     expiredFormLinks,
+    deletedSubmissions,
+    deletedFormSubmissions,
+    deletedUploads,
     ranAt: now.toISOString(),
   });
 }

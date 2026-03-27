@@ -16,6 +16,7 @@ import {
   selectAssetsForToken,
   toAssetRenderEntry,
 } from "@/lib/asset-library";
+import { addDays } from "date-fns";
 
 export async function GET(
   req: NextRequest,
@@ -224,8 +225,10 @@ export async function POST(
   }
 
   const encryptedData = buildEncryptedSubmissionData(validated);
-  // Submissions are never auto-deleted — only the agent can delete them manually
-  const deleteAt = new Date("9999-12-31T23:59:59.999Z");
+  const deleteAt =
+    link.retentionDays > 0
+      ? addDays(new Date(), link.retentionDays)
+      : new Date("9999-12-31T23:59:59.999Z");
 
   // Store submission + update link status atomically
   await db.$transaction([

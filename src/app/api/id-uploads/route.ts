@@ -82,7 +82,10 @@ export async function POST(req: NextRequest) {
     backFilePath = await encryptAndSaveFile(Buffer.from(backBytes));
   }
 
-  const deleteAt = addDays(new Date(), link.retentionDays);
+  const deleteAt =
+    link.retentionDays > 0
+      ? addDays(new Date(), link.retentionDays)
+      : new Date("9999-12-31T23:59:59.999Z");
   let createdUploadId = "";
 
   await db.$transaction(async (tx) => {
