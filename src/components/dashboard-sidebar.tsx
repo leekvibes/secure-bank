@@ -19,7 +19,7 @@ const NAV = [
   { href: "/dashboard/links", label: "Secure Links", icon: Link2, exact: false },
   { href: "/dashboard/submissions", label: "Submissions", icon: Inbox },
   { href: "/dashboard/uploads", label: "Uploads", icon: Upload },
-  { href: "/dashboard/transfers", label: "Transfers", icon: FolderUp },
+  { href: "/dashboard/transfers", label: "Transfers", icon: FolderUp, beta: true },
   { href: "/dashboard/feedback", label: "Feedback", icon: MessageSquare },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
@@ -55,7 +55,7 @@ export function DashboardSidebar({ user }: Props) {
         </div>
 
         <nav className="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
-          {NAV.map(({ href, label, icon: Icon, exact }) => {
+          {NAV.map(({ href, label, icon: Icon, exact, beta }) => {
             const active = isActive(href, exact);
             return (
               <Link
@@ -77,7 +77,12 @@ export function DashboardSidebar({ user }: Props) {
                     active ? "text-sidebar-active" : "text-sidebar-fg group-hover:text-foreground"
                   )}
                 />
-                {label}
+                <span>{label}</span>
+                {beta ? (
+                  <span className="ml-auto rounded-full border border-amber-300/60 bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                    Beta
+                  </span>
+                ) : null}
               </Link>
             );
           })}
@@ -132,7 +137,7 @@ export function DashboardSidebar({ user }: Props) {
             onClick={() => setMobileOpen(false)}
           />
           <nav className="absolute top-14 left-0 right-0 bg-sidebar-bg border-b border-sidebar-border p-3 space-y-0.5 animate-slide-up shadow-lg">
-            {NAV.map(({ href, label, icon: Icon, exact }) => {
+            {NAV.map(({ href, label, icon: Icon, exact, beta }) => {
               const active = isActive(href, exact);
               return (
                 <Link
@@ -155,7 +160,12 @@ export function DashboardSidebar({ user }: Props) {
                       active ? "text-sidebar-active" : "text-sidebar-fg"
                     )}
                   />
-                  {label}
+                  <span>{label}</span>
+                  {beta ? (
+                    <span className="ml-auto rounded-full border border-amber-300/60 bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                      Beta
+                    </span>
+                  ) : null}
                 </Link>
               );
             })}
