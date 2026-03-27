@@ -259,7 +259,7 @@ export function HomePageClient() {
           <Link href="/"><BrandLogo size="sm" /></Link>
           <div className="hidden sm:flex items-center gap-6">
             <Link href="/how-it-works" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">How it works</Link>
-            <Link href="/about" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">About</Link>
+            <Link href="/pricing" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Pricing</Link>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/auth" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors px-3 py-1.5">

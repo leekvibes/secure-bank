@@ -49,7 +49,8 @@ export function AuthForm() {
       if (!res.ok) {
         setError(data.error ?? "Invalid email or password.");
       } else {
-        window.location.href = "/dashboard";
+        const redirectTo = searchParams.get("redirect") ?? "/dashboard";
+        window.location.href = redirectTo;
       }
     } catch {
       setError("Sign-in failed. Please try again.");
@@ -106,9 +107,10 @@ export function AuthForm() {
         setError(loginData.error ?? "Account created, but sign-in failed. Please sign in manually.");
         return;
       }
-      // Redirect to email verification waiting page
+      // Redirect to email verification waiting page, preserving any redirect param
       setError(null);
-      window.location.href = "/verify-email";
+      const redirectParam = searchParams.get("redirect");
+      window.location.href = redirectParam ? `/verify-email?redirect=${encodeURIComponent(redirectParam)}` : "/verify-email";
     } catch {
       setError("Registration failed. Please try again.");
     } finally {
