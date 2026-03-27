@@ -46,7 +46,7 @@ export function DashboardNav({ user }: Props) {
                 <Icon className="w-4 h-4" />
                 {label}
                 {label === "Transfers" && (
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 leading-none">BETA</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 99, background: "#fef3c7", color: "#d97706", lineHeight: 1 }}>BETA</span>
                 )}
               </Link>
             ))}
