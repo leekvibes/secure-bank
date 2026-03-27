@@ -327,53 +327,31 @@ export function HomePageClient() {
         </div>
       </section>
 
-      {/* ── Old way vs new way ─────────────────────────────────────────────── */}
-      <section className="bg-white py-24 px-5">
+      {/* ── How it works ───────────────────────────────────────────────────── */}
+      <section className="bg-[#0F172A] py-24 px-5">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-xs font-semibold text-[#00A3FF] tracking-widest uppercase mb-3">Why SecureLink</p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-[#0F172A] tracking-tight">
-              There's a better way
+            <p className="text-xs font-semibold text-[#00A3FF] tracking-widest uppercase mb-3">How it works</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
+              From request to received in minutes
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-            {/* Old way */}
-            <div className="rounded-2xl border border-red-100 bg-red-50/50 p-7">
-              <div className="flex items-center gap-2 mb-5">
-                <div className="w-7 h-7 rounded-full bg-red-100 flex items-center justify-center">
-                  <X className="w-4 h-4 text-red-500" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+            <div className="hidden md:block absolute top-8 left-[calc(16.66%+2rem)] right-[calc(16.66%+2rem)] h-px bg-gradient-to-r from-transparent via-[#00A3FF]/40 to-transparent" />
+            {[
+              { n: "1", title: "Build your request form", desc: "Choose what to collect — banking info, IDs, signatures, or custom fields. Takes 30 seconds." },
+              { n: "2", title: "Send a secure link", desc: "Copy the link or send it by text. Your client opens it on any device, no account needed." },
+              { n: "3", title: "Receive encrypted data", desc: "Data arrives in your dashboard, encrypted and ready to reveal when you need it." },
+            ].map(({ n, title, desc }) => (
+              <div key={n} className="flex flex-col items-center text-center px-4">
+                <div className="w-14 h-14 rounded-2xl bg-[#00A3FF] flex items-center justify-center mb-6 shadow-lg shadow-[#00A3FF]/30">
+                  <span className="text-2xl font-black text-white">{n}</span>
                 </div>
-                <p className="font-bold text-gray-800">The old way</p>
+                <h3 className="text-base font-bold text-white mb-2">{title}</h3>
+                <p className="text-sm text-white/45 leading-relaxed">{desc}</p>
               </div>
-              <ul className="space-y-3">
-                {OLD_WAY.map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-sm text-gray-600">
-                    <X className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* New way */}
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-7 relative overflow-hidden">
-              <div className="absolute top-3 right-3 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">SecureLink</div>
-              <div className="flex items-center gap-2 mb-5">
-                <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center">
-                  <CheckCircle className="w-4 h-4 text-emerald-500" />
-                </div>
-                <p className="font-bold text-gray-800">The SecureLink way</p>
-              </div>
-              <ul className="space-y-3">
-                {NEW_WAY.map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-sm text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            ))}
           </div>
         </div>
       </section>
@@ -398,35 +376,6 @@ export function HomePageClient() {
                 </div>
                 <h3 className="font-bold text-[#0F172A] mb-2">{title}</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── How it works ───────────────────────────────────────────────────── */}
-      <section className="bg-[#0F172A] py-24 px-5">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-xs font-semibold text-[#00A3FF] tracking-widest uppercase mb-3">How it works</p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
-              Up and running in under 2 minutes
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-            <div className="hidden md:block absolute top-8 left-[calc(16.66%+2rem)] right-[calc(16.66%+2rem)] h-px bg-gradient-to-r from-transparent via-[#00A3FF]/40 to-transparent" />
-            {[
-              { n: "1", title: "Create your request", desc: "Pick what to collect — banking info, ID, signature, or custom form. 30 seconds." },
-              { n: "2", title: "Send the link", desc: "Copy and paste or send by email. Client opens it on any phone or computer — no app needed." },
-              { n: "3", title: "Receive encrypted data", desc: "Data arrives in your dashboard, encrypted. Reveal it when you're ready." },
-            ].map(({ n, title, desc }) => (
-              <div key={n} className="flex flex-col items-center text-center px-4">
-                <div className="w-14 h-14 rounded-2xl bg-[#00A3FF] flex items-center justify-center mb-6 shadow-lg shadow-[#00A3FF]/30">
-                  <span className="text-2xl font-black text-white">{n}</span>
-                </div>
-                <h3 className="text-base font-bold text-white mb-2">{title}</h3>
-                <p className="text-sm text-white/45 leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
