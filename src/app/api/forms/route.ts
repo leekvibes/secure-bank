@@ -3,12 +3,23 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import { createFormSchema } from "@/lib/schemas";
+import { getPlan } from "@/lib/plans";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
+    // Plan gating
+    const userPlan = await db.user.findUnique({ where: { id: session.user.id }, select: { plan: true } });
+    const planConfig = getPlan(userPlan?.plan ?? "FREE");
+    if (!planConfig.canUseForms) {
+      return NextResponse.json(
+        { error: "Custom forms are available on Pro and Agency plans. Upgrade to unlock.", code: "UPGRADE_REQUIRED" },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
     const parsed = createFormSchema.safeParse(body);
     if (!parsed.success) {
@@ -16,13 +27,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: first ?? "Invalid input" }, { status: 400 });
     }
 
+    const user = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { dataRetentionDays: true },
+    });
+
     const { title, description, retentionDays, fields } = parsed.data;
+    const effectiveRetentionDays =
+      retentionDays === undefined ? (user?.dataRetentionDays ?? 30) : retentionDays;
 
     const form = await db.form.create({
       data: {
         title,
         description: description ?? null,
-        retentionDays,
+        retentionDays: effectiveRetentionDays,
         agentId: session.user.id,
         fields: {
           create: fields.map((f, idx) => ({

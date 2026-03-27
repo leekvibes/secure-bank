@@ -9,6 +9,7 @@ import { assertAssetOwnership } from "@/lib/asset-library";
 import { addHours } from "date-fns";
 import { buildTrustMessage } from "@/lib/link-message";
 import { applyTemplateDefaults } from "@/lib/link-templates";
+import { getPlan, getMonthlyLinkCount } from "@/lib/plans";
 
 function isPrismaSchemaDriftError(err: unknown): boolean {
   const message = err instanceof Error ? err.message : "";
@@ -38,8 +39,26 @@ export async function POST(req: NextRequest) {
 
     const agent = await db.user.findUnique({
       where: { id: session.user.id },
-      select: { defaultExpirationHours: true, trustMessage: true, destinationLabel: true },
+      select: {
+        defaultExpirationHours: true,
+        trustMessage: true,
+        destinationLabel: true,
+        dataRetentionDays: true,
+        plan: true,
+      },
     });
+
+    // Plan gating — check monthly link limit
+    const planConfig = getPlan(agent?.plan ?? "FREE");
+    if (planConfig.monthlyLinkLimit !== null) {
+      const used = await getMonthlyLinkCount(db, session.user.id);
+      if (used >= planConfig.monthlyLinkLimit) {
+        return NextResponse.json(
+          { error: `You've reached your ${planConfig.name} plan limit of ${planConfig.monthlyLinkLimit} links/month. Upgrade to send more.`, code: "UPGRADE_REQUIRED" },
+          { status: 403 }
+        );
+      }
+    }
 
     let payload = parsed.data;
 
@@ -103,6 +122,8 @@ export async function POST(req: NextRequest) {
     const effectiveExpirationHours =
       linkType === "SSN_ONLY" && expirationHours === 24 ? 168 : expirationHours;
     const expiresAt = addHours(new Date(), effectiveExpirationHours);
+    const effectiveRetentionDays =
+      retentionDays === undefined ? (agent?.dataRetentionDays ?? 30) : retentionDays;
 
     const normalizedDestination =
       destinationLabel?.trim() || destination?.trim() || "Internal processing";
@@ -121,7 +142,7 @@ export async function POST(req: NextRequest) {
           clientPhone: clientPhone || null,
           clientEmail: clientEmail || null,
           expiresAt,
-          retentionDays,
+          retentionDays: effectiveRetentionDays,
           agentId: session.user.id,
           assets:
             uniqueAssetIds.length > 0
@@ -146,7 +167,7 @@ export async function POST(req: NextRequest) {
           clientPhone: clientPhone || null,
           clientEmail: clientEmail || null,
           expiresAt,
-          retentionDays,
+          retentionDays: effectiveRetentionDays,
           agentId: session.user.id,
         },
         select: { id: true, destination: true },
