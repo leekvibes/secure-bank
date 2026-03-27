@@ -188,8 +188,10 @@ export default function PricingPage() {
         return;
       }
 
-      // Go directly to checkout
-      window.location.href = `/checkout?plan=${selectedPlan}&next=${encodeURIComponent("/onboarding/first-request")}`;
+      // Go to checkout — after payment, redirect to email verification, then onboarding
+      const afterVerify = encodeURIComponent("/onboarding/first-request");
+      const next = encodeURIComponent(`/verify-email?redirect=${afterVerify}`);
+      window.location.href = `/checkout?plan=${selectedPlan}&next=${next}`;
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
