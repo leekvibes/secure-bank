@@ -45,6 +45,9 @@ export function DashboardNav({ user }: Props) {
               >
                 <Icon className="w-4 h-4" />
                 {label}
+                {label === "Transfers" && (
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 leading-none">BETA</span>
+                )}
               </Link>
             ))}
           </nav>
