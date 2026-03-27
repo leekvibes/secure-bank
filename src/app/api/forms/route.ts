@@ -72,6 +72,15 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
+    const userPlan = await db.user.findUnique({ where: { id: session.user.id }, select: { plan: true } });
+    const planConfig = getPlan(userPlan?.plan ?? "FREE");
+    if (!planConfig.canUseForms) {
+      return NextResponse.json(
+        { error: "Custom forms are available on Pro and Agency plans. Upgrade to unlock.", code: "UPGRADE_REQUIRED" },
+        { status: 403 }
+      );
+    }
+
     const forms = await db.form.findMany({
       where: { agentId: session.user.id },
       include: {

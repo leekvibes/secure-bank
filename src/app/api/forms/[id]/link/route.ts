@@ -7,6 +7,7 @@ import { generateToken } from "@/lib/tokens";
 import { addHours } from "date-fns";
 import { assertAssetOwnership } from "@/lib/asset-library";
 import { NO_STORE_HEADERS } from "@/lib/http";
+import { getPlan } from "@/lib/plans";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -24,6 +25,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json(
       { error: "Form not found" },
       { status: 404, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const userPlan = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { plan: true },
+  });
+  const planConfig = getPlan(userPlan?.plan ?? "FREE");
+  if (!planConfig.canUseForms) {
+    return NextResponse.json(
+      { error: "Custom forms are available on Pro and Agency plans. Upgrade to unlock." },
+      { status: 403, headers: NO_STORE_HEADERS }
     );
   }
 

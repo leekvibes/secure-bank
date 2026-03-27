@@ -5,11 +5,28 @@ import { db } from "@/lib/db";
 import { NO_STORE_HEADERS } from "@/lib/http";
 
 const MAX_PHOTO_BYTES = 512 * 1024;
+const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE_HEADERS });
+  }
+
+  // Rate limit photo changes to once per week
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { photoChangedAt: true },
+  });
+  if (user?.photoChangedAt) {
+    const elapsed = Date.now() - user.photoChangedAt.getTime();
+    if (elapsed < ONE_WEEK_MS) {
+      const daysLeft = Math.ceil((ONE_WEEK_MS - elapsed) / (24 * 60 * 60 * 1000));
+      return NextResponse.json(
+        { error: `You can only change your profile photo once per week. Try again in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}.` },
+        { status: 429, headers: NO_STORE_HEADERS }
+      );
+    }
   }
 
   const formData = await req.formData().catch(() => null);
@@ -42,7 +59,7 @@ export async function POST(req: NextRequest) {
 
   await db.user.update({
     where: { id: session.user.id },
-    data: { photoUrl },
+    data: { photoUrl, photoChangedAt: new Date() },
   });
 
   return NextResponse.json({ success: true, photoUrl }, { headers: NO_STORE_HEADERS });

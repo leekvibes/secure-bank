@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   user: { name: string; email: string };
+  canUseTransfers: boolean;
 }
 
 const NAV = [
@@ -24,9 +25,10 @@ const NAV = [
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
-export function DashboardSidebar({ user }: Props) {
+export function DashboardSidebar({ user, canUseTransfers }: Props) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const navItems = canUseTransfers ? NAV : NAV.filter((item) => item.href !== "/dashboard/transfers");
 
   const initials = user.name
     .split(" ")
@@ -55,7 +57,7 @@ export function DashboardSidebar({ user }: Props) {
         </div>
 
         <nav className="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
-          {NAV.map(({ href, label, icon: Icon, exact, beta }) => {
+          {navItems.map(({ href, label, icon: Icon, exact, beta }) => {
             const active = isActive(href, exact);
             return (
               <Link
@@ -137,7 +139,7 @@ export function DashboardSidebar({ user }: Props) {
             onClick={() => setMobileOpen(false)}
           />
           <nav className="absolute top-14 left-0 right-0 bg-sidebar-bg border-b border-sidebar-border p-3 space-y-0.5 animate-slide-up shadow-lg">
-            {NAV.map(({ href, label, icon: Icon, exact, beta }) => {
+            {navItems.map(({ href, label, icon: Icon, exact, beta }) => {
               const active = isActive(href, exact);
               return (
                 <Link

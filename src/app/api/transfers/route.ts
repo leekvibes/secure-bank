@@ -13,6 +13,12 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return apiError(401, "UNAUTHORIZED", "Unauthorized");
 
+  const user = await db.user.findUnique({ where: { id: session.user.id }, select: { plan: true } });
+  const planConfig = getPlan(user?.plan ?? "FREE");
+  if (!planConfig.canUseTransfers) {
+    return apiError(403, "UPGRADE_REQUIRED", "File transfers are available on Pro and Agency plans. Upgrade to unlock.");
+  }
+
   const transfers = await db.fileTransfer.findMany({
     where: { agentId: session.user.id },
     include: { files: { select: { id: true, fileName: true, sizeBytes: true, mimeType: true, downloadCount: true } } },

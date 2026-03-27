@@ -176,6 +176,7 @@ function NewLinkPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [upgradeRequired, setUpgradeRequired] = useState(false);
   const [created, setCreated] = useState<CreatedLink | null>(null);
 
   const [copied, setCopied] = useState(false);
@@ -312,6 +313,7 @@ function NewLinkPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setUpgradeRequired(false);
 
     if (linkType === "CUSTOM_FORM") {
       if (!selectedFormId) {
@@ -374,6 +376,7 @@ function NewLinkPage() {
     setLoading(false);
 
     if (!res.ok) {
+      if (data.code === "UPGRADE_REQUIRED") { setUpgradeRequired(true); }
       setError(data.error ?? "Something went wrong.");
       return;
     }
@@ -735,8 +738,16 @@ function NewLinkPage() {
         <div className="grid lg:grid-cols-[1fr_360px] gap-8 items-start">
           <div className="space-y-5">
             {error && (
-              <div className="p-3.5 bg-destructive/10 border border-destructive/20 rounded-xl text-sm text-destructive">
-                {error}
+              <div className={`p-3.5 rounded-xl text-sm ${upgradeRequired ? "bg-amber-500/10 border border-amber-500/30 text-amber-700" : "bg-destructive/10 border border-destructive/20 text-destructive"}`}>
+                <p>{error}</p>
+                {upgradeRequired && (
+                  <a
+                    href="/dashboard/settings#billing"
+                    className="inline-flex items-center gap-1 mt-2 font-semibold text-amber-700 hover:text-amber-800 underline underline-offset-2"
+                  >
+                    Upgrade your plan →
+                  </a>
+                )}
               </div>
             )}
 

@@ -9,7 +9,7 @@ import { assertAssetOwnership } from "@/lib/asset-library";
 import { addHours } from "date-fns";
 import { buildTrustMessage } from "@/lib/link-message";
 import { applyTemplateDefaults } from "@/lib/link-templates";
-import { getPlan, getMonthlyLinkCount } from "@/lib/plans";
+import { getPlan, getMonthlyLinkCount, getTotalLinkCount } from "@/lib/plans";
 
 function isPrismaSchemaDriftError(err: unknown): boolean {
   const message = err instanceof Error ? err.message : "";
@@ -48,13 +48,21 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Plan gating — check monthly link limit
+    // Plan gating — check link limit
     const planConfig = getPlan(agent?.plan ?? "FREE");
-    if (planConfig.monthlyLinkLimit !== null) {
-      const used = await getMonthlyLinkCount(db, session.user.id);
-      if (used >= planConfig.monthlyLinkLimit) {
+    if (planConfig.linkLimit !== null) {
+      const used = planConfig.lifetimeLimit
+        ? await getTotalLinkCount(db, session.user.id)
+        : await getMonthlyLinkCount(db, session.user.id);
+      if (used >= planConfig.linkLimit) {
+        const limitLabel = planConfig.lifetimeLimit
+          ? `${planConfig.linkLimit} links total`
+          : `${planConfig.linkLimit} links/month`;
         return NextResponse.json(
-          { error: `You've reached your ${planConfig.name} plan limit of ${planConfig.monthlyLinkLimit} links/month. Upgrade to send more.`, code: "UPGRADE_REQUIRED" },
+          {
+            error: `You've used all ${limitLabel} on the ${planConfig.name} plan. Upgrade to send more.`,
+            code: "UPGRADE_REQUIRED",
+          },
           { status: 403 }
         );
       }

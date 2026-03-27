@@ -78,7 +78,7 @@ export function BillingPanel({ plan, hasSubscription }: Props) {
   const isPaid = plan !== "FREE";
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6 space-y-5">
+    <div id="billing" className="rounded-xl border border-border bg-card p-6 space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

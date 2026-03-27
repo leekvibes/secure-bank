@@ -8,6 +8,7 @@ import { sendSecureLinkEmail } from "@/lib/email";
 import { isValidEmailAddress, isValidPhoneNumber } from "@/lib/validation";
 import { writeAuditLog } from "@/lib/audit";
 import { NO_STORE_HEADERS } from "@/lib/http";
+import { getPlan } from "@/lib/plans";
 
 const sendSchema = z.object({
   method: z.enum(["SMS", "EMAIL", "COPY", "SHARE"]),
@@ -39,12 +40,20 @@ export async function POST(
 
   const formLink = await db.formLink.findFirst({
     where: { id: params.id, form: { agentId: session.user.id } },
-    include: { form: { select: { title: true, agentId: true, agent: { select: { displayName: true } } } } },
+    include: { form: { select: { title: true, agentId: true, agent: { select: { displayName: true, plan: true } } } } },
   });
   if (!formLink) {
     return NextResponse.json(
       { error: "Link not found." },
       { status: 404, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const planConfig = getPlan(formLink.form.agent.plan ?? "FREE");
+  if (!planConfig.canUseForms) {
+    return NextResponse.json(
+      { error: "Custom forms are available on Pro and Agency plans. Upgrade to unlock." },
+      { status: 403, headers: NO_STORE_HEADERS }
     );
   }
 

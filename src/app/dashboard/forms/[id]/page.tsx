@@ -8,6 +8,7 @@ import { ArrowLeft, Lock, CheckCircle2, Clock, Eye, ExternalLink } from "lucide-
 import { Button } from "@/components/ui/button";
 import { formatDate, isExpired } from "@/lib/utils";
 import { FormFieldEditor } from "@/components/form-field-editor";
+import { FormLinkGenerator } from "@/components/form-link-generator";
 
 export const metadata: Metadata = {
   title: "Form Details",
@@ -201,18 +202,10 @@ export default async function FormDetailPage({ params }: { params: { id: string 
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-xl border border-border/40 bg-card p-5">
-            <h3 className="text-sm font-semibold text-foreground mb-1">Generate a link</h3>
-            <p className="text-xs text-muted-foreground mb-3">
-              Create a secure link to share this form with a client.
-            </p>
-            <Button asChild size="sm" className="w-full gap-1.5">
-              <Link href={`/dashboard/new?formId=${form.id}`}>
-                <Lock className="w-3.5 h-3.5" />
-                Generate secure link
-              </Link>
-            </Button>
-          </div>
+          <FormLinkGenerator
+            formId={form.id}
+            formTitle={form.title}
+          />
 
           {activeLinks.length > 0 && (
             <div className="ui-table-wrap">

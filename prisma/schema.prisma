@@ -35,6 +35,9 @@ model User {
   plan                 String  @default("FREE")  // FREE | BEGINNER | PRO | AGENCY
   stripeCustomerId     String?
   stripeSubscriptionId String?
+  // Profile change rate limiting (once per week)
+  nameChangedAt        DateTime?
+  photoChangedAt       DateTime?
   // Onboarding
   onboardingCompleted Boolean @default(false)
   role               String    @default("AGENT") // AGENT | ADMIN
