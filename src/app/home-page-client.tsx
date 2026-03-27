@@ -315,15 +315,46 @@ export function HomePageClient() {
         </div>
       </section>
 
-      {/* ── Stats bar ──────────────────────────────────────────────────────── */}
-      <section className="bg-[#00A3FF] py-10 px-5">
-        <div className="max-w-5xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-8">
-          {STATS.map(({ n, label }) => (
-            <div key={n} className="text-center">
-              <p className="text-2xl sm:text-3xl font-black text-white mb-1">{n}</p>
-              <p className="text-xs text-white/70 leading-tight">{label}</p>
-            </div>
-          ))}
+      {/* ── Marquee ticker ─────────────────────────────────────────────────── */}
+      <section className="bg-[#00A3FF] py-3 overflow-hidden">
+        <style>{`
+          @keyframes marquee {
+            0%   { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+          }
+          .marquee-track { animation: marquee 28s linear infinite; }
+        `}</style>
+        <div className="flex whitespace-nowrap">
+          <div className="marquee-track flex items-center gap-0 shrink-0">
+            {[
+              { icon: "🔒", text: "256-bit AES Encryption" },
+              { icon: "⚡", text: "Send a request in under 30 seconds" },
+              { icon: "🛡️", text: "Zero sensitive data in plaintext" },
+              { icon: "🕐", text: "24/7 audit log on every action" },
+              { icon: "📱", text: "No app required for clients" },
+              { icon: "👁️", text: "View-once data protection" },
+              { icon: "⏱️", text: "Auto-expiring secure links" },
+              { icon: "🔐", text: "Encrypted in transit & at rest" },
+              { icon: "✅", text: "Built for compliance-driven industries" },
+              { icon: "📲", text: "Mobile-friendly on any device" },
+              { icon: "🔒", text: "256-bit AES Encryption" },
+              { icon: "⚡", text: "Send a request in under 30 seconds" },
+              { icon: "🛡️", text: "Zero sensitive data in plaintext" },
+              { icon: "🕐", text: "24/7 audit log on every action" },
+              { icon: "📱", text: "No app required for clients" },
+              { icon: "👁️", text: "View-once data protection" },
+              { icon: "⏱️", text: "Auto-expiring secure links" },
+              { icon: "🔐", text: "Encrypted in transit & at rest" },
+              { icon: "✅", text: "Built for compliance-driven industries" },
+              { icon: "📲", text: "Mobile-friendly on any device" },
+            ].map(({ icon, text }, i) => (
+              <span key={i} className="inline-flex items-center gap-2 text-white text-xs font-semibold px-6">
+                <span>{icon}</span>
+                <span>{text}</span>
+                <span className="text-white/30 ml-4">·</span>
+              </span>
+            ))}
+          </div>
         </div>
       </section>
 
