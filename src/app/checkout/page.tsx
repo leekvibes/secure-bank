@@ -37,7 +37,7 @@ async function getStripePromise(): Promise<Promise<Stripe | null>> {
   if (!stripePromise) {
     const res = await fetch("/api/stripe/config");
     const data = await res.json();
-    if (data.publishableKey) {
+    if (typeof data?.publishableKey === "string" && data.publishableKey.length > 0) {
       stripePromise = loadStripe(data.publishableKey);
     } else {
       stripePromise = Promise.resolve(null);
@@ -59,7 +59,6 @@ function CheckoutInner() {
   }, []);
 
   const fetchClientSecret = useCallback(async () => {
-    const successUrl = `${window.location.origin}${next}`;
     const res = await fetch("/api/stripe/embedded-checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -69,10 +68,14 @@ function CheckoutInner() {
       }),
     });
     const data = await res.json();
-    if (!data.data?.clientSecret) {
+    if (res.status === 401) {
+      window.location.href = `/auth?mode=signin&redirect=${encodeURIComponent(`/checkout?plan=${plan}&next=${next}`)}`;
+      throw new Error("Please sign in to continue.");
+    }
+    if (typeof data?.clientSecret !== "string" || data.clientSecret.length === 0) {
       throw new Error(data.error?.message ?? "Failed to create checkout session.");
     }
-    return data.data.clientSecret as string;
+    return data.clientSecret as string;
   }, [plan, next]);
 
   const planDetails = PLAN_DETAILS[plan];

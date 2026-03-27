@@ -48,6 +48,10 @@ export async function POST(req: NextRequest) {
       subscription_data: { metadata: { userId: session.user.id, plan } },
     });
 
+    if (!checkoutSession.client_secret) {
+      return apiError(500, "NO_CLIENT_SECRET", "Stripe did not return a client secret.");
+    }
+
     return apiSuccess({ clientSecret: checkoutSession.client_secret });
   } catch (err) {
     console.error("[stripe/embedded-checkout] Unexpected error:", err);
