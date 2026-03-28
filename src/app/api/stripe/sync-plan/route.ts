@@ -21,7 +21,15 @@ export async function POST(req: NextRequest) {
     });
 
     if (checkoutSession.status !== "complete") {
-      return apiError(400, "CHECKOUT_INCOMPLETE", "Payment not completed.");
+      return apiError(
+        409,
+        "CHECKOUT_PENDING",
+        "Checkout is still finalizing. Please wait a moment and retry.",
+        {
+          checkoutStatus: checkoutSession.status,
+          paymentStatus: checkoutSession.payment_status ?? null,
+        }
+      );
     }
 
     // Prefer userId from Stripe metadata — more reliable than session cookie
