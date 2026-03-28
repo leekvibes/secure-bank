@@ -12,9 +12,6 @@ export async function POST(req: NextRequest) {
       return apiError(503, "STRIPE_NOT_CONFIGURED", "Billing is not configured.");
     }
 
-    const session = await getServerSession(authOptions);
-    if (!session) return apiError(401, "UNAUTHORIZED", "Please sign in to continue.");
-
     const body = await req.json() as { sessionId: string };
     const { sessionId } = body;
     if (!sessionId) return apiError(400, "MISSING_SESSION_ID", "Session ID required.");
@@ -27,6 +24,21 @@ export async function POST(req: NextRequest) {
       return apiError(400, "CHECKOUT_INCOMPLETE", "Payment not completed.");
     }
 
+    // Prefer userId from Stripe metadata — more reliable than session cookie
+    // after a redirect (cookie can be stale, metadata is always accurate)
+    const metaUserId = checkoutSession.metadata?.userId;
+    let userId: string | null = metaUserId ?? null;
+
+    if (!userId) {
+      // Fall back to session cookie
+      const session = await getServerSession(authOptions);
+      userId = session?.user?.id ?? null;
+    }
+
+    if (!userId) {
+      return apiError(401, "UNAUTHORIZED", "Could not identify user. Please sign in and try again.");
+    }
+
     const sub = checkoutSession.subscription;
     const subId = typeof sub === "string" ? sub : sub?.id;
     const priceId = typeof sub === "string"
@@ -37,19 +49,22 @@ export async function POST(req: NextRequest) {
       ?? (priceId ? planFromPriceId(priceId) : "FREE");
 
     const user = await db.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId },
       select: { email: true, displayName: true },
     });
 
+    if (!user) return apiError(404, "NOT_FOUND", "User not found.");
+
     await db.user.update({
-      where: { id: session.user.id },
+      where: { id: userId },
       data: {
         plan,
         ...(subId ? { stripeSubscriptionId: subId } : {}),
+        ...(checkoutSession.customer ? { stripeCustomerId: checkoutSession.customer as string } : {}),
       },
     });
 
-    if (user && plan !== "FREE") {
+    if (plan !== "FREE") {
       sendPlanUpgradeEmail({
         toEmail: user.email,
         toName: user.displayName.split(" ")[0],
