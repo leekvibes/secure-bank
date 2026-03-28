@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Mail, Calendar, Link2, FileText, Shield, Star } from "lucide-react";
+import { ArrowLeft, Mail, Calendar, Link2, FileText, Shield } from "lucide-react";
 import { AdminnnUserActions } from "@/components/adminn-user-actions";
 import { formatDate } from "@/lib/utils";
 
@@ -22,7 +22,7 @@ export default async function AdminnnUserDetailPage({ params }: { params: { id: 
         planOverride: true, planOverrideNote: true, planOverrideBy: true, planOverriddenAt: true,
         emailVerified: true, bannedAt: true, banReason: true, createdAt: true, updatedAt: true,
         stripeSubscriptionId: true, stripeCustomerId: true, role: true, industry: true,
-        onboardingCompleted: true, verificationStatus: true,
+        onboardingCompleted: true,
         _count: { select: { links: true, forms: true } },
       },
     }),
@@ -73,7 +73,6 @@ export default async function AdminnnUserDetailPage({ params }: { params: { id: 
                 { label: "Links", value: user._count.links, icon: Link2 },
                 { label: "Forms", value: user._count.forms, icon: FileText },
                 { label: "Company", value: user.company ?? "—", icon: Shield },
-                { label: "Verification", value: user.verificationStatus, icon: Star },
                 { label: "Stripe Customer", value: user.stripeCustomerId ? "Connected" : "None", icon: Shield },
                 { label: "Subscription", value: user.stripeSubscriptionId ? "Active" : "None", icon: Shield },
                 { label: "Onboarding", value: user.onboardingCompleted ? "Done" : "Incomplete", icon: CheckCircleIcon },
