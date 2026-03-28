@@ -5,9 +5,10 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
 import {
-  Lock, LayoutDashboard, Inbox,
+  LayoutDashboard, Inbox,
   Upload, Settings, LogOut, Link2, Menu, X, FolderUp, MessageSquare,
 } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -48,12 +49,7 @@ export function DashboardSidebar({ user, canUseTransfers }: Props) {
     <>
       <aside className="fixed inset-y-0 left-0 w-60 bg-sidebar-bg flex-col z-30 hidden lg:flex border-r border-sidebar-border">
         <div className="h-16 flex items-center px-5 border-b border-sidebar-border shrink-0">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary shadow-sm">
-            <Lock className="w-4 h-4 text-white" />
-          </div>
-          <span className="ml-2.5 font-semibold text-foreground tracking-tight text-sm">
-            Secure Link
-          </span>
+          <BrandLogo size="sm" />
         </div>
 
         <nav className="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
@@ -119,10 +115,7 @@ export function DashboardSidebar({ user, canUseTransfers }: Props) {
         >
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-primary shrink-0">
-          <Lock className="w-3.5 h-3.5 text-white" />
-        </div>
-        <span className="font-semibold text-foreground text-sm flex-1">Secure Link</span>
+        <BrandLogo size="sm" />
 
         <button
           onClick={() => signOut({ callbackUrl: "/" })}
