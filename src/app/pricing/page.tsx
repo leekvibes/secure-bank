@@ -304,7 +304,7 @@ export default function PricingPage() {
       {/* Inline auth modal */}
       {selectedPlan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto">
             <button onClick={closeModal} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors">
               <X className="w-5 h-5" />
             </button>

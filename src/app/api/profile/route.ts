@@ -60,6 +60,7 @@ export async function PATCH(req: NextRequest) {
         dataRetentionDays: d.dataRetentionDays ?? undefined,
         trustMessage: d.trustMessage !== undefined ? (d.trustMessage || null) : undefined,
         defaultExpirationHours: d.defaultExpirationHours ?? undefined,
+        onboardingCompleted: d.onboardingCompleted ?? undefined,
       },
     });
 

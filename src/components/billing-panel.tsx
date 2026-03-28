@@ -120,7 +120,7 @@ export function BillingPanel({ plan, hasSubscription }: Props) {
       )}
 
       {/* Manage billing for paid subscribers */}
-      {isPaid && hasSubscription && (
+      {isPaid && (
         <button
           onClick={openPortal}
           disabled={portalLoading}

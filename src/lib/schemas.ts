@@ -184,6 +184,7 @@ export const updateProfileSchema = z.object({
   dataRetentionDays: z.number().int().refine((v) => [30, 60, 90, -1].includes(v)).optional(),
   trustMessage: z.string().max(2000).optional(),
   defaultExpirationHours: z.number().int().min(1).max(168).optional(),
+  onboardingCompleted: z.boolean().optional(),
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 

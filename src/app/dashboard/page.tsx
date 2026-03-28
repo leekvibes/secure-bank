@@ -6,6 +6,8 @@ import Link from "next/link";
 import { Plus, Link2, Clock, CheckCircle2, FileText, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LinkRow } from "@/components/link-row";
+import { getPlan, getMonthlyLinkCount, getTotalLinkCount } from "@/lib/plans";
+import { OnboardingChecklist } from "@/components/onboarding-checklist";
 
 export const metadata: Metadata = {
   title: "Overview",
@@ -14,6 +16,31 @@ export const metadata: Metadata = {
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session) return null;
+
+  // Fetch user profile for onboarding + plan usage
+  const userProfile = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      plan: true,
+      logoUrl: true,
+      displayName: true,
+      agencyName: true,
+      onboardingCompleted: true,
+    },
+  });
+
+  const plan = userProfile?.plan ?? "FREE";
+  const planConfig = getPlan(plan);
+
+  // Fetch link usage count
+  let usedLinks = 0;
+  try {
+    usedLinks = planConfig.lifetimeLimit
+      ? await getTotalLinkCount(db, session.user.id)
+      : await getMonthlyLinkCount(db, session.user.id);
+  } catch {
+    usedLinks = 0;
+  }
 
   await db.secureLink.updateMany({
     where: {
@@ -83,6 +110,15 @@ export default async function DashboardPage() {
   const pending = links.filter((l) => l.status === "CREATED" || l.status === "OPENED").length;
   const total = links.length + idUploads.length;
 
+  // Usage indicator data
+  const linkLimit = planConfig.linkLimit;
+  const percentUsed = linkLimit !== null ? Math.round((usedLinks / linkLimit) * 100) : null;
+  const isUnlimited = linkLimit === null;
+  const hasLinks = total > 0;
+  const hasLogo = Boolean(userProfile?.logoUrl);
+  const hasProfile = Boolean(userProfile?.displayName && userProfile?.agencyName);
+  const onboardingCompleted = userProfile?.onboardingCompleted ?? false;
+
   const stats = [
     {
       label: "Total Links",
@@ -125,8 +161,8 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8 animate-fade-in">
 
-      <div className="flex items-start justify-between">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Overview
           </h1>
@@ -134,12 +170,77 @@ export default async function DashboardPage() {
             Welcome back, {session.user.name.split(" ")[0]}. Here&apos;s what&apos;s happening.
           </p>
         </div>
-        <Button asChild>
+        <Button asChild className="shrink-0">
           <Link href="/dashboard/new">
             <Plus className="w-4 h-4" />
             New link
           </Link>
         </Button>
+      </div>
+
+      {/* Usage indicator */}
+      {!onboardingCompleted && (
+        <OnboardingChecklist
+          hasLogo={hasLogo}
+          hasProfile={hasProfile}
+          hasLinks={hasLinks}
+          plan={plan}
+          onboardingCompleted={onboardingCompleted}
+        />
+      )}
+
+      <div className="rounded-xl border border-border bg-card px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        {isUnlimited ? (
+          <>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Link Usage</p>
+              <p className="text-sm font-medium text-foreground">{planConfig.name} Plan — Unlimited links</p>
+            </div>
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+              Unlimited
+            </span>
+          </>
+        ) : (
+          <>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Link Usage — {planConfig.name}
+                </p>
+                <span className={`text-xs font-semibold ${
+                  percentUsed !== null && percentUsed >= 100
+                    ? "text-red-600"
+                    : percentUsed !== null && percentUsed >= 80
+                    ? "text-amber-600"
+                    : "text-muted-foreground"
+                }`}>
+                  {usedLinks} / {linkLimit} {planConfig.lifetimeLimit ? "lifetime" : "this month"}
+                </span>
+              </div>
+              <div className="w-full h-1.5 rounded-full bg-secondary overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    percentUsed !== null && percentUsed >= 100
+                      ? "bg-red-500"
+                      : percentUsed !== null && percentUsed >= 80
+                      ? "bg-amber-500"
+                      : "bg-primary"
+                  }`}
+                  style={{ width: `${Math.min(percentUsed ?? 0, 100)}%` }}
+                />
+              </div>
+            </div>
+            {percentUsed !== null && percentUsed >= 100 && (
+              <Link
+                href="/dashboard/settings#billing"
+                className="shrink-0 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                Upgrade
+              </Link>
+            )}
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
