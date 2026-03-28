@@ -8,13 +8,32 @@ import Link from "next/link";
 function ReturnInner() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
-  const next = searchParams.get("next") ?? "/dashboard";
+  const nextParam = searchParams.get("next") ?? "/dashboard";
 
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    if (!sessionId) {
+    // Backward-compatible fallback:
+    // Older return URLs could accidentally place session_id inside `next`.
+    let resolvedSessionId = sessionId;
+    let next = nextParam;
+
+    if (!resolvedSessionId && nextParam.includes("session_id=")) {
+      try {
+        const parsed = new URL(nextParam, window.location.origin);
+        const embeddedSessionId = parsed.searchParams.get("session_id");
+        if (embeddedSessionId) {
+          resolvedSessionId = embeddedSessionId;
+          parsed.searchParams.delete("session_id");
+          next = `${parsed.pathname}${parsed.search}`;
+        }
+      } catch {
+        // Ignore parse failure and continue with standard error path.
+      }
+    }
+
+    if (!resolvedSessionId) {
       setStatus("error");
       setMessage("No session ID found. Please contact support.");
       return;
@@ -23,7 +42,7 @@ function ReturnInner() {
     fetch("/api/stripe/sync-plan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId }),
+      body: JSON.stringify({ sessionId: resolvedSessionId }),
     })
       .then((r) => r.json())
       .then((data) => {
@@ -41,7 +60,7 @@ function ReturnInner() {
         setStatus("error");
         setMessage("Network error. Please contact support.");
       });
-  }, [sessionId, next]);
+  }, [sessionId, nextParam]);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4">
