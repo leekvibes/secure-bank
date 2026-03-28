@@ -1159,20 +1159,6 @@ function NewLinkPage() {
               </div>
             )}
 
-            <Button
-              type="submit"
-              size="lg"
-              className="w-full gap-2"
-              disabled={loading || (linkType === "CUSTOM_FORM" && !selectedFormId)}
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Lock className="w-4 h-4" />
-              )}
-              {loading ? "Creating..." : "Generate secure link"}
-            </Button>
-
             {upgradeRequired && (
               <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 px-4 py-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 min-w-0">
@@ -1187,6 +1173,20 @@ function NewLinkPage() {
                 </a>
               </div>
             )}
+
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full gap-2"
+              disabled={loading || (linkType === "CUSTOM_FORM" && !selectedFormId)}
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Lock className="w-4 h-4" />
+              )}
+              {loading ? "Creating..." : "Generate secure link"}
+            </Button>
           </div>
 
           <div className="lg:sticky lg:top-6">
