@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { signUpSchema } from "@/lib/schemas";
 import { generateSlug } from "@/lib/tokens";
-import { sendEmailVerification } from "@/lib/email";
+import { sendEmailVerification, sendNewSignupNotification } from "@/lib/email";
 import { randomBytes } from "crypto";
 
 function prismaErrorCode(err: unknown): string | null {
@@ -83,6 +83,11 @@ export async function POST(req: NextRequest) {
         verifyUrl,
         expiresIn: "24 hours",
       });
+      sendNewSignupNotification({
+        newUserEmail: normalizedEmail,
+        newUserName: displayName,
+        signedUpAt: new Date().toLocaleString("en-US", { timeZone: "America/New_York", dateStyle: "medium", timeStyle: "short" }),
+      }).catch(() => {});
     }
 
     return NextResponse.json({ success: true }, { status: 201 });

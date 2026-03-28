@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import { getStripe, isStripeConfigured, planFromPriceId } from "@/lib/stripe";
 import { apiError, apiSuccess } from "@/lib/api-response";
+import { sendPlanUpgradeEmail } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
   try {
@@ -35,6 +36,11 @@ export async function POST(req: NextRequest) {
     const plan = checkoutSession.metadata?.plan
       ?? (priceId ? planFromPriceId(priceId) : "FREE");
 
+    const user = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { email: true, displayName: true },
+    });
+
     await db.user.update({
       where: { id: session.user.id },
       data: {
@@ -42,6 +48,14 @@ export async function POST(req: NextRequest) {
         ...(subId ? { stripeSubscriptionId: subId } : {}),
       },
     });
+
+    if (user && plan !== "FREE") {
+      sendPlanUpgradeEmail({
+        toEmail: user.email,
+        toName: user.displayName.split(" ")[0],
+        plan,
+      }).catch(() => {});
+    }
 
     return apiSuccess({ plan });
   } catch (err) {

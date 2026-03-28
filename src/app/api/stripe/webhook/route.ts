@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getStripe, planFromPriceId, isStripeConfigured } from "@/lib/stripe";
 import { db } from "@/lib/db";
+import { sendSubscriptionCancelledEmail, sendPaymentFailedEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +72,10 @@ export async function POST(req: NextRequest) {
         const sub = event.data.object as import("stripe").Stripe.Subscription;
         const userId = sub.metadata?.userId;
         if (!userId) break;
-        const existing = await db.user.findUnique({ where: { id: userId }, select: { planOverride: true } });
+        const existing = await db.user.findUnique({
+          where: { id: userId },
+          select: { planOverride: true, plan: true, email: true, displayName: true },
+        });
         await db.user.update({
           where: { id: userId },
           data: {
@@ -79,17 +83,33 @@ export async function POST(req: NextRequest) {
             stripeSubscriptionId: null,
           },
         });
+        if (existing?.email && existing.planOverride == null) {
+          sendSubscriptionCancelledEmail({
+            toEmail: existing.email,
+            toName: existing.displayName?.split(" ")[0] ?? "there",
+            previousPlan: existing.plan,
+          }).catch(() => {});
+        }
         break;
       }
 
       case "invoice.payment_failed": {
         const invoice = event.data.object as import("stripe").Stripe.Invoice;
         const customerId = invoice.customer as string;
-        // Downgrade to FREE on payment failure (only if no manual override)
+        const affected = await db.user.findFirst({
+          where: { stripeCustomerId: customerId, planOverride: null },
+          select: { email: true, displayName: true },
+        });
         await db.user.updateMany({
           where: { stripeCustomerId: customerId, planOverride: null },
           data: { plan: "FREE" },
         });
+        if (affected?.email) {
+          sendPaymentFailedEmail({
+            toEmail: affected.email,
+            toName: affected.displayName?.split(" ")[0] ?? "there",
+          }).catch(() => {});
+        }
         break;
       }
     }

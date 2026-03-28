@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
-import { sendPasswordResetEmail } from "@/lib/email";
+import { sendPasswordResetEmail, sendAccountBannedEmail } from "@/lib/email";
 import { generateToken } from "@/lib/tokens";
 
 async function getAdminSession() {
@@ -105,8 +105,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   if (action === "BAN") {
+    const bannedUser = await db.user.findUnique({ where: { id: params.id }, select: { displayName: true } });
     await db.user.update({ where: { id: params.id }, data: { bannedAt: new Date(), banReason: note ?? "Admin action" } });
     await db.adminAuditLog.create({ data: { adminId: session.user.id, adminEmail: adminUser?.email ?? "", action: "BAN_USER", targetId: params.id, targetEmail: target.email, note: note ?? null, ip } });
+    sendAccountBannedEmail({
+      toEmail: target.email,
+      toName: bannedUser?.displayName?.split(" ")[0] ?? "there",
+    }).catch(() => {});
     return NextResponse.json({ success: true });
   }
 

@@ -787,6 +787,158 @@ export async function sendFeedbackNotification(args: {
   });
 }
 
+// ── 19. Plan Upgrade Confirmation → User ─────────────────────────────────────
+
+const PLAN_FEATURES: Record<string, string[]> = {
+  BEGINNER: ["50 secure links/month", "Email support", "Basic analytics"],
+  PRO: ["Unlimited secure links", "File transfers", "Custom forms", "Priority support"],
+  AGENCY: ["Everything in Pro", "Up to 5 team members", "Branded links"],
+};
+
+export async function sendPlanUpgradeEmail(args: {
+  toEmail: string;
+  toName: string;
+  plan: string;
+}): Promise<void> {
+  const { toEmail, toName, plan } = args;
+  const planLabel = plan.charAt(0) + plan.slice(1).toLowerCase();
+  const features = PLAN_FEATURES[plan] ?? [];
+  const featureList = features.length
+    ? `<ul style="padding-left:20px;color:#475569;font-size:15px;line-height:1.8;margin:0 0 14px;">
+        ${features.map((f) => `<li>${f}</li>`).join("")}
+       </ul>`
+    : "";
+  await send({
+    to: toEmail,
+    subject: `You're now on the ${planLabel} plan`,
+    html: emailTemplate({
+      heading: `Welcome to ${planLabel}.`,
+      body:
+        p(`Hi ${toName},`) +
+        p(`Your upgrade to the <strong>${planLabel} plan</strong> was successful. Here's what's now unlocked on your account:`) +
+        featureList +
+        p("Head to your dashboard to start using your new features."),
+      ctaLabel: "Go to Dashboard",
+      ctaUrl: `${APP_URL}/dashboard`,
+    }),
+  });
+}
+
+// ── 20. Subscription Cancelled → User ────────────────────────────────────────
+
+export async function sendSubscriptionCancelledEmail(args: {
+  toEmail: string;
+  toName: string;
+  previousPlan: string;
+}): Promise<void> {
+  const { toEmail, toName, previousPlan } = args;
+  const planLabel = previousPlan.charAt(0) + previousPlan.slice(1).toLowerCase();
+  await send({
+    to: toEmail,
+    subject: "Your Secure Link subscription was cancelled",
+    html: emailTemplate({
+      heading: "Subscription cancelled",
+      body:
+        p(`Hi ${toName},`) +
+        p(`Your <strong>${planLabel}</strong> subscription has been cancelled and your account has been moved back to the <strong>Free plan</strong>.`) +
+        p("You'll still have access to your existing data and can continue using Secure Link with up to 10 lifetime secure links.") +
+        p("If this was a mistake or you'd like to resubscribe, you can do so at any time from your dashboard."),
+      ctaLabel: "Resubscribe",
+      ctaUrl: `${APP_URL}/pricing`,
+      notice: `If you didn't cancel this subscription, contact us immediately at <a href="mailto:${SUPPORT_EMAIL}" style="color:#0057FF;">${SUPPORT_EMAIL}</a>.`,
+      fromSecurity: true,
+    }),
+  });
+}
+
+// ── 21. Payment Failed → User ─────────────────────────────────────────────────
+
+export async function sendPaymentFailedEmail(args: {
+  toEmail: string;
+  toName: string;
+  portalUrl?: string;
+}): Promise<void> {
+  const { toEmail, toName, portalUrl } = args;
+  const billingUrl = portalUrl ?? `${APP_URL}/dashboard/settings#billing`;
+  await send({
+    to: toEmail,
+    from: FROM_SECURITY,
+    subject: "Payment failed — action required",
+    html: emailTemplate({
+      heading: "We couldn't process your payment",
+      body:
+        p(`Hi ${toName},`) +
+        p("We were unable to process your last payment. As a result, your account has been downgraded to the <strong>Free plan</strong>.") +
+        p("To restore your access, please update your payment method in your billing settings."),
+      ctaLabel: "Update Payment Method",
+      ctaUrl: billingUrl,
+      notice: "Until your payment is resolved, you'll be limited to the Free plan features. Your existing data and links remain safe.",
+      fromSecurity: true,
+    }),
+  });
+}
+
+// ── 22. New Signup Notification → Admin ───────────────────────────────────────
+
+const ADMIN_EMAIL = "malek@mysecurelink.co";
+
+export async function sendNewSignupNotification(args: {
+  newUserEmail: string;
+  newUserName: string;
+  signedUpAt: string;
+}): Promise<void> {
+  const { newUserEmail, newUserName, signedUpAt } = args;
+  await send({
+    to: ADMIN_EMAIL,
+    subject: `New signup — ${newUserName}`,
+    html: emailTemplate({
+      heading: "New user signed up",
+      body:
+        `<table style="width:100%;border-collapse:collapse;margin:16px 0 20px;">
+           <tr>
+             <td style="padding:10px 0;border-bottom:1px solid #E2E8F0;color:#94A3B8;font-size:13px;width:40%;">Name</td>
+             <td style="padding:10px 0;border-bottom:1px solid #E2E8F0;color:#0F172A;font-size:13px;">${newUserName}</td>
+           </tr>
+           <tr>
+             <td style="padding:10px 0;border-bottom:1px solid #E2E8F0;color:#94A3B8;font-size:13px;">Email</td>
+             <td style="padding:10px 0;border-bottom:1px solid #E2E8F0;color:#0F172A;font-size:13px;">${newUserEmail}</td>
+           </tr>
+           <tr>
+             <td style="padding:10px 0;color:#94A3B8;font-size:13px;">Signed Up</td>
+             <td style="padding:10px 0;color:#0F172A;font-size:13px;">${signedUpAt}</td>
+           </tr>
+         </table>`,
+      ctaLabel: "View in Mission Control",
+      ctaUrl: `${APP_URL}/adminn/users`,
+    }),
+  });
+}
+
+// ── 23. Account Banned → User ─────────────────────────────────────────────────
+
+export async function sendAccountBannedEmail(args: {
+  toEmail: string;
+  toName: string;
+}): Promise<void> {
+  const { toEmail, toName } = args;
+  await send({
+    to: toEmail,
+    from: FROM_SECURITY,
+    subject: "Your Secure Link account has been suspended",
+    html: emailTemplate({
+      heading: "Account suspended",
+      body:
+        p(`Hi ${toName},`) +
+        p("Your Secure Link account has been suspended and you will no longer be able to sign in.") +
+        p("If you believe this was a mistake, please contact our support team and we'll review your account."),
+      ctaLabel: "Contact Support",
+      ctaUrl: `mailto:${SUPPORT_EMAIL}`,
+      notice: `To appeal this decision, email us at <a href="mailto:${SUPPORT_EMAIL}" style="color:#0057FF;">${SUPPORT_EMAIL}</a> with your account email and we'll respond within 1 business day.`,
+      fromSecurity: true,
+    }),
+  });
+}
+
 // ── 17. Data Revealed → Agent ─────────────────────────────────────────────────
 
 export async function sendRevealNotification(args: {
