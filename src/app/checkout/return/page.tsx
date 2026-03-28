@@ -1,12 +1,11 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { CheckCircle, XCircle } from "lucide-react";
 import Link from "next/link";
 
 function ReturnInner() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const next = searchParams.get("next") ?? "/dashboard";
@@ -31,7 +30,8 @@ function ReturnInner() {
         if (data.data?.plan) {
           setStatus("success");
           setMessage(`Welcome to the ${data.data.plan.charAt(0) + data.data.plan.slice(1).toLowerCase()} plan!`);
-          setTimeout(() => router.push(next), 2000);
+          // Hard redirect so the dashboard server component re-renders fresh from DB
+          setTimeout(() => { window.location.href = next; }, 2000);
         } else {
           setStatus("error");
           setMessage(data.error?.message ?? "Failed to activate your plan. Please contact support.");
@@ -41,7 +41,7 @@ function ReturnInner() {
         setStatus("error");
         setMessage("Network error. Please contact support.");
       });
-  }, [sessionId, next, router]);
+  }, [sessionId, next]);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4">
