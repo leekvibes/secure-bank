@@ -1,7 +1,8 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe-js";
@@ -48,15 +49,26 @@ async function getStripePromise(): Promise<Promise<Stripe | null>> {
 
 function CheckoutInner() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const plan = searchParams.get("plan") ?? "PRO";
   const next = searchParams.get("next") ?? "/dashboard";
+  const { status } = useSession();
 
   const [stripeReady, setStripeReady] = useState<Promise<Stripe | null> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Redirect to sign in if not authenticated
   useEffect(() => {
-    getStripePromise().then(setStripeReady).catch(() => setError("Failed to load payment provider."));
-  }, []);
+    if (status === "unauthenticated") {
+      router.replace(`/auth?mode=signin&redirect=${encodeURIComponent(`/checkout?plan=${plan}&next=${next}`)}`);
+    }
+  }, [status, plan, next, router]);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      getStripePromise().then(setStripeReady).catch(() => setError("Failed to load payment provider."));
+    }
+  }, [status]);
 
   const fetchClientSecret = useCallback(async () => {
     const res = await fetch("/api/stripe/embedded-checkout", {
