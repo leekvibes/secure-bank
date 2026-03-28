@@ -734,61 +734,20 @@ function NewLinkPage() {
         )}
       </div>
 
-      {/* Upgrade Required Modal */}
-      {upgradeRequired && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md p-7 space-y-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-                <CreditCard className="w-5 h-5 text-amber-600" />
-              </div>
-              <button
-                type="button"
-                onClick={() => setUpgradeRequired(false)}
-                className="text-muted-foreground hover:text-foreground transition-colors mt-1"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-foreground">You&apos;ve used all your links</h2>
-              <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-                You&apos;ve reached the limit on your current plan. Upgrade to keep sending secure requests — no interruptions, no data lost.
-              </p>
-            </div>
-            <div className="bg-muted/50 rounded-xl p-4 space-y-2">
-              {["Beginner — 50 links/month", "Pro — Unlimited links + file transfers + forms", "Agency — Everything + 5 team members"].map((f) => (
-                <div key={f} className="flex items-center gap-2 text-sm text-foreground">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                  {f}
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setUpgradeRequired(false)}
-                className="flex-1 h-10 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-              >
-                Not now
-              </button>
-              <a
-                href="/dashboard/settings#billing"
-                className="flex-1 h-10 rounded-xl bg-primary text-white text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-primary/90 transition-colors"
-              >
-                Upgrade Plan <ArrowRight className="w-4 h-4" />
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
-
       <form onSubmit={handleSubmit}>
         <div className="grid lg:grid-cols-[1fr_360px] gap-8 items-start">
           <div className="space-y-5">
-            {error && !upgradeRequired && (
-              <div className="p-3.5 rounded-xl text-sm bg-destructive/10 border border-destructive/20 text-destructive">
+            {error && (
+              <div className={`p-3.5 rounded-xl text-sm ${upgradeRequired ? "bg-amber-500/10 border border-amber-500/30 text-amber-700" : "bg-destructive/10 border border-destructive/20 text-destructive"}`}>
                 <p>{error}</p>
+                {upgradeRequired && (
+                  <a
+                    href="/dashboard/settings#billing"
+                    className="inline-flex items-center gap-1 mt-2 font-semibold text-amber-700 hover:text-amber-800 underline underline-offset-2"
+                  >
+                    Upgrade your plan →
+                  </a>
+                )}
               </div>
             )}
 
@@ -1213,6 +1172,21 @@ function NewLinkPage() {
               )}
               {loading ? "Creating..." : "Generate secure link"}
             </Button>
+
+            {upgradeRequired && (
+              <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 px-4 py-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <CreditCard className="w-4 h-4 text-amber-600 shrink-0" />
+                  <p className="text-sm text-amber-700 font-medium truncate">You&apos;ve used all your links on this plan.</p>
+                </div>
+                <a
+                  href="/dashboard/settings#billing"
+                  className="shrink-0 text-sm font-semibold text-amber-700 hover:text-amber-800 underline underline-offset-2 whitespace-nowrap"
+                >
+                  Upgrade →
+                </a>
+              </div>
+            )}
           </div>
 
           <div className="lg:sticky lg:top-6">
