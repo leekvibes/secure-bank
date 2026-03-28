@@ -106,7 +106,14 @@ export async function getMonthlyLinkCount(
   const start = new Date();
   start.setDate(1);
   start.setHours(0, 0, 0, 0);
-  return db.secureLink.count({ where: { agentId, createdAt: { gte: start } } });
+  // Use immutable audit events so deletions don't reduce usage counts.
+  return db.auditLog.count({
+    where: {
+      agentId,
+      event: "LINK_CREATED",
+      createdAt: { gte: start },
+    },
+  });
 }
 
 // Count all links ever created by this agent
@@ -114,5 +121,11 @@ export async function getTotalLinkCount(
   db: import("@prisma/client").PrismaClient,
   agentId: string
 ): Promise<number> {
-  return db.secureLink.count({ where: { agentId } });
+  // Use immutable audit events so deletions don't reduce usage counts.
+  return db.auditLog.count({
+    where: {
+      agentId,
+      event: "LINK_CREATED",
+    },
+  });
 }
