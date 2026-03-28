@@ -35,6 +35,10 @@ model User {
   plan                 String  @default("FREE")  // FREE | BEGINNER | PRO | AGENCY
   stripeCustomerId     String?
   stripeSubscriptionId String?
+  planOverride         String?   // admin manual override: FREE | BEGINNER | PRO | AGENCY
+  planOverrideNote     String?
+  planOverrideBy       String?
+  planOverriddenAt     DateTime?
   // Profile change rate limiting (once per week)
   nameChangedAt        DateTime?
   photoChangedAt       DateTime?
@@ -433,4 +437,21 @@ model DocSignAuditLog {
 
   requestId String
   request   DocSignRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mission Control Admin Audit Log
+
+model AdminAuditLog {
+  id          String   @id @default(cuid())
+  adminId     String
+  adminEmail  String
+  action      String   // PLAN_OVERRIDE | BAN_USER | UNBAN_USER | VERIFY_EMAIL | RESET_PASSWORD | CLEAR_OVERRIDE
+  targetId    String
+  targetEmail String?
+  oldValue    String?
+  newValue    String?
+  note        String?
+  ip          String?
+  createdAt   DateTime @default(now())
 }

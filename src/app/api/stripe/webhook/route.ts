@@ -37,10 +37,11 @@ export async function POST(req: NextRequest) {
         const userId = session.metadata?.userId;
         const plan = session.metadata?.plan;
         if (!userId || !plan) break;
+        const existing = await db.user.findUnique({ where: { id: userId }, select: { planOverride: true } });
         await db.user.update({
           where: { id: userId },
           data: {
-            plan,
+            ...(existing?.planOverride == null ? { plan } : {}),
             stripeCustomerId: session.customer as string,
             stripeSubscriptionId: session.subscription as string,
           },
@@ -55,9 +56,13 @@ export async function POST(req: NextRequest) {
         const priceId = sub.items.data[0]?.price?.id;
         const plan = priceId ? planFromPriceId(priceId) : "FREE";
         const active = sub.status === "active" || sub.status === "trialing";
+        const existing = await db.user.findUnique({ where: { id: userId }, select: { planOverride: true } });
         await db.user.update({
           where: { id: userId },
-          data: { plan: active ? plan : "FREE", stripeSubscriptionId: sub.id },
+          data: {
+            ...(existing?.planOverride == null ? { plan: active ? plan : "FREE" } : {}),
+            stripeSubscriptionId: sub.id,
+          },
         });
         break;
       }
@@ -66,9 +71,13 @@ export async function POST(req: NextRequest) {
         const sub = event.data.object as import("stripe").Stripe.Subscription;
         const userId = sub.metadata?.userId;
         if (!userId) break;
+        const existing = await db.user.findUnique({ where: { id: userId }, select: { planOverride: true } });
         await db.user.update({
           where: { id: userId },
-          data: { plan: "FREE", stripeSubscriptionId: null },
+          data: {
+            ...(existing?.planOverride == null ? { plan: "FREE" } : {}),
+            stripeSubscriptionId: null,
+          },
         });
         break;
       }
@@ -76,9 +85,9 @@ export async function POST(req: NextRequest) {
       case "invoice.payment_failed": {
         const invoice = event.data.object as import("stripe").Stripe.Invoice;
         const customerId = invoice.customer as string;
-        // Downgrade to FREE on payment failure
+        // Downgrade to FREE on payment failure (only if no manual override)
         await db.user.updateMany({
-          where: { stripeCustomerId: customerId },
+          where: { stripeCustomerId: customerId, planOverride: null },
           data: { plan: "FREE" },
         });
         break;
