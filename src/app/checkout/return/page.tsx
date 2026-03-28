@@ -5,6 +5,9 @@ import { useSearchParams } from "next/navigation";
 import { CheckCircle, XCircle } from "lucide-react";
 import Link from "next/link";
 
+const MAX_SYNC_RETRIES = 8;
+const SYNC_RETRY_DELAY_MS = 1200;
+
 function ReturnInner() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
@@ -39,27 +42,64 @@ function ReturnInner() {
       return;
     }
 
-    fetch("/api/stripe/sync-plan", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: resolvedSessionId }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.data?.plan) {
-          setStatus("success");
-          setMessage(`Welcome to the ${data.data.plan.charAt(0) + data.data.plan.slice(1).toLowerCase()} plan!`);
-          // Hard redirect so the dashboard server component re-renders fresh from DB
-          setTimeout(() => { window.location.href = next; }, 2000);
-        } else {
+    let cancelled = false;
+
+    async function syncPlanWithRetry() {
+      for (let attempt = 0; attempt < MAX_SYNC_RETRIES; attempt += 1) {
+        try {
+          const response = await fetch("/api/stripe/sync-plan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId: resolvedSessionId }),
+          });
+          const data = await response.json().catch(() => ({}));
+
+          const resolvedPlan =
+            (typeof data?.plan === "string" ? data.plan : null) ??
+            (typeof data?.data?.plan === "string" ? data.data.plan : null);
+
+          if (resolvedPlan) {
+            if (cancelled) return;
+            setStatus("success");
+            setMessage(`Welcome to the ${resolvedPlan.charAt(0) + resolvedPlan.slice(1).toLowerCase()} plan!`);
+            setTimeout(() => { window.location.href = next; }, 2000);
+            return;
+          }
+
+          const code =
+            (typeof data?.error?.code === "string" ? data.error.code : null) ??
+            (typeof data?.code === "string" ? data.code : null);
+          const message =
+            (typeof data?.error?.message === "string" ? data.error.message : null) ??
+            (typeof data?.message === "string" ? data.message : null);
+
+          if (code === "CHECKOUT_PENDING" && attempt < MAX_SYNC_RETRIES - 1) {
+            await new Promise((resolve) => setTimeout(resolve, SYNC_RETRY_DELAY_MS));
+            continue;
+          }
+
+          if (cancelled) return;
           setStatus("error");
-          setMessage(data.error?.message ?? "Failed to activate your plan. Please contact support.");
+          setMessage(message ?? "Failed to activate your plan. Please contact support.");
+          return;
+        } catch {
+          if (attempt < MAX_SYNC_RETRIES - 1) {
+            await new Promise((resolve) => setTimeout(resolve, SYNC_RETRY_DELAY_MS));
+            continue;
+          }
+          if (cancelled) return;
+          setStatus("error");
+          setMessage("Network error. Please contact support.");
+          return;
         }
-      })
-      .catch(() => {
-        setStatus("error");
-        setMessage("Network error. Please contact support.");
-      });
+      }
+    }
+
+    syncPlanWithRetry();
+
+    return () => {
+      cancelled = true;
+    };
   }, [sessionId, nextParam]);
 
   return (
