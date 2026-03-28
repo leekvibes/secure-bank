@@ -38,15 +38,18 @@ export async function POST(req: NextRequest) {
 
     const returnUrl = body.successUrl ?? `${appUrl}/checkout/return`;
     const returnUrlObj = new URL(returnUrl, appUrl);
-    // Preserve existing query params (e.g. next=/dashboard/settings) and append session_id correctly.
-    returnUrlObj.searchParams.set("session_id", "{CHECKOUT_SESSION_ID}");
+    // Keep the Stripe placeholder unescaped so Stripe replaces it with a real session id.
+    returnUrlObj.searchParams.set("session_id", "__CHECKOUT_SESSION_ID__");
+    const stripeReturnUrl = returnUrlObj
+      .toString()
+      .replace("__CHECKOUT_SESSION_ID__", "{CHECKOUT_SESSION_ID}");
 
     const checkoutSession = await getStripe().checkout.sessions.create({
       customer: customerId,
       ui_mode: "embedded_page",
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
-      return_url: returnUrlObj.toString(),
+      return_url: stripeReturnUrl,
       metadata: { userId: session.user.id, plan },
       subscription_data: { metadata: { userId: session.user.id, plan } },
     });
