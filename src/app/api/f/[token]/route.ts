@@ -13,6 +13,7 @@ import { apiError, apiSuccess } from "@/lib/api-response";
 import { isValidSingleUseToken } from "@/lib/validation";
 import { validateDynamicSubmission } from "@/lib/form-submission-validation";
 import { writeAuditLog } from "@/lib/audit";
+import { sendSubmissionNotification } from "@/lib/email";
 
 // GET — public: return form config for client rendering
 export async function GET(req: NextRequest, { params }: { params: { token: string } }) {
@@ -203,7 +204,7 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       ? addDays(new Date(), link.form.retentionDays)
       : new Date("9999-12-31T23:59:59.999Z");
 
-  await db.$transaction([
+  const [submission] = await db.$transaction([
     db.formSubmission.create({
       data: {
         formLinkId: link.id,
@@ -226,6 +227,21 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
     request: req,
     metadata: { formId: link.formId, formLinkId: link.id },
   });
+
+  // Notify agent of new form submission
+  const agent = await db.user.findUnique({
+    where: { id: link.form.agentId },
+    select: { email: true, displayName: true, notificationEmail: true },
+  });
+  if (agent) {
+    sendSubmissionNotification({
+      agentEmail: agent.notificationEmail || agent.email,
+      agentName: agent.displayName,
+      clientName: link.clientName ?? null,
+      linkType: "FORM",
+      submissionId: submission.id,
+    }).catch(() => {});
+  }
 
   return apiSuccess({ success: true }, 201);
 }

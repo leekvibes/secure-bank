@@ -44,12 +44,14 @@ const UPGRADES = [
 interface Props {
   plan: string;
   hasSubscription: boolean;
+  subscriptionId?: string;
 }
 
-export function BillingPanel({ plan, hasSubscription }: Props) {
+export function BillingPanel({ plan, hasSubscription, subscriptionId }: Props) {
   const [portalLoading, setPortalLoading] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [upgradeSuccess, setUpgradeSuccess] = useState<string | null>(null);
 
   async function openPortal() {
     setError(null);
@@ -69,9 +71,36 @@ export function BillingPanel({ plan, hasSubscription }: Props) {
     }
   }
 
-  function startUpgrade(planKey: string) {
+  async function startUpgrade(planKey: string) {
     setError(null);
+    setUpgradeSuccess(null);
     setUpgradeLoading(planKey);
+
+    // If already a subscriber, use proration upgrade — no new checkout needed
+    if (subscriptionId) {
+      try {
+        const res = await fetch("/api/stripe/upgrade", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plan: planKey }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setUpgradeSuccess(`Upgraded to ${PLAN_LABELS[planKey] ?? planKey}! Your account is updated and you'll receive a prorated charge on your next invoice.`);
+          // Reload the page after a moment so the plan badge refreshes
+          setTimeout(() => window.location.reload(), 2500);
+        } else {
+          setError(data?.error?.message ?? "Upgrade failed. Please try again.");
+        }
+      } catch {
+        setError("Network error. Please try again.");
+      } finally {
+        setUpgradeLoading(null);
+      }
+      return;
+    }
+
+    // No existing subscription — go through checkout
     window.location.href = `/checkout?plan=${planKey}&next=/dashboard/settings`;
   }
 
@@ -89,6 +118,13 @@ export function BillingPanel({ plan, hasSubscription }: Props) {
           {PLAN_LABELS[plan] ?? "Free"}
         </span>
       </div>
+
+      {/* Success */}
+      {upgradeSuccess && (
+        <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+          {upgradeSuccess}
+        </div>
+      )}
 
       {/* Error */}
       {error && (
