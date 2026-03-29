@@ -38,6 +38,7 @@ interface Props {
     defaultExpirationHours: number;
     plan: string;
     stripeCustomerId: string | null;
+    stripeSubscriptionId: string | null;
   };
 }
 
@@ -775,7 +776,11 @@ export function SettingsForm({ user }: Props) {
       )}
 
       {activeTab === "billing" && (
-        <BillingPanel plan={user.plan ?? "FREE"} hasSubscription={!!user.stripeCustomerId} />
+        <BillingPanel
+          plan={user.plan ?? "FREE"}
+          hasSubscription={!!user.stripeCustomerId}
+          subscriptionId={user.stripeSubscriptionId ?? undefined}
+        />
       )}
 
       {activeTab === "trust" && (

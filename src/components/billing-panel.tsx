@@ -44,9 +44,10 @@ const UPGRADES = [
 interface Props {
   plan: string;
   hasSubscription: boolean;
+  subscriptionId?: string;
 }
 
-export function BillingPanel({ plan, hasSubscription }: Props) {
+export function BillingPanel({ plan, hasSubscription, subscriptionId }: Props) {
   const [portalLoading, setPortalLoading] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,13 +74,15 @@ export function BillingPanel({ plan, hasSubscription }: Props) {
     setError(null);
     setUpgradeLoading(planKey);
 
-    if (plan === "FREE") {
-      // No active subscription — go through Stripe embedded checkout to start one.
+    // Only use the portal upgrade flow if there is a real active Stripe subscription.
+    // If the plan was set via admin override (no subscriptionId), treat as FREE and
+    // send through checkout to create a proper subscription.
+    if (plan === "FREE" || !subscriptionId) {
       window.location.href = `/checkout?plan=${planKey}&next=/dashboard/settings&back=/dashboard/settings`;
       return;
     }
 
-    // Active subscriber upgrading — open the Stripe plan-switch flow directly.
+    // Active subscriber with a real Stripe subscription — open the plan-switch flow.
     // Stripe shows available plans, the prorated amount, and the user confirms.
     try {
       const res = await fetch("/api/stripe/portal", {
