@@ -717,23 +717,44 @@ export async function sendDocSignRequestEmail(args: {
   message: string | null;
   signUrl: string;
   expiresAt: Date;
-}): Promise<void> {
+}): Promise<{ success: boolean; error?: string }> {
+  const resend = getClient();
+  if (!resend) return { success: false, error: "Email not configured (RESEND_API_KEY missing)." };
+
   const { toEmail, agentName, title, message, signUrl, expiresAt } = args;
   const expiry = expiresAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  await send({
-    to: toEmail,
-    subject: title ? `${agentName} sent you a document to sign: "${title}"` : `${agentName} sent you a document to sign`,
-    html: emailTemplate({
-      heading: title ? `Please sign: ${title}` : "You have a document to sign",
-      body:
-        p(`<strong>${agentName}</strong> has sent you a document that requires your signature.`) +
-        (message ? p(`"${message}"`) : "") +
-        p(`This signing link expires on <strong>${expiry}</strong>.`),
-      ctaLabel: "Review & Sign Document",
-      ctaUrl: signUrl,
-      notice: "Secure Link will never ask for your password or financial details via email. Only use the secure signing link above.",
-    }),
-  });
+
+  try {
+    const result = await resend.emails.send({
+      from: FROM_TRANSACTIONAL,
+      to: toEmail,
+      replyTo: SUPPORT_EMAIL,
+      subject: title
+        ? `${agentName} sent you a document to sign: "${title}"`
+        : `${agentName} sent you a document to sign`,
+      html: emailTemplate({
+        heading: title ? `Please sign: ${title}` : "You have a document to sign",
+        body:
+          p(`<strong>${agentName}</strong> has sent you a document that requires your signature.`) +
+          (message ? p(`"${message}"`) : "") +
+          p(`This signing link expires on <strong>${expiry}</strong>.`),
+        ctaLabel: "Review & Sign Document",
+        ctaUrl: signUrl,
+        notice: "Secure Link will never ask for your password or financial details via email. Only use the secure signing link above.",
+      }),
+    });
+    // Resend SDK returns { data, error }
+    if ((result as { error?: unknown }).error) {
+      const errMsg = String((result as { error?: { message?: string } }).error?.message ?? "Resend rejected the email.");
+      console.error(`[email] sendDocSignRequestEmail rejected for ${toEmail}:`, errMsg);
+      return { success: false, error: errMsg };
+    }
+    return { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Email send failed.";
+    console.error(`[email] sendDocSignRequestEmail threw for ${toEmail}:`, msg);
+    return { success: false, error: msg };
+  }
 }
 
 // ── DocSign: All Parties Signed → Agent ──────────────────────────────────────

@@ -76,19 +76,22 @@ export async function POST(
       },
     });
 
-    // Send emails — fire and forget, don't fail the send if email fails
+    // Send emails — await each send so errors are captured and returned
+    const emailResults: Array<{ email: string; sent: boolean; error?: string }> = [];
     for (const recipient of recipientsToNotify) {
       const signUrl = `${baseUrl}/sign/${recipient.token}`;
-      sendDocSignRequestEmail({
+      const result = await sendDocSignRequestEmail({
         toEmail: recipient.email,
         agentName,
         title: request.title,
         message: request.message,
         signUrl,
         expiresAt: request.expiresAt,
-      }).catch((err) => {
-        console.error(`[signing/send] email failed for ${recipient.email}:`, err);
       });
+      emailResults.push({ email: recipient.email, sent: result.success, error: result.error });
+      if (!result.success) {
+        console.error(`[signing/send] email failed for ${recipient.email}:`, result.error);
+      }
     }
 
     // Send CC copies (notification only, no signing link)
@@ -112,7 +115,19 @@ export async function POST(
       }
     }
 
-    return apiSuccess({ sent: true, recipientsNotified: recipientsToNotify.length });
+    const allEmailsSent = emailResults.every((r) => r.sent);
+    const failedEmails = emailResults.filter((r) => !r.sent);
+
+    return apiSuccess({
+      sent: true,
+      recipientsNotified: recipientsToNotify.length,
+      emailConfigured: !!process.env.RESEND_API_KEY,
+      emailResults,
+      emailWarning: failedEmails.length > 0
+        ? `Email delivery failed for ${failedEmails.length} recipient(s): ${failedEmails.map((r) => r.email).join(", ")}. Use the signing links to share manually.`
+        : null,
+    });
+    void allEmailsSent;
   } catch (err) {
     console.error("[signing/send]", err);
     return apiError(500, "SERVER_ERROR", "Failed to send signing request.");

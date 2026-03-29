@@ -126,7 +126,11 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      return { ...r, displayStatus, completedRecipients: completedCount };
+      const isEditable =
+        r.status === "DRAFT" ||
+        ((r.status === "SENT" || r.status === "OPENED") && completedCount === 0);
+
+      return { ...r, displayStatus, completedRecipients: completedCount, isEditable };
     });
 
     return apiSuccess({ requests: augmented });

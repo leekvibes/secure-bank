@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -238,6 +239,7 @@ function normalizeDetail(data: unknown): {
 }
 
 export default function NewSigningRequestPage() {
+  const { data: session } = useSession();
   const [step, setStep] = useState<Step>(1);
   const [draggingUpload, setDraggingUpload] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -540,6 +542,20 @@ export default function NewSigningRequestPage() {
       if (!res.ok) {
         throw new Error(data?.error?.message ?? data?.error ?? "Failed to send request.");
       }
+      if (data?.emailWarning) {
+        setError(`Request sent. Warning: ${data.emailWarning}`);
+        setSendBusy(false);
+        setTimeout(() => { window.location.href = "/dashboard/signing"; }, 4000);
+        return;
+      }
+      if (data?.emailConfigured === false) {
+        setError(
+          "Request sent successfully, but email delivery is not configured (RESEND_API_KEY missing). Recipients will not receive automated emails — share the signing link manually."
+        );
+        setSendBusy(false);
+        setTimeout(() => { window.location.href = "/dashboard/signing"; }, 4000);
+        return;
+      }
       window.location.href = "/dashboard/signing";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send request.");
@@ -808,10 +824,36 @@ export default function NewSigningRequestPage() {
           <div className="rounded-xl border border-border bg-card p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground">Recipients</h2>
-              <Button type="button" variant="outline" size="sm" onClick={() => setRecipients((prev) => [...prev, makeRecipient()])}>
-                <Plus className="w-3.5 h-3.5" />
-                Add Recipient
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setRecipients((prev) => [...prev, makeRecipient()])}>
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Recipient
+                </Button>
+                {session?.user && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const alreadyAdded = recipients.some(
+                        (r) => r.email.toLowerCase() === (session.user?.email ?? "").toLowerCase()
+                      );
+                      if (!alreadyAdded) {
+                        setRecipients((prev) => [
+                          ...prev,
+                          {
+                            id: crypto.randomUUID(),
+                            name: session.user?.name ?? "",
+                            email: session.user?.email ?? "",
+                          },
+                        ]);
+                      }
+                    }}
+                  >
+                    Add Myself
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="space-y-3">
               {recipients.map((recipient, index) => (
@@ -970,6 +1012,64 @@ export default function NewSigningRequestPage() {
                 ))}
               </div>
             </div>
+
+            {selectedFieldId && (() => {
+              const sel = placedFields.find((f) => f.id === selectedFieldId);
+              if (!sel) return null;
+              return (
+                <div className="pt-2 border-t border-border space-y-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Selected Field</p>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Field Type</label>
+                    <select
+                      value={sel.type}
+                      onChange={(e) => updateField(sel.id, { type: e.target.value as FieldType })}
+                      className="w-full rounded-md border border-input bg-card px-2 py-1.5 text-sm"
+                    >
+                      {FIELD_TYPES.map((t) => (
+                        <option key={t.type} value={t.type}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Assigned To</label>
+                    <select
+                      value={sel.recipientId}
+                      onChange={(e) => updateField(sel.id, { recipientId: e.target.value })}
+                      className="w-full rounded-md border border-input bg-card px-2 py-1.5 text-sm"
+                    >
+                      {savedRecipients.map((r, i) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name || r.email} {signingMode === "SEQUENTIAL" ? `(Signer ${i + 1})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs text-muted-foreground">Required</label>
+                    <button
+                      type="button"
+                      onClick={() => updateField(sel.id, { required: !sel.required })}
+                      className={`w-9 h-5 rounded-full transition-colors ${sel.required ? "bg-primary" : "bg-muted"}`}
+                    >
+                      <span className={`block w-3.5 h-3.5 rounded-full bg-white shadow transition-transform mx-0.5 ${sel.required ? "translate-x-4" : "translate-x-0"}`} />
+                    </button>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      setPlacedFields((prev) => prev.filter((f) => f.id !== selectedFieldId));
+                      setSelectedFieldId(null);
+                    }}
+                  >
+                    Remove Field
+                  </Button>
+                </div>
+              );
+            })()}
 
             <div className="space-y-2 pt-2 border-t border-border">
               <Button type="button" className="w-full" onClick={saveFieldsAndContinue} disabled={saveBusy || placedFields.length === 0}>

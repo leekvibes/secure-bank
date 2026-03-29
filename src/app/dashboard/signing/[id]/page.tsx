@@ -10,9 +10,11 @@ import {
   CheckCircle2,
   Clock,
   Download,
+  Edit2,
   Loader2,
   Send,
   ShieldAlert,
+  Trash2,
   UserCheck,
   XCircle,
 } from "lucide-react";
@@ -29,6 +31,7 @@ interface Recipient {
   order: number;
   status: RecipientStatus;
   completedAt: string | null;
+  token: string;
 }
 
 interface AuditLog {
@@ -115,6 +118,9 @@ export default function SigningRequestDetailPage() {
   const [voidBusy, setVoidBusy] = useState(false);
   const [remindBusy, setRemindBusy] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState<null | "signed" | "cert" | "original">(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -145,6 +151,8 @@ export default function SigningRequestDetailPage() {
   const completedRecipients = request?.recipients.filter((recipient) => recipient.status === "COMPLETED").length ?? 0;
   const canRemind = status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED";
   const canVoid = status !== "COMPLETED" && status !== "VOIDED" && status !== "EXPIRED";
+  const isEditable = (request as unknown as { isEditable?: boolean })?.isEditable ?? status === "DRAFT";
+  const canDelete = status === "DRAFT" || status === "VOIDED" || status === "EXPIRED";
 
   async function reload() {
     if (!id) return;
@@ -183,6 +191,29 @@ export default function SigningRequestDetailPage() {
       setActionError(err instanceof Error ? err.message : "Failed to void request.");
     } finally {
       setVoidBusy(false);
+    }
+  }
+
+  async function copySigningLink(token: string) {
+    const url = `${window.location.origin}/sign/${token}`;
+    await navigator.clipboard.writeText(url).catch(() => {});
+    setCopiedToken(token);
+    setTimeout(() => setCopiedToken(null), 2000);
+  }
+
+  async function handleDelete() {
+    if (!id) return;
+    setDeleteBusy(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to delete request.");
+      router.push("/dashboard/signing");
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to delete request.");
+      setDeleteBusy(false);
+      setConfirmDelete(false);
     }
   }
 
@@ -284,6 +315,14 @@ export default function SigningRequestDetailPage() {
 
       <div className="rounded-xl border border-border bg-card p-4">
         <div className="flex flex-wrap items-center gap-2">
+          {isEditable && (
+            <Button variant="outline" asChild className="gap-2">
+              <Link href={`/dashboard/signing/${id}/edit-fields`}>
+                <Edit2 className="w-4 h-4" />
+                Edit Fields
+              </Link>
+            </Button>
+          )}
           <Button onClick={() => handleDownload("signed")} disabled={downloadBusy !== null} className="gap-2">
             {downloadBusy === "signed" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             Download Signed PDF
@@ -304,11 +343,64 @@ export default function SigningRequestDetailPage() {
             {voidBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
             Void Request
           </Button>
+          {canDelete && !confirmDelete && (
+            <Button
+              variant="ghost"
+              className="gap-2 text-muted-foreground hover:text-destructive"
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete
+            </Button>
+          )}
+          {confirmDelete && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-destructive">Delete this request?</span>
+              <Button variant="destructive" size="sm" disabled={deleteBusy} onClick={handleDelete} className="gap-1.5">
+                {deleteBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                Confirm Delete
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>
+                Cancel
+              </Button>
+            </div>
+          )}
         </div>
         {actionError ? (
           <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{actionError}</div>
         ) : null}
       </div>
+
+      {(status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED") && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Send className="w-4 h-4" />
+            Signing Links
+          </h2>
+          <p className="text-xs text-muted-foreground">Share these links directly with each recipient if they didn&apos;t receive the email.</p>
+          <div className="space-y-2">
+            {request.recipients.map((recipient) => {
+              const signUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/sign/${recipient.token}`;
+              const isCopied = copiedToken === recipient.token;
+              return (
+                <div key={recipient.id} className="rounded-lg border border-border p-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{recipient.name}</p>
+                    <p className="text-xs text-muted-foreground font-mono truncate">{signUrl}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void copySigningLink(recipient.token)}
+                    className="shrink-0 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-muted transition-colors"
+                  >
+                    {isCopied ? "Copied!" : "Copy Link"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-5">
         <section className="rounded-xl border border-border bg-card p-4 space-y-3">

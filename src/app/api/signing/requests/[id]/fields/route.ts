@@ -39,13 +39,23 @@ export async function POST(
       where: { id: params.id },
       select: {
         id: true, agentId: true, status: true,
-        recipients: { select: { id: true } },
+        recipients: { select: { id: true, status: true } },
       },
     });
 
     if (!request) return apiError(404, "NOT_FOUND", "Signing request not found.");
     if (request.agentId !== session.user.id) return apiError(403, "FORBIDDEN", "Access denied.");
-    if (request.status !== "DRAFT") return apiError(409, "CONFLICT", "Cannot edit fields after sending.");
+
+    // Allow editing fields if: DRAFT, or SENT/OPENED with no recipient having signed yet
+    if (request.status === "VOIDED" || request.status === "COMPLETED" || request.status === "EXPIRED") {
+      return apiError(409, "CONFLICT", "Cannot edit fields on a voided, expired, or completed request.");
+    }
+    if (request.status !== "DRAFT") {
+      const signedCount = request.recipients.filter((r) => r.status === "COMPLETED").length;
+      if (signedCount > 0) {
+        return apiError(409, "CONFLICT", "Cannot edit fields after a recipient has already signed.");
+      }
+    }
 
     const body = await req.json().catch(() => ({}));
     const parsed = schema.safeParse(body);
