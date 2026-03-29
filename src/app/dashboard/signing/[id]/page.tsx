@@ -12,12 +12,14 @@ import {
   Download,
   Edit2,
   Loader2,
+  Mail,
   Send,
   ShieldAlert,
   Trash2,
   UserCheck,
   XCircle,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -121,6 +123,11 @@ export default function SigningRequestDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [resendFormId, setResendFormId] = useState<string | null>(null);
+  const [resendEmail, setResendEmail] = useState<string>("");
+  const [resendError, setResendError] = useState<string | null>(null);
+  const [resendSuccess, setResendSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -191,6 +198,36 @@ export default function SigningRequestDetailPage() {
       setActionError(err instanceof Error ? err.message : "Failed to void request.");
     } finally {
       setVoidBusy(false);
+    }
+  }
+
+  function openResendForm(recipient: { id: string; email: string }) {
+    setResendFormId(recipient.id);
+    setResendEmail(recipient.email);
+    setResendError(null);
+    setResendSuccess(null);
+  }
+
+  async function handleResend(recipientId: string) {
+    if (!id) return;
+    setResendingId(recipientId);
+    setResendError(null);
+    setResendSuccess(null);
+    try {
+      const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}/resend-recipient`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipientId, email: resendEmail.trim() || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to resend email.");
+      setResendSuccess(`Sent to ${(data as { sentTo?: string }).sentTo ?? resendEmail}`);
+      setResendFormId(null);
+      await reload();
+    } catch (err) {
+      setResendError(err instanceof Error ? err.message : "Failed to resend email.");
+    } finally {
+      setResendingId(null);
     }
   }
 
@@ -408,24 +445,83 @@ export default function SigningRequestDetailPage() {
             <UserCheck className="w-4 h-4" />
             Recipient Status
           </h2>
+          {resendSuccess && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+              {resendSuccess}
+            </div>
+          )}
+          {resendError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {resendError}
+            </div>
+          )}
           <div className="space-y-2">
             {fieldCountsByRecipient.map(({ recipient, count }) => {
               const badge = recipientStatusBadge(recipient.status);
+              const canResend = recipient.status === "PENDING" || recipient.status === "OPENED";
+              const isShowingForm = resendFormId === recipient.id;
               return (
-                <div key={recipient.id} className="rounded-lg border border-border p-3 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{recipient.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{recipient.email}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {request.signingMode === "SEQUENTIAL" ? `Order ${recipient.order + 1}` : "Parallel"} · {count} field{count === 1 ? "" : "s"}
-                    </p>
+                <div key={recipient.id} className="rounded-lg border border-border p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{recipient.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{recipient.email}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {request.signingMode === "SEQUENTIAL" ? `Signer ${recipient.order + 1}` : "Parallel"} · {count} field{count === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0 space-y-1.5">
+                      <Badge className={badge.className}>{badge.label}</Badge>
+                      {recipient.completedAt ? (
+                        <p className="text-[11px] text-muted-foreground">{new Date(recipient.completedAt).toLocaleString()}</p>
+                      ) : null}
+                      {canResend && !isShowingForm && (
+                        <button
+                          type="button"
+                          onClick={() => openResendForm(recipient)}
+                          className="flex items-center gap-1 text-[11px] text-primary hover:underline"
+                        >
+                          <Mail className="w-3 h-3" />
+                          Resend Email
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <Badge className={badge.className}>{badge.label}</Badge>
-                    {recipient.completedAt ? (
-                      <p className="text-[11px] text-muted-foreground mt-1">{new Date(recipient.completedAt).toLocaleString()}</p>
-                    ) : null}
-                  </div>
+                  {isShowingForm && (
+                    <div className="border-t border-border pt-2 space-y-2">
+                      <p className="text-xs text-muted-foreground">Send to (edit to use a different address):</p>
+                      <Input
+                        type="email"
+                        value={resendEmail}
+                        onChange={(e) => setResendEmail(e.target.value)}
+                        placeholder="recipient@email.com"
+                        className="h-8 text-sm"
+                      />
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs gap-1.5"
+                          disabled={resendingId === recipient.id || !resendEmail.trim()}
+                          onClick={() => void handleResend(recipient.id)}
+                        >
+                          {resendingId === recipient.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Send className="w-3 h-3" />
+                          )}
+                          Send
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setResendFormId(null)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
