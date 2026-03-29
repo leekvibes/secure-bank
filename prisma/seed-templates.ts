@@ -28,6 +28,40 @@ function dd(options: string[]): string {
   return JSON.stringify(options);
 }
 
+function docSchema(title: string, body: string[]): string {
+  return JSON.stringify({
+    title,
+    locale: "en-US",
+    versionLabel: "v1",
+    roles: ["SENDER", "RECIPIENT"],
+    variables: [
+      { key: "effective_date", label: "Effective Date", type: "date_text", required: true, editable: true },
+      { key: "party_a_name", label: "Party A Name", type: "text", required: true, editable: true },
+      { key: "party_b_name", label: "Party B Name", type: "text", required: true, editable: true },
+    ],
+    clauses: [
+      { id: "governing_law", label: "Governing Law", required: true, defaultEnabled: true },
+    ],
+    blocks: [
+      { kind: "heading", text: title },
+      { kind: "paragraph", text: "This agreement is made effective as of {{effective_date}} between {{party_a_name}} and {{party_b_name}}." },
+      ...body.map((text) => ({ kind: "paragraph", text })),
+      { kind: "paragraph", clauseId: "governing_law", text: "This agreement shall be governed by the laws of the applicable jurisdiction." },
+      { kind: "spacer", size: 18 },
+      { kind: "paragraph", text: "IN WITNESS WHEREOF, the parties have executed this agreement." },
+    ],
+  });
+}
+
+function docSigningDefaults(): string {
+  return JSON.stringify([
+    { type: "SIGNATURE", role: "SENDER", page: 1, x: 0.1, y: 0.84, width: 0.22, height: 0.05, required: true },
+    { type: "DATE_SIGNED", role: "SENDER", page: 1, x: 0.35, y: 0.84, width: 0.16, height: 0.04, required: true },
+    { type: "SIGNATURE", role: "RECIPIENT", page: 1, x: 0.1, y: 0.92, width: 0.22, height: 0.05, required: true },
+    { type: "DATE_SIGNED", role: "RECIPIENT", page: 1, x: 0.35, y: 0.92, width: 0.16, height: 0.04, required: true },
+  ]);
+}
+
 // ── template definitions ──────────────────────────────────────────────────────
 
 const TEMPLATES: Array<{
@@ -36,10 +70,17 @@ const TEMPLATES: Array<{
   description: string;
   category: string;
   industry: string;
-  type: "SECURE_LINK" | "FORM";
+  type: "SECURE_LINK" | "FORM" | "DOCUMENT";
   linkType?: string;
   optionsJson?: string;
   fields?: FieldDef[];
+  docSchemaJson?: string;
+  docDefaultValuesJson?: string;
+  docSigningDefaultsJson?: string;
+  docVersion?: number;
+  docStatus?: "DRAFT" | "REVIEWED" | "PUBLISHED" | "ARCHIVED";
+  thumbnailUrl?: string;
+  previewBlobUrl?: string;
   tags: string;
   isFeatured: boolean;
   complianceGuarded: boolean;
@@ -499,6 +540,197 @@ const TEMPLATES: Array<{
       f("Date", "date", { required: true }),
     ],
   },
+  // ── Document Templates (new) ───────────────────────────────────────────────
+  {
+    id: "tpl-doc-nda-v1",
+    title: "Non-Disclosure Agreement",
+    description: "Mutual NDA template with signature-ready sections.",
+    category: "Compliance",
+    industry: "GENERAL",
+    type: "DOCUMENT",
+    tags: "nda,confidentiality,document,signature",
+    isFeatured: true,
+    complianceGuarded: false,
+    docSchemaJson: docSchema("Non-Disclosure Agreement", [
+      "Each party agrees to keep confidential information private and to use it only for the permitted business purpose.",
+      "Confidential information includes all non-public business, financial, technical, and customer information shared by either party.",
+    ]),
+    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    docSigningDefaultsJson: docSigningDefaults(),
+    docVersion: 1,
+    docStatus: "PUBLISHED",
+  },
+  {
+    id: "tpl-doc-offer-letter-v1",
+    title: "Offer Letter",
+    description: "Employment offer letter template with acceptance signature block.",
+    category: "HR & Compliance",
+    industry: "GENERAL",
+    type: "DOCUMENT",
+    tags: "offer letter,employment,document,signature",
+    isFeatured: true,
+    complianceGuarded: false,
+    docSchemaJson: docSchema("Offer Letter", [
+      "This letter confirms the position title, compensation terms, start date, and reporting structure offered by the company.",
+      "The candidate acknowledges that employment remains subject to applicable company policies and legal requirements.",
+    ]),
+    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    docSigningDefaultsJson: docSigningDefaults(),
+    docVersion: 1,
+    docStatus: "PUBLISHED",
+  },
+  {
+    id: "tpl-doc-invoice-v1",
+    title: "Invoice",
+    description: "Invoice document template with customer acceptance signature.",
+    category: "Banking",
+    industry: "GENERAL",
+    type: "DOCUMENT",
+    tags: "invoice,billing,accounts receivable,document",
+    isFeatured: false,
+    complianceGuarded: false,
+    docSchemaJson: docSchema("Invoice", [
+      "This invoice reflects services rendered and amounts due under the agreed scope of work.",
+      "Payment is due according to the terms listed in this invoice and any supporting agreement.",
+    ]),
+    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    docSigningDefaultsJson: docSigningDefaults(),
+    docVersion: 1,
+    docStatus: "PUBLISHED",
+  },
+  {
+    id: "tpl-doc-purchase-order-v1",
+    title: "Purchase Order",
+    description: "Purchase order template for ordering goods/services.",
+    category: "Banking",
+    industry: "GENERAL",
+    type: "DOCUMENT",
+    tags: "purchase order,procurement,document",
+    isFeatured: false,
+    complianceGuarded: false,
+    docSchemaJson: docSchema("Purchase Order", [
+      "This purchase order authorizes the supplier to provide specified goods or services under the listed terms.",
+      "Supplier acceptance confirms agreement to pricing, delivery timelines, and applicable quality standards.",
+    ]),
+    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    docSigningDefaultsJson: docSigningDefaults(),
+    docVersion: 1,
+    docStatus: "PUBLISHED",
+  },
+  {
+    id: "tpl-doc-bill-of-sale-v1",
+    title: "Bill of Sale",
+    description: "General bill of sale template for transfer of property.",
+    category: "General",
+    industry: "GENERAL",
+    type: "DOCUMENT",
+    tags: "bill of sale,asset transfer,document",
+    isFeatured: true,
+    complianceGuarded: false,
+    docSchemaJson: docSchema("Bill of Sale", [
+      "The seller hereby transfers ownership of the described property to the buyer for agreed consideration.",
+      "The property is conveyed according to the warranties and conditions stated in this agreement.",
+    ]),
+    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    docSigningDefaultsJson: docSigningDefaults(),
+    docVersion: 1,
+    docStatus: "PUBLISHED",
+  },
+  {
+    id: "tpl-doc-lease-agreement-v1",
+    title: "Lease Agreement",
+    description: "Lease agreement template for landlord and tenant execution.",
+    category: "General",
+    industry: "GENERAL",
+    type: "DOCUMENT",
+    tags: "lease,rental,property,document",
+    isFeatured: false,
+    complianceGuarded: false,
+    docSchemaJson: docSchema("Lease Agreement", [
+      "This lease sets out the rental term, payment obligations, and use-of-premises conditions between landlord and tenant.",
+      "The parties agree to comply with all maintenance, notice, and legal responsibilities defined herein.",
+    ]),
+    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    docSigningDefaultsJson: docSigningDefaults(),
+    docVersion: 1,
+    docStatus: "PUBLISHED",
+  },
+  {
+    id: "tpl-doc-loan-agreement-v1",
+    title: "Loan Agreement",
+    description: "Loan agreement template for lender and borrower.",
+    category: "Banking",
+    industry: "GENERAL",
+    type: "DOCUMENT",
+    tags: "loan,lender,borrower,document",
+    isFeatured: false,
+    complianceGuarded: false,
+    docSchemaJson: docSchema("Loan Agreement", [
+      "The lender agrees to extend funds to the borrower under the principal, interest, and repayment terms in this agreement.",
+      "Borrower obligations, default conditions, and remedies are governed by the terms listed herein.",
+    ]),
+    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    docSigningDefaultsJson: docSigningDefaults(),
+    docVersion: 1,
+    docStatus: "PUBLISHED",
+  },
+  {
+    id: "tpl-doc-liability-waiver-v1",
+    title: "Liability Waiver",
+    description: "Liability waiver and acknowledgment of risk template.",
+    category: "Compliance",
+    industry: "GENERAL",
+    type: "DOCUMENT",
+    tags: "liability,waiver,risk,document",
+    isFeatured: true,
+    complianceGuarded: false,
+    docSchemaJson: docSchema("Liability Waiver", [
+      "The participant acknowledges and accepts risks associated with the activity and voluntarily elects to proceed.",
+      "The participant releases and holds harmless the organization to the extent permitted by law.",
+    ]),
+    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    docSigningDefaultsJson: docSigningDefaults(),
+    docVersion: 1,
+    docStatus: "PUBLISHED",
+  },
+  {
+    id: "tpl-doc-service-agreement-v1",
+    title: "Service Agreement",
+    description: "Service agreement template for provider and client engagements.",
+    category: "General",
+    industry: "GENERAL",
+    type: "DOCUMENT",
+    tags: "service agreement,scope,document",
+    isFeatured: true,
+    complianceGuarded: false,
+    docSchemaJson: docSchema("Service Agreement", [
+      "This agreement defines the scope of services, performance standards, deliverables, and payment terms.",
+      "Both parties agree to the timeline, communication process, and responsibilities outlined herein.",
+    ]),
+    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    docSigningDefaultsJson: docSigningDefaults(),
+    docVersion: 1,
+    docStatus: "PUBLISHED",
+  },
+  {
+    id: "tpl-doc-independent-contractor-agreement-v1",
+    title: "Independent Contractor Agreement",
+    description: "Independent contractor agreement template with signature sections.",
+    category: "HR & Compliance",
+    industry: "GENERAL",
+    type: "DOCUMENT",
+    tags: "independent contractor,1099,agreement,document",
+    isFeatured: false,
+    complianceGuarded: false,
+    docSchemaJson: docSchema("Independent Contractor Agreement", [
+      "Contractor will provide services as an independent business and not as an employee of the company.",
+      "Compensation, confidentiality, ownership, and termination terms are governed by this agreement.",
+    ]),
+    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    docSigningDefaultsJson: docSigningDefaults(),
+    docVersion: 1,
+    docStatus: "PUBLISHED",
+  },
 ];
 
 // ── seed ──────────────────────────────────────────────────────────────────────
@@ -521,6 +753,13 @@ async function main() {
         linkType: t.linkType ?? null,
         optionsJson: t.optionsJson ?? null,
         fieldsJson,
+        docSchemaJson: t.docSchemaJson ?? null,
+        docDefaultValuesJson: t.docDefaultValuesJson ?? null,
+        docSigningDefaultsJson: t.docSigningDefaultsJson ?? null,
+        docVersion: t.docVersion ?? 1,
+        docStatus: t.docStatus ?? "DRAFT",
+        thumbnailUrl: t.thumbnailUrl ?? null,
+        previewBlobUrl: t.previewBlobUrl ?? null,
         tags: t.tags,
         isFeatured: t.isFeatured,
         complianceGuarded: t.complianceGuarded,
@@ -537,6 +776,13 @@ async function main() {
         linkType: t.linkType ?? null,
         optionsJson: t.optionsJson ?? null,
         fieldsJson,
+        docSchemaJson: t.docSchemaJson ?? null,
+        docDefaultValuesJson: t.docDefaultValuesJson ?? null,
+        docSigningDefaultsJson: t.docSigningDefaultsJson ?? null,
+        docVersion: t.docVersion ?? 1,
+        docStatus: t.docStatus ?? "DRAFT",
+        thumbnailUrl: t.thumbnailUrl ?? null,
+        previewBlobUrl: t.previewBlobUrl ?? null,
         tags: t.tags,
         isFeatured: t.isFeatured,
         complianceGuarded: t.complianceGuarded,

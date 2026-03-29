@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   ArrowLeft,
@@ -161,10 +162,18 @@ function normalizeDetail(data: unknown): {
   recipients: RecipientServer[];
   fields: PlacedField[];
   blobUrl: string | null;
+  title: string;
+  message: string;
+  originalName: string | null;
+  documentHash: string | null;
 } {
   const source = (data as { request?: unknown })?.request ?? data;
   const request = source as {
     blobUrl?: unknown;
+    title?: unknown;
+    message?: unknown;
+    originalName?: unknown;
+    documentHash?: unknown;
     pages?: unknown;
     recipients?: unknown;
     signingFields?: unknown;
@@ -235,11 +244,16 @@ function normalizeDetail(data: unknown): {
     recipients,
     fields,
     blobUrl: typeof request?.blobUrl === "string" ? request.blobUrl : null,
+    title: typeof request?.title === "string" ? request.title : "",
+    message: typeof request?.message === "string" ? request.message : "",
+    originalName: typeof request?.originalName === "string" ? request.originalName : null,
+    documentHash: typeof request?.documentHash === "string" ? request.documentHash : null,
   };
 }
 
 export default function NewSigningRequestPage() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>(1);
   const [draggingUpload, setDraggingUpload] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -248,6 +262,7 @@ export default function NewSigningRequestPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [requestId, setRequestId] = useState<string | null>(null);
+  const [templateInstanceId, setTemplateInstanceId] = useState<string | null>(null);
   const [requestToken, setRequestToken] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
@@ -274,6 +289,7 @@ export default function NewSigningRequestPage() {
   const dragStateRef = useRef<DragState | null>(null);
 
   const progressWidth = useMemo(() => `${((step - 1) / (STEPS.length - 1)) * 100}%`, [step]);
+  const isDocumentTemplateMode = searchParams.get("mode") === "document-template";
   const ccEmails = useMemo(
     () =>
       ccInput
@@ -326,6 +342,71 @@ export default function NewSigningRequestPage() {
     });
     return map;
   }, [savedRecipients]);
+
+  useEffect(() => {
+    const initialRequestId = searchParams.get("requestId");
+    if (!initialRequestId || requestId) return;
+    const requestIdParam = initialRequestId;
+
+    const initialTemplateInstanceId = searchParams.get("templateInstanceId");
+    if (initialTemplateInstanceId) setTemplateInstanceId(initialTemplateInstanceId);
+
+    let cancelled = false;
+    async function hydrateExistingRequest() {
+      setBusy(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/signing/requests/${encodeURIComponent(requestIdParam)}`, { cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data?.error?.message ?? data?.error ?? "Failed to load existing signing request.");
+        }
+
+        const normalized = normalizeDetail(data);
+        if (cancelled) return;
+
+        setRequestId(requestIdParam);
+        if (normalized.title) setTitle(normalized.title);
+        if (normalized.message) setMessage(normalized.message);
+        if (normalized.originalName) setFileName(normalized.originalName);
+        if (normalized.documentHash) setDocumentHash(normalized.documentHash);
+        if (normalized.blobUrl) setDocumentBlobUrl(normalized.blobUrl);
+
+        if (normalized.pages.length > 0) {
+          setPages(
+            normalized.pages.map((page) => ({
+              page: page.page,
+              widthPts: page.widthPts,
+              heightPts: page.heightPts,
+            })),
+          );
+          setDetailPages(normalized.pages);
+          setActivePage(normalized.pages[0].page);
+        }
+        if (normalized.recipients.length > 0) {
+          setSavedRecipients(normalized.recipients);
+          setRecipients(
+            normalized.recipients.map((recipient) => ({
+              id: recipient.id,
+              name: recipient.name,
+              email: recipient.email,
+            })),
+          );
+          setActiveRecipientId(normalized.recipients[0].id);
+        }
+        if (normalized.fields.length > 0) setPlacedFields(normalized.fields);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load existing request.");
+      } finally {
+        if (!cancelled) setBusy(false);
+      }
+    }
+
+    void hydrateExistingRequest();
+    return () => {
+      cancelled = true;
+    };
+  }, [requestId, searchParams]);
 
   useEffect(() => {
     if (!activeRecipientId && savedRecipients.length > 0) {
@@ -485,6 +566,50 @@ export default function NewSigningRequestPage() {
       setActivePage(normalized.pages[0].page);
     }
     if (normalized.blobUrl) setDocumentBlobUrl(normalized.blobUrl);
+
+    if (templateInstanceId && normalized.recipients.length > 0 && normalized.fields.length === 0) {
+      const first = normalized.recipients[0]?.id;
+      const second = normalized.recipients[1]?.id ?? first;
+      if (first) {
+        const roleMap: Record<string, string> = {
+          RECIPIENT: first,
+          CLIENT: first,
+          BUYER: first,
+          PARTY_A: first,
+          PARTY_ONE: first,
+          SIGNER_1: first,
+          SELLER: second ?? first,
+          PARTY_B: second ?? first,
+          PARTY_TWO: second ?? first,
+          SIGNER_2: second ?? first,
+          SENDER: second ?? first,
+        };
+        const defaultsRes = await fetch(
+          `/api/document-templates/instances/${encodeURIComponent(templateInstanceId)}/apply-signing-defaults`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ recipientRoleMap: roleMap }),
+          },
+        );
+        const defaultsData = await defaultsRes.json().catch(() => ({}));
+        if (!defaultsRes.ok) {
+          throw new Error(defaultsData?.error?.message ?? defaultsData?.error ?? "Failed to apply template signing defaults.");
+        }
+
+        if ((defaultsData?.created ?? 0) > 0) {
+          const refreshedRes = await fetch(`/api/signing/requests/${encodeURIComponent(requestId)}`, { cache: "no-store" });
+          const refreshedData = await refreshedRes.json().catch(() => ({}));
+          if (!refreshedRes.ok) {
+            throw new Error(refreshedData?.error?.message ?? refreshedData?.error ?? "Failed to refresh signing fields.");
+          }
+          const refreshed = normalizeDetail(refreshedData);
+          if (refreshed.fields.length > 0) {
+            setPlacedFields(refreshed.fields);
+          }
+        }
+      }
+    }
   }
 
   async function saveFieldsAndContinue() {
@@ -691,7 +816,9 @@ export default function NewSigningRequestPage() {
           </Button>
           <h1 className="ui-page-title mt-2">New Signing Request</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Upload your document, add recipients, place fields, then send.
+            {isDocumentTemplateMode
+              ? "Template document is loaded. Add recipients, review fields, then send."
+              : "Upload your document, add recipients, place fields, then send."}
           </p>
         </div>
       </div>
@@ -734,6 +861,11 @@ export default function NewSigningRequestPage() {
 
       {step === 1 && (
         <div className="space-y-5">
+          {isDocumentTemplateMode && requestId ? (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+              Document template mode: this request already has a generated PDF attached.
+            </div>
+          ) : null}
           <div className="rounded-xl border border-border bg-card p-5 space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div>

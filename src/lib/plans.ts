@@ -9,6 +9,7 @@ export interface PlanConfig {
   canUseTransfers: boolean;
   canUseForms: boolean;
   canUseSigning: boolean;
+  canUseDocumentTemplates: boolean;
   docsignMonthlyLimit: number | null; // null = unlimited; FREE=3, BEGINNER=15
   maxTeamMembers: number;
 }
@@ -24,6 +25,7 @@ export const PLANS: Record<Plan, PlanConfig> = {
     canUseTransfers: false,
     canUseForms: false,
     canUseSigning: true,
+    canUseDocumentTemplates: true,
     docsignMonthlyLimit: 3,
     maxTeamMembers: 1,
   },
@@ -35,6 +37,7 @@ export const PLANS: Record<Plan, PlanConfig> = {
     canUseTransfers: false,
     canUseForms: false,
     canUseSigning: true,
+    canUseDocumentTemplates: true,
     docsignMonthlyLimit: 15,
     maxTeamMembers: 1,
   },
@@ -46,6 +49,7 @@ export const PLANS: Record<Plan, PlanConfig> = {
     canUseTransfers: true,
     canUseForms: true,
     canUseSigning: true,
+    canUseDocumentTemplates: true,
     docsignMonthlyLimit: null,
     maxTeamMembers: 1,
   },
@@ -57,6 +61,7 @@ export const PLANS: Record<Plan, PlanConfig> = {
     canUseTransfers: true,
     canUseForms: true,
     canUseSigning: true,
+    canUseDocumentTemplates: true,
     docsignMonthlyLimit: null,
     maxTeamMembers: 5,
   },
@@ -80,6 +85,9 @@ export function validatePlanMatrix(): string[] {
     }
     if (config.canUseTransfers !== config.features.includes("TRANSFERS")) {
       issues.push(`${plan}: canUseTransfers does not match features.TRANSFERS`);
+    }
+    if (!config.canUseSigning && config.canUseDocumentTemplates) {
+      issues.push(`${plan}: canUseDocumentTemplates requires canUseSigning`);
     }
     if (!config.features.includes("SECURE_LINKS")) {
       issues.push(`${plan}: SECURE_LINKS must be enabled`);
@@ -106,6 +114,10 @@ export function canUseTransfers(plan: string): boolean {
 
 export function canUseForms(plan: string): boolean {
   return hasPlanFeature(plan, "FORMS");
+}
+
+export function canUseDocumentTemplates(plan: string): boolean {
+  return getPlan(plan).canUseDocumentTemplates;
 }
 
 // Count signing requests sent this calendar month (excludes DRAFT)

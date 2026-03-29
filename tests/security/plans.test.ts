@@ -26,3 +26,11 @@ test("all configured plans include secure links", () => {
     assert.equal(config.features.includes("SECURE_LINKS"), true);
   }
 });
+
+test("document templates are enabled only when signing is enabled", () => {
+  for (const config of Object.values(PLANS)) {
+    if (config.canUseDocumentTemplates) {
+      assert.equal(config.canUseSigning, true);
+    }
+  }
+});

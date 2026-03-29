@@ -2,16 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
-import { getPlan } from "@/lib/plans";
+import { canUseDocumentTemplates, getPlan } from "@/lib/plans";
+import { generateToken } from "@/lib/tokens";
+import { addHours } from "date-fns";
+import { isDocumentTemplatesEnabledServer } from "@/lib/feature-flags";
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
+    const documentsEnabled = isDocumentTemplatesEnabledServer();
+    const body = await req.json().catch(() => ({}));
+    const titleOverride =
+      typeof body?.titleOverride === "string" && body.titleOverride.trim()
+        ? body.titleOverride.trim().slice(0, 160)
+        : null;
+
     const template = await db.systemTemplate.findUnique({
       where: { id: params.id, isActive: true },
     });
@@ -35,6 +45,28 @@ export async function POST(
       }
     }
 
+    if (template.type === "DOCUMENT") {
+      if (!documentsEnabled) {
+        return NextResponse.json({ error: "Document templates are currently disabled." }, { status: 404 });
+      }
+      const userPlan = await db.user.findUnique({
+        where: { id: session.user.id },
+        select: { plan: true },
+      });
+      if (!canUseDocumentTemplates(userPlan?.plan ?? "FREE")) {
+        return NextResponse.json(
+          { error: "Document templates are not available on your current plan.", code: "UPGRADE_REQUIRED" },
+          { status: 403 }
+        );
+      }
+      if (template.docStatus !== "PUBLISHED") {
+        return NextResponse.json(
+          { error: "This document template is not published yet." },
+          { status: 409 }
+        );
+      }
+    }
+
     // Record usage in both cases
     await db.$transaction([
       db.templateUsage.create({
@@ -52,6 +84,56 @@ export async function POST(
         type: "link",
         linkType: template.linkType,
         optionsJson: template.optionsJson,
+      });
+    }
+
+    // DOCUMENT — create a draft signing request and a template instance
+    if (template.type === "DOCUMENT") {
+      const created = await db.$transaction(async (tx) => {
+        const request = await tx.docSignRequest.create({
+          data: {
+            token: generateToken(),
+            title: titleOverride ?? template.title,
+            message: template.description ?? null,
+            status: "DRAFT",
+            expiresAt: addHours(new Date(), 72),
+            agentId: session.user.id,
+            originalName: `${(titleOverride ?? template.title).replace(/[^a-zA-Z0-9._\- ]/g, "_")}.pdf`,
+          },
+          select: { id: true },
+        });
+
+        const instance = await tx.documentTemplateInstance.create({
+          data: {
+            templateId: template.id,
+            requestId: request.id,
+            templateVersion: template.docVersion ?? 1,
+            resolvedValuesJson: template.docDefaultValuesJson ?? "{}",
+            enabledClausesJson: "[]",
+          },
+          select: { id: true },
+        });
+
+        await tx.docSignAuditLog.create({
+          data: {
+            requestId: request.id,
+            event: "TEMPLATE_SELECTED",
+            metadata: JSON.stringify({
+              templateId: template.id,
+              templateVersion: template.docVersion ?? 1,
+              instanceId: instance.id,
+            }),
+          },
+        });
+
+        return { requestId: request.id, templateInstanceId: instance.id };
+      });
+
+      return NextResponse.json({
+        type: "document",
+        requestId: created.requestId,
+        templateInstanceId: created.templateInstanceId,
+        templateId: template.id,
       });
     }
 

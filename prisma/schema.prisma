@@ -440,6 +440,7 @@ model DocSignRequest {
   signingFields DocSignField[]
   pages        DocSignPage[]
   certificate  CertificateOfCompletion?
+  documentTemplateInstance DocumentTemplateInstance?
 }
 
 model DocSignRecipient {
@@ -533,12 +534,20 @@ model SystemTemplate {
   description String?
   category    String   // Insurance | Banking | Compliance | Mortgage | General
   industry    String?  // INSURANCE | MORTGAGE | BANKING | GENERAL
-  type        String   // SECURE_LINK | FORM
+  type        String   // SECURE_LINK | FORM | DOCUMENT
   // For SECURE_LINK templates
   linkType    String?
   optionsJson String?
   // For FORM templates — JSON array of field definitions
   fieldsJson  String?
+  // For DOCUMENT templates
+  docSchemaJson         String?
+  docDefaultValuesJson  String?
+  docSigningDefaultsJson String?
+  docVersion            Int      @default(1)
+  docStatus             String   @default("DRAFT") // DRAFT | REVIEWED | PUBLISHED | ARCHIVED
+  thumbnailUrl          String?
+  previewBlobUrl        String?
   tags              String?  // comma-separated
   isFeatured        Boolean  @default(false)
   isActive          Boolean  @default(true)
@@ -550,6 +559,7 @@ model SystemTemplate {
   updatedAt   DateTime @updatedAt
 
   usages TemplateUsage[]
+  documentInstances DocumentTemplateInstance[]
 }
 
 model TemplateUsage {
@@ -563,6 +573,25 @@ model TemplateUsage {
 
   @@index([templateId])
   @@index([agentId])
+}
+
+model DocumentTemplateInstance {
+  id               String   @id @default(cuid())
+  templateId       String
+  requestId        String   @unique
+  templateVersion  Int
+  resolvedValuesJson String
+  enabledClausesJson String?
+  renderHash       String?
+  renderedBlobUrl  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  template SystemTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  request  DocSignRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([templateId, createdAt])
+  @@index([requestId])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
