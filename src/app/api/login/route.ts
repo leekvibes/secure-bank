@@ -6,6 +6,7 @@ import {
   getNextAuthCookieOptions,
   getSessionCookieName,
 } from "@/lib/auth/options";
+import { sendSignInAlertEmail } from "@/lib/email";
 
 const SESSION_COOKIE = getSessionCookieName();
 
@@ -42,6 +43,17 @@ export async function POST(req: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET!,
       maxAge: 8 * 60 * 60,
     });
+
+    // Send sign-in alert — fire and forget
+    const ua = req.headers.get("user-agent") ?? "Unknown device";
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    sendSignInAlertEmail({
+      toEmail: user.email,
+      toName: user.displayName.split(" ")[0],
+      time: new Date().toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }),
+      browser: ua,
+      ipApprox: ip,
+    }).catch(() => {});
 
     const response = NextResponse.json({ success: true });
 
