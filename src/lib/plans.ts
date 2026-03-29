@@ -3,11 +3,13 @@ export type PlanFeature = "SECURE_LINKS" | "FORMS" | "TRANSFERS";
 
 export interface PlanConfig {
   name: string;
-  linkLimit: number | null;  // null = unlimited
-  lifetimeLimit: boolean;    // true = total ever (FREE), false = per calendar month
+  linkLimit: number | null;        // null = unlimited
+  lifetimeLimit: boolean;          // true = total ever (FREE), false = per calendar month
   features: readonly PlanFeature[];
   canUseTransfers: boolean;
   canUseForms: boolean;
+  canUseSigning: boolean;
+  docsignMonthlyLimit: number | null; // null = unlimited; FREE=3, BEGINNER=15
   maxTeamMembers: number;
 }
 
@@ -21,6 +23,8 @@ export const PLANS: Record<Plan, PlanConfig> = {
     features: ["SECURE_LINKS"],
     canUseTransfers: false,
     canUseForms: false,
+    canUseSigning: true,
+    docsignMonthlyLimit: 3,
     maxTeamMembers: 1,
   },
   BEGINNER: {
@@ -30,6 +34,8 @@ export const PLANS: Record<Plan, PlanConfig> = {
     features: ["SECURE_LINKS"],
     canUseTransfers: false,
     canUseForms: false,
+    canUseSigning: true,
+    docsignMonthlyLimit: 15,
     maxTeamMembers: 1,
   },
   PRO: {
@@ -39,6 +45,8 @@ export const PLANS: Record<Plan, PlanConfig> = {
     features: ["SECURE_LINKS", "FORMS", "TRANSFERS"],
     canUseTransfers: true,
     canUseForms: true,
+    canUseSigning: true,
+    docsignMonthlyLimit: null,
     maxTeamMembers: 1,
   },
   AGENCY: {
@@ -48,6 +56,8 @@ export const PLANS: Record<Plan, PlanConfig> = {
     features: ["SECURE_LINKS", "FORMS", "TRANSFERS"],
     canUseTransfers: true,
     canUseForms: true,
+    canUseSigning: true,
+    docsignMonthlyLimit: null,
     maxTeamMembers: 5,
   },
 };
@@ -96,6 +106,36 @@ export function canUseTransfers(plan: string): boolean {
 
 export function canUseForms(plan: string): boolean {
   return hasPlanFeature(plan, "FORMS");
+}
+
+// Count signing requests sent this calendar month (excludes DRAFT)
+export async function getMonthlyDocSignCount(
+  db: import("@prisma/client").PrismaClient,
+  agentId: string
+): Promise<number> {
+  const start = new Date();
+  start.setDate(1);
+  start.setHours(0, 0, 0, 0);
+  return db.docSignRequest.count({
+    where: {
+      agentId,
+      status: { not: "DRAFT" },
+      createdAt: { gte: start },
+    },
+  });
+}
+
+// Check if agent can send another signing request this month
+export async function checkDocSignLimit(
+  db: import("@prisma/client").PrismaClient,
+  agentId: string,
+  plan: string
+): Promise<{ allowed: boolean; used: number; limit: number | null }> {
+  const config = getPlan(plan);
+  const limit = config.docsignMonthlyLimit;
+  if (limit === null) return { allowed: true, used: 0, limit: null };
+  const used = await getMonthlyDocSignCount(db, agentId);
+  return { allowed: used < limit, used, limit };
 }
 
 // Count links created this calendar month

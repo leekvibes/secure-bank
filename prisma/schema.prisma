@@ -410,17 +410,22 @@ model DocSignRequest {
   token         String   @unique
   title         String?
   message       String?
-  status        String   @default("DRAFT") // DRAFT | SENT | OPENED | COMPLETED | EXPIRED
-  // Encrypted storage paths for original and final signed PDF
-  originalFilePath String
+  status        String   @default("DRAFT") // DRAFT | SENT | OPENED | COMPLETED | EXPIRED | VOIDED
+  // Legacy encrypted local storage (old docsign flow — keep for backwards compat)
+  originalFilePath String  @default("")
   signedFilePath   String?
   originalName     String?
-  // Field placement data as JSON array
   fieldsJson    String?
-  // Agent pre-sign data as JSON
   agentSignJson String?
   clientName    String?
   clientEmail   String?
+  // New signing flow fields
+  blobUrl         String?   // Vercel Blob URL of original PDF
+  documentHash    String?   // SHA-256 of original PDF bytes
+  signingMode     String    @default("PARALLEL") // PARALLEL | SEQUENTIAL
+  ccEmails        String?   // JSON array of email strings
+  voidedAt        DateTime?
+  voidReason      String?
   expiresAt     DateTime
   completedAt   DateTime?
   createdAt     DateTime @default(now())
@@ -429,14 +434,90 @@ model DocSignRequest {
   agentId String
   agent   User   @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
-  auditLogs DocSignAuditLog[]
+  auditLogs    DocSignAuditLog[]
+  recipients   DocSignRecipient[]
+  signingFields DocSignField[]
+  pages        DocSignPage[]
+  certificate  CertificateOfCompletion?
+}
+
+model DocSignRecipient {
+  id            String    @id @default(cuid())
+  requestId     String
+  name          String
+  email         String
+  order         Int       @default(0)
+  token         String    @unique
+  status        String    @default("PENDING") // PENDING | OPENED | COMPLETED | DECLINED
+  consentAt     DateTime?
+  openedAt      DateTime?
+  completedAt   DateTime?
+  declinedAt    DateTime?
+  declineReason String?
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime  @default(now())
+
+  request DocSignRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  fields  DocSignField[]
+
+  @@index([requestId])
+  @@index([token])
+}
+
+model DocSignField {
+  id          String   @id @default(cuid())
+  requestId   String
+  recipientId String
+  type        String   // SIGNATURE|INITIALS|DATE_SIGNED|FULL_NAME|TITLE|COMPANY|TEXT|CHECKBOX|RADIO|DROPDOWN|ATTACHMENT
+  page        Int
+  x           Float    // 0–1 fraction of page width (PDF points)
+  y           Float    // 0–1 fraction of page height from top
+  width       Float    // 0–1
+  height      Float    // 0–1
+  required    Boolean  @default(true)
+  options     String?  // JSON for DROPDOWN/RADIO choices
+  value       String?  // filled in after signing (text or base64 PNG for SIGNATURE)
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  request   DocSignRequest   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  recipient DocSignRecipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([recipientId])
+}
+
+model DocSignPage {
+  id        String @id @default(cuid())
+  requestId String
+  page      Int    // 1-indexed
+  widthPts  Float  // PDF points at scale 1
+  heightPts Float
+
+  request DocSignRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, page])
+  @@index([requestId])
+}
+
+model CertificateOfCompletion {
+  id          String   @id @default(cuid())
+  requestId   String   @unique
+  blobUrl     String
+  generatedAt DateTime @default(now())
+
+  request DocSignRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 }
 
 model DocSignAuditLog {
-  id        String   @id @default(cuid())
-  event     String   // CREATED | SENT | OPENED | SIGNED | COMPLETED
-  metadata  String?
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  event       String   // CREATED | SENT | OPENED | SIGNED | COMPLETED | DECLINED | VOIDED | CONSENT
+  metadata    String?
+  ipAddress   String?
+  userAgent   String?
+  recipientId String?
+  createdAt   DateTime @default(now())
 
   requestId String
   request   DocSignRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
