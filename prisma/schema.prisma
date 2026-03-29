@@ -62,6 +62,7 @@ model User {
   fileTransfers          FileTransfer[]
   feedback               Feedback[]
   docSignRequests        DocSignRequest[]
+  templateUsages         TemplateUsage[]
 }
 
 model SecureLink {
@@ -437,6 +438,44 @@ model DocSignAuditLog {
 
   requestId String
   request   DocSignRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// System Templates
+
+model SystemTemplate {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  category    String   // Insurance | Banking | Compliance | Mortgage | General
+  industry    String?  // INSURANCE | MORTGAGE | BANKING | GENERAL
+  type        String   // SECURE_LINK | FORM
+  // For SECURE_LINK templates
+  linkType    String?
+  optionsJson String?
+  // For FORM templates — JSON array of field definitions
+  fieldsJson  String?
+  tags        String?  // comma-separated
+  isFeatured  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  usages TemplateUsage[]
+}
+
+model TemplateUsage {
+  id         String   @id @default(cuid())
+  templateId String
+  agentId    String
+  createdAt  DateTime @default(now())
+
+  template SystemTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  agent    User           @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@index([agentId])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

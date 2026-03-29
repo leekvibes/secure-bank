@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BrandingSelector } from "@/components/branding-selector";
+import { TemplatePickerModal } from "@/components/template-picker-modal";
 import { buildTrustMessage } from "@/lib/link-message";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
@@ -47,6 +48,14 @@ interface CreatedLink {
   messageText: string;
   trustMessage: string;
   expiresAt: string;
+}
+
+interface SystemTemplateDetail {
+  id: string;
+  title: string;
+  type: "SECURE_LINK" | "FORM";
+  linkType: string | null;
+  optionsJson: string | null;
 }
 
 const DESTINATIONS = [
@@ -148,6 +157,7 @@ function NewLinkPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedFormId = searchParams.get("formId");
+  const systemTemplateId = searchParams.get("template");
 
   const [linkType, setLinkType] = useState<LinkType>(preselectedFormId ? "CUSTOM_FORM" : "BANKING_INFO");
   const [clientName, setClientName] = useState("");
@@ -160,6 +170,9 @@ function NewLinkPage() {
 
   const [idBothSides, setIdBothSides] = useState(false);
   const [idDocumentType, setIdDocumentType] = useState("DRIVERS_LICENSE");
+  const [systemTemplateName, setSystemTemplateName] = useState<string | null>(null);
+  const [systemTemplateOptions, setSystemTemplateOptions] = useState<Record<string, unknown>>({});
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
 
   const [customForms, setCustomForms] = useState<ApiForm[]>([]);
   const [formsLoading, setFormsLoading] = useState(false);
@@ -245,17 +258,72 @@ function NewLinkPage() {
   function applyTemplate(t: ApiTemplate) {
     const type = t.linkType as LinkType;
     setLinkType(type);
+    setSystemTemplateName(null);
+    setSystemTemplateOptions({});
     if (t.destinationLabel) setDestination(t.destinationLabel);
     setExpirationHours(t.expiresIn);
     if (t.assetIds?.length) setSelectedAssetIds(t.assetIds);
     if (t.options?.requireBack) setIdBothSides(true);
+    if (typeof t.options?.documentType === "string") setIdDocumentType(String(t.options.documentType));
     setActiveTemplateId(t.id);
   }
+
+  useEffect(() => {
+    if (!systemTemplateId) return;
+    const templateId = systemTemplateId;
+    let cancelled = false;
+
+    async function loadSystemTemplate() {
+      try {
+        const res = await fetch(`/api/templates/${encodeURIComponent(templateId)}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data?.error ?? "Failed to load template.");
+        }
+        const template = data?.template as SystemTemplateDetail | undefined;
+        if (!template || template.type !== "SECURE_LINK") {
+          throw new Error("Selected template is not a secure-link template.");
+        }
+
+        const parsedOptions =
+          typeof template.optionsJson === "string" && template.optionsJson.trim().length > 0
+            ? JSON.parse(template.optionsJson) as Record<string, unknown>
+            : {};
+
+        const templateLinkType = template.linkType as LinkType | null;
+        if (templateLinkType && templateLinkType in TYPE_META) {
+          setLinkType(templateLinkType);
+        }
+
+        if (templateLinkType === "ID_UPLOAD") {
+          setIdBothSides(Boolean(parsedOptions.requireBack));
+          if (typeof parsedOptions.documentType === "string" && parsedOptions.documentType.length > 0) {
+            setIdDocumentType(parsedOptions.documentType);
+          }
+        }
+
+        if (!cancelled) {
+          setSystemTemplateName(template.title);
+          setSystemTemplateOptions(parsedOptions);
+          setActiveTemplateId("");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load template.");
+        }
+      }
+    }
+
+    loadSystemTemplate();
+    return () => {
+      cancelled = true;
+    };
+  }, [systemTemplateId]);
 
   async function saveAsTemplate() {
     if (!newTemplateName.trim()) return;
     setSavingTemplate(true);
-    const options: Record<string, unknown> = {};
+    const options: Record<string, unknown> = { ...systemTemplateOptions };
     if (linkType === "ID_UPLOAD") {
       options.requireBack = idBothSides;
       options.documentType = idDocumentType;
@@ -349,7 +417,7 @@ function NewLinkPage() {
       return;
     }
 
-    const options: Record<string, unknown> = {};
+    const options: Record<string, unknown> = { ...systemTemplateOptions };
     if (linkType === "ID_UPLOAD") {
       options.requireBack = idBothSides;
       options.documentType = idDocumentType;
@@ -662,6 +730,16 @@ function NewLinkPage() {
 
         {linkType !== "CUSTOM_FORM" && (
           <div className="flex items-center gap-2 shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setTemplateModalOpen(true)}
+              className="h-9 gap-1.5"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Start from template
+            </Button>
             <div className="relative">
               <select
                 value={activeTemplateId}
@@ -737,6 +815,13 @@ function NewLinkPage() {
       <form onSubmit={handleSubmit}>
         <div className="grid lg:grid-cols-[1fr_360px] gap-8 items-start">
           <div className="space-y-5">
+            {systemTemplateName && (
+              <div className="rounded-xl border border-blue-500/25 bg-blue-500/5 px-4 py-3">
+                <p className="text-sm text-blue-700">
+                  Using system template: <span className="font-semibold">{systemTemplateName}</span>
+                </p>
+              </div>
+            )}
             {error && (
               <div className={`p-3.5 rounded-xl text-sm ${upgradeRequired ? "bg-amber-500/10 border border-amber-500/30 text-amber-700" : "bg-destructive/10 border border-destructive/20 text-destructive"}`}>
                 <p>{error}</p>
@@ -765,6 +850,10 @@ function NewLinkPage() {
                         key={type}
                         type="button"
                         onClick={() => {
+                          if (systemTemplateName) {
+                            setSystemTemplateName(null);
+                            setSystemTemplateOptions({});
+                          }
                           setLinkType(type);
                           setExpirationHours(c.defaultExpiry);
                         }}
@@ -1201,6 +1290,7 @@ function NewLinkPage() {
           </div>
         </div>
       </form>
+      <TemplatePickerModal open={templateModalOpen} onClose={() => setTemplateModalOpen(false)} />
     </div>
   );
 }

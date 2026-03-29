@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { TemplatePickerModal } from "@/components/template-picker-modal";
 import { FIELD_TYPES, SENSITIVE_FIELD_TYPES, type FormFieldType } from "@/lib/schemas";
 
 const FIELD_TYPE_CONFIG: Record<FormFieldType, {
@@ -220,6 +221,7 @@ export default function NewFormPage() {
   const [fields, setFields] = useState<FieldDraft[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [started, setStarted] = useState(false);
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
 
   function updateField(id: string, patch: Partial<FieldDraft>) {
     setFields((fs) => fs.map((f) => (f.id === id ? { ...f, ...patch } : f)));
@@ -333,6 +335,18 @@ export default function NewFormPage() {
           </p>
         </div>
 
+        <div className="mb-6">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setTemplateModalOpen(true)}
+            className="w-full"
+          >
+            <FileText className="w-4 h-4 mr-2" />
+            Start from a template
+          </Button>
+        </div>
+
         <div className="space-y-3 mb-6">
           {STARTER_TEMPLATES.map((t) => {
             const Icon = t.icon;
@@ -375,6 +389,7 @@ export default function NewFormPage() {
             Start from scratch
           </Button>
         </div>
+        <TemplatePickerModal open={templateModalOpen} onClose={() => setTemplateModalOpen(false)} />
       </div>
     );
   }
@@ -390,23 +405,35 @@ export default function NewFormPage() {
         </Button>
       </div>
 
-      <div className="flex items-start justify-between mb-8">
+        <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="ui-page-title">Build Your Form</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Customize the fields below. Your client will see this as a clean, secure form.
           </p>
         </div>
-        <Button
-          type="button"
-          variant={showPreview ? "default" : "outline"}
-          size="sm"
-          onClick={() => setShowPreview((p) => !p)}
-          className="shrink-0 gap-1.5"
-        >
-          <MonitorSmartphone className="w-3.5 h-3.5" />
-          {showPreview ? "Hide preview" : "Preview"}
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setTemplateModalOpen(true)}
+            className="gap-1.5"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Start from template
+          </Button>
+          <Button
+            type="button"
+            variant={showPreview ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowPreview((p) => !p)}
+            className="shrink-0 gap-1.5"
+          >
+            <MonitorSmartphone className="w-3.5 h-3.5" />
+            {showPreview ? "Hide preview" : "Preview"}
+          </Button>
+        </div>
       </div>
 
       <div className={showPreview ? "grid xl:grid-cols-[1fr_380px] gap-8 items-start" : ""}>
@@ -686,6 +713,7 @@ export default function NewFormPage() {
           <FormPreviewPane title={title} description={description} fields={fields} />
         </div>
       )}
+      <TemplatePickerModal open={templateModalOpen} onClose={() => setTemplateModalOpen(false)} />
       </div>
     </div>
   );
