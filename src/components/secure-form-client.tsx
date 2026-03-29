@@ -17,6 +17,23 @@ function fmtSsn(raw: string): string {
   return `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}`;
 }
 
+function fmtDateInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+function toIsoDateFromUsInput(value: string): string {
+  const trimmed = value.trim();
+  const match = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return trimmed;
+  const month = match[1].padStart(2, "0");
+  const day = match[2].padStart(2, "0");
+  const year = match[3];
+  return `${year}-${month}-${day}`;
+}
+
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_UPLOAD_MIMES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 
@@ -160,7 +177,7 @@ export function SecureFormClient({
       Object.assign(body, {
         fullName: fields.fullName,
         middleInitial: fields.middleInitial,
-        dateOfBirth: fields.dateOfBirth,
+        dateOfBirth: toIsoDateFromUsInput(fields.dateOfBirth),
         ssn: fields.ssn,
         address: fields.address,
         phone: fields.phone,
@@ -490,7 +507,15 @@ export function SecureFormClient({
                         <Input value={fields.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Your full legal name" autoComplete="name" />
                       </Field>
                       <Field label="Date of Birth" error={fieldErrors.dateOfBirth} required>
-                        <Input type="date" value={fields.dateOfBirth} onChange={(e) => set("dateOfBirth", e.target.value)} max={new Date().toISOString().split("T")[0]} />
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={fields.dateOfBirth}
+                          onChange={(e) => set("dateOfBirth", fmtDateInput(e.target.value))}
+                          placeholder="MM/DD/YYYY"
+                          maxLength={10}
+                          autoComplete="bday"
+                        />
                       </Field>
                       <Field label="Social Security Number" error={fieldErrors.ssn} required hint="Formats automatically as XXX-XX-XXXX">
                         <Input type={showSsn ? "text" : "password"} inputMode="numeric" value={fields.ssn} onChange={(e) => set("ssn", fmtSsn(e.target.value))} placeholder="XXX-XX-XXXX" maxLength={11} autoComplete="off" />

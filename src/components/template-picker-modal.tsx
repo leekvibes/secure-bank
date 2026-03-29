@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Loader2, X, FileText, Link2, Star, ShieldCheck, ArrowRight,
@@ -17,6 +17,7 @@ interface SystemTemplate {
   type: "FORM" | "SECURE_LINK";
   isFeatured: boolean;
   complianceGuarded: boolean;
+  coreFieldLabels: string | null;
 }
 
 interface Props {
@@ -61,6 +62,19 @@ export function TemplatePickerModal({ open, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [usingId, setUsingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      setUsingId(null);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -103,14 +117,23 @@ export function TemplatePickerModal({ open, onClose }: Props) {
       if (!res.ok) throw new Error(data?.error ?? "Failed to apply template.");
       if (data?.type === "form" && typeof data.formId === "string") {
         onClose();
-        router.push(`/dashboard/forms/${data.formId}`);
+        const guarded = template.complianceGuarded ? "1" : "0";
+        const core = template.coreFieldLabels
+          ? encodeURIComponent(template.coreFieldLabels)
+          : "";
+        const query = guarded === "1"
+          ? `?guarded=1${core ? `&core=${core}` : ""}`
+          : "";
+        router.push(`/dashboard/forms/${data.formId}${query}`);
         return;
       }
       throw new Error("Template applied but no form was created.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to apply template.");
     } finally {
-      setUsingId(null);
+      if (mountedRef.current) {
+        setUsingId(null);
+      }
     }
   }
 
@@ -306,7 +329,7 @@ function ModalCard({
         <button
           type="button"
           onClick={() => onUse(template)}
-          disabled={loadingId !== null}
+          disabled={isLoading}
           className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
         >
           {isLoading

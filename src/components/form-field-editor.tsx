@@ -23,6 +23,85 @@ const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
 
 const SENSITIVE_TYPES: FormFieldType[] = ["ssn", "routing", "bank_account"];
 
+const FIELD_DEFAULTS: Record<FormFieldType, {
+  label: string;
+  placeholder: string;
+  helpText: string;
+  required: boolean;
+  confirmField: boolean;
+}> = {
+  text: {
+    label: "Full Name",
+    placeholder: "e.g. John Smith",
+    helpText: "",
+    required: true,
+    confirmField: false,
+  },
+  email: {
+    label: "Email Address",
+    placeholder: "name@example.com",
+    helpText: "",
+    required: true,
+    confirmField: false,
+  },
+  phone: {
+    label: "Phone Number",
+    placeholder: "(555) 123-4567",
+    helpText: "",
+    required: true,
+    confirmField: false,
+  },
+  address: {
+    label: "Home Address",
+    placeholder: "123 Main St, City, State ZIP",
+    helpText: "Include apartment or unit number if applicable",
+    required: true,
+    confirmField: false,
+  },
+  date: {
+    label: "Date of Birth",
+    placeholder: "MM/DD/YYYY",
+    helpText: "",
+    required: true,
+    confirmField: false,
+  },
+  dropdown: {
+    label: "Select an Option",
+    placeholder: "Choose one...",
+    helpText: "",
+    required: true,
+    confirmField: false,
+  },
+  ssn: {
+    label: "Social Security Number",
+    placeholder: "XXX-XX-XXXX",
+    helpText: "Your SSN is encrypted immediately and never stored in plain text",
+    required: true,
+    confirmField: true,
+  },
+  routing: {
+    label: "Routing Number",
+    placeholder: "9-digit routing number",
+    helpText: "Found on the bottom-left of your check",
+    required: true,
+    confirmField: false,
+  },
+  bank_account: {
+    label: "Account Number",
+    placeholder: "Enter account number",
+    helpText: "Your account number is encrypted immediately",
+    required: true,
+    confirmField: true,
+  },
+  signature: {
+    label: "Signature",
+    placeholder: "",
+    helpText: "Sign using your finger or mouse",
+    required: true,
+    confirmField: false,
+  },
+};
+
 interface FieldData {
   id: string;
   label: string;
@@ -39,6 +118,8 @@ interface FieldData {
 interface FormFieldEditorProps {
   formId: string;
   initialFields: FieldData[];
+  complianceGuarded?: boolean;
+  coreFieldLabels?: string[];
 }
 
 interface FieldDraft {
@@ -88,12 +169,20 @@ function makeField(): FieldDraft {
   };
 }
 
-export function FormFieldEditor({ formId, initialFields }: FormFieldEditorProps) {
+export function FormFieldEditor({
+  formId,
+  initialFields,
+  complianceGuarded = false,
+  coreFieldLabels = [],
+}: FormFieldEditorProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [fields, setFields] = useState<FieldDraft[]>(initialFields.map(fieldToForm));
+  const normalizedCoreLabels = new Set(
+    coreFieldLabels.map((label) => label.trim().toLowerCase()).filter(Boolean)
+  );
 
   function updateField(id: string, patch: Partial<FieldDraft>) {
     setFields((fs) => fs.map((f) => {
@@ -103,12 +192,43 @@ export function FormFieldEditor({ formId, initialFields }: FormFieldEditorProps)
         updated.encrypted = true;
         updated.maskInput = true;
       }
+      if (patch.fieldType) {
+        const defaults = FIELD_DEFAULTS[patch.fieldType];
+        updated.label = defaults.label;
+        updated.placeholder = defaults.placeholder;
+        updated.helpText = defaults.helpText;
+        updated.required = defaults.required;
+        updated.confirmField = defaults.confirmField;
+        if (!SENSITIVE_TYPES.includes(patch.fieldType)) {
+          updated.maskInput = false;
+        }
+        if (patch.fieldType !== "dropdown") {
+          updated.dropdownOptions = "";
+        } else if (!updated.dropdownOptions.trim()) {
+          updated.dropdownOptions = "Option 1, Option 2";
+        }
+      }
       return updated;
     }));
   }
 
   function removeField(id: string) {
-    setFields((fs) => fs.filter((f) => f.id !== id));
+    setFields((fs) => {
+      const target = fs.find((f) => f.id === id);
+      if (!target) return fs;
+      const isCoreGuardedField =
+        complianceGuarded &&
+        normalizedCoreLabels.has(target.label.trim().toLowerCase());
+      if (isCoreGuardedField) {
+        toast({
+          title: "Core field protected",
+          description: `"${target.label}" is required for this compliance template and cannot be removed.`,
+          variant: "destructive",
+        });
+        return fs;
+      }
+      return fs.filter((f) => f.id !== id);
+    });
   }
 
   function moveField(idx: number, dir: -1 | 1) {
@@ -200,6 +320,12 @@ export function FormFieldEditor({ formId, initialFields }: FormFieldEditorProps)
           </Button>
         </div>
       </div>
+
+      {complianceGuarded && coreFieldLabels.length > 0 && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+          This is a compliance-guarded template. Core fields cannot be removed.
+        </div>
+      )}
 
       {fields.map((field, idx) => (
         <div

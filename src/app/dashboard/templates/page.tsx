@@ -18,6 +18,7 @@ interface SystemTemplate {
   isFeatured: boolean;
   usageCount: number;
   complianceGuarded: boolean;
+  coreFieldLabels: string | null;
 }
 
 // ── category config ───────────────────────────────────────────────────────────
@@ -141,6 +142,13 @@ export default function TemplatesPage() {
   const [usingId, setUsingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -180,13 +188,23 @@ export default function TemplatesPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Failed to apply template.");
       if (data?.type === "form" && typeof data.formId === "string") {
-        router.push(`/dashboard/forms/${data.formId}`);
+        const guarded = template.complianceGuarded ? "1" : "0";
+        const core = template.coreFieldLabels
+          ? encodeURIComponent(template.coreFieldLabels)
+          : "";
+        const query = guarded === "1"
+          ? `?guarded=1${core ? `&core=${core}` : ""}`
+          : "";
+        router.push(`/dashboard/forms/${data.formId}${query}`);
         return;
       }
       throw new Error("Template applied but no form was created.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to apply template.");
-      setUsingId(null);
+    } finally {
+      if (mountedRef.current) {
+        setUsingId(null);
+      }
     }
   }
 

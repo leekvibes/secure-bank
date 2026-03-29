@@ -159,6 +159,8 @@ model Form {
   description   String?
   status        String   @default("ACTIVE") // ACTIVE | ARCHIVED
   retentionDays Int      @default(30)
+  complianceGuarded Boolean @default(false)
+  coreFieldLabels   String? // JSON array of guarded core field labels
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

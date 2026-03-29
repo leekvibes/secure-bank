@@ -48,6 +48,59 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   if (Array.isArray(body.fields)) {
+    let guardedCoreLabels = new Set<string>();
+    if (form.complianceGuarded && form.coreFieldLabels) {
+      try {
+        const parsed = JSON.parse(form.coreFieldLabels);
+        if (Array.isArray(parsed)) {
+          guardedCoreLabels = new Set(
+            parsed
+              .filter((value): value is string => typeof value === "string")
+              .map((value) => value.trim().toLowerCase())
+              .filter(Boolean)
+          );
+        }
+      } catch {
+        guardedCoreLabels = new Set<string>();
+      }
+    }
+
+    if (form.complianceGuarded && guardedCoreLabels.size > 0) {
+      const protectedFieldIds = new Set(
+        form.fields
+          .filter((field) => guardedCoreLabels.has(field.label.trim().toLowerCase()))
+          .map((field) => field.id)
+      );
+      const incomingById = new Map<string, { id?: string; label?: string }>();
+      for (const incoming of body.fields as Array<{ id?: string; label?: string }>) {
+        if (incoming.id) {
+          incomingById.set(incoming.id, incoming);
+        }
+      }
+
+      const removedProtected = Array.from(protectedFieldIds).some((id) => !incomingById.has(id));
+      if (removedProtected) {
+        return NextResponse.json(
+          { error: "Core compliance fields cannot be removed from this form." },
+          { status: 400 }
+        );
+      }
+
+      const renamedProtected = form.fields.some((field) => {
+        if (!protectedFieldIds.has(field.id)) return false;
+        const incoming = incomingById.get(field.id);
+        if (!incoming) return false;
+        const incomingLabel = String(incoming.label ?? "").trim().toLowerCase();
+        return incomingLabel !== field.label.trim().toLowerCase();
+      });
+      if (renamedProtected) {
+        return NextResponse.json(
+          { error: "Core compliance field labels cannot be changed." },
+          { status: 400 }
+        );
+      }
+    }
+
     await db.$transaction(async (tx) => {
       const existingIds = form.fields.map((f) => f.id);
       const incomingIds = body.fields.filter((f: { id?: string }) => f.id).map((f: { id: string }) => f.id);

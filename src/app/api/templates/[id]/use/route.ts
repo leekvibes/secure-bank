@@ -78,6 +78,8 @@ export async function POST(
         title: template.title,
         description: template.description ?? null,
         retentionDays: user?.dataRetentionDays ?? 30,
+        complianceGuarded: template.complianceGuarded,
+        coreFieldLabels: template.coreFieldLabels ?? null,
         agentId: session.user.id,
         fields: {
           create: rawFields.map((f, idx) => ({

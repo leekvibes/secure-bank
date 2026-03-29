@@ -14,7 +14,11 @@ export const metadata: Metadata = {
   title: "Form Details",
 };
 
-export default async function FormDetailPage({ params }: { params: { id: string } }) {
+export default async function FormDetailPage({
+  params,
+}: {
+  params: { id: string };
+}) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/auth");
 
@@ -49,6 +53,21 @@ export default async function FormDetailPage({ params }: { params: { id: string 
 
   const submittedLinks = form.links.filter((l) => l.status === "SUBMITTED");
   const activeLinks = form.links.filter((l) => l.status === "CREATED" || l.status === "OPENED");
+  const complianceGuarded = Boolean(form.complianceGuarded);
+  let coreFieldLabels: string[] = [];
+  if (form.coreFieldLabels) {
+    try {
+      const parsed = JSON.parse(form.coreFieldLabels);
+      if (Array.isArray(parsed)) {
+        coreFieldLabels = parsed
+          .filter((v): v is string => typeof v === "string")
+          .map((v) => v.trim())
+          .filter(Boolean);
+      }
+    } catch {
+      coreFieldLabels = [];
+    }
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -87,6 +106,8 @@ export default async function FormDetailPage({ params }: { params: { id: string 
 
           <FormFieldEditor
             formId={form.id}
+            complianceGuarded={complianceGuarded}
+            coreFieldLabels={coreFieldLabels}
             initialFields={form.fields.map((f) => ({
               id: f.id,
               label: f.label,

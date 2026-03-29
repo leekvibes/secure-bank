@@ -16,6 +16,23 @@ function fmtSsn(raw: string): string {
   return `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}`;
 }
 
+function fmtDateInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+function toIsoDateFromUsInput(value: string): string {
+  const trimmed = value.trim();
+  const match = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return trimmed;
+  const month = match[1].padStart(2, "0");
+  const day = match[2].padStart(2, "0");
+  const year = match[3];
+  return `${year}-${month}-${day}`;
+}
+
 type FormFieldType =
   | "text" | "email" | "phone" | "address" | "date"
   | "dropdown" | "ssn" | "routing" | "bank_account" | "signature";
@@ -95,8 +112,15 @@ export function DynamicFormClient({ token, form, fields, agent, logoUrls = [], l
 
     const payload: Record<string, string> = {};
     for (const f of fields) {
-      payload[f.id] = values[f.id] ?? "";
-      if (f.confirmField) payload[`confirm_${f.id}`] = confirmValues[f.id] ?? "";
+      const currentValue = values[f.id] ?? "";
+      const normalizedValue =
+        f.fieldType === "date" ? toIsoDateFromUsInput(currentValue) : currentValue;
+      payload[f.id] = normalizedValue;
+      if (f.confirmField) {
+        const confirmValue = confirmValues[f.id] ?? "";
+        payload[`confirm_${f.id}`] =
+          f.fieldType === "date" ? toIsoDateFromUsInput(confirmValue) : confirmValue;
+      }
     }
 
     const res = await fetch(`/api/f/${token}`, {
@@ -415,16 +439,14 @@ function DynamicField({ field, value, confirmValue, error, confirmError, onChang
     return (
       <FieldWrapper label={field.label} required={field.required} error={error} hint={field.helpText ?? undefined}>
         <Input
-          type="date"
+          type="text"
+          inputMode="numeric"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => onChange(fmtDateInput(e.target.value))}
+          placeholder={field.placeholder ?? "MM/DD/YYYY"}
+          maxLength={10}
           required={field.required}
-          onFocus={(e) => e.currentTarget.showPicker?.()}
-          onClick={(e) => e.currentTarget.showPicker?.()}
-          className={cn(
-            "cursor-pointer",
-            error ? "border-red-300 focus-visible:ring-red-500/30" : ""
-          )}
+          className={cn(error ? "border-red-300 focus-visible:ring-red-500/30" : "")}
         />
       </FieldWrapper>
     );
