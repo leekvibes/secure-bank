@@ -1034,10 +1034,15 @@ export default function NewSigningRequestPage() {
                   {pageData.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={pageData.imageUrl} alt={`Page ${pageData.page}`} className="absolute inset-0 w-full h-full object-contain bg-white" />
+                  ) : documentBlobUrl ? (
+                    <iframe
+                      src={`${documentBlobUrl}#page=${pageData.page}&toolbar=0&navpanes=0&scrollbar=0`}
+                      className="absolute inset-0 w-full h-full border-none bg-white"
+                      style={{ pointerEvents: "none" }}
+                      title={`Page ${pageData.page}`}
+                    />
                   ) : (
-                    <div className="absolute inset-0 bg-gradient-to-b from-slate-50 to-white flex items-center justify-center text-xs text-muted-foreground">
-                      Page preview image not available yet
-                    </div>
+                    <div className="absolute inset-0 bg-white" />
                   )}
 
                   <div className="absolute inset-0">
