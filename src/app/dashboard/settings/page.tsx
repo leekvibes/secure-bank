@@ -36,6 +36,7 @@ export default async function SettingsPage() {
       defaultExpirationHours: true,
       plan: true,
       stripeCustomerId: true,
+      stripeSubscriptionId: true,
     },
   });
 
@@ -49,7 +50,7 @@ export default async function SettingsPage() {
           Manage your profile, branding, and security settings.
         </p>
       </div>
-      <SettingsForm user={user} />
+      <SettingsForm user={{ ...user, stripeSubscriptionId: user.stripeSubscriptionId ?? null }} />
     </div>
   );
 }
