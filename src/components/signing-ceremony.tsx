@@ -388,19 +388,20 @@ export function SigningCeremony({ token }: { token: string }) {
   useEffect(() => {
     fetch(`/api/sign/${token}`)
       .then(async (r) => {
-        const json = await r.json();
-        if (!r.ok || !json.ok) {
-          setErrorMsg(json.error?.message ?? "This signing link is not available.");
+        const json = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          // apiSuccess returns data flat (no wrapper) — error shape: { error: { message } }
+          setErrorMsg((json as { error?: { message?: string } }).error?.message ?? "This signing link is not available.");
           setScreen("error");
           return;
         }
-        if (json.data._flow !== "new") {
-          // Legacy — should not reach here (page switches component)
+        // apiSuccess returns data directly at the top level, not wrapped in .data
+        if ((json as { _flow?: string })._flow !== "new") {
           setErrorMsg("Unexpected flow.");
           setScreen("error");
           return;
         }
-        const d = json.data as DocData;
+        const d = json as DocData;
         setData(d);
 
         // Pre-fill DATE_SIGNED and FULL_NAME
