@@ -74,24 +74,24 @@ export function BillingPanel({ plan, hasSubscription }: Props) {
     setUpgradeLoading(planKey);
 
     if (plan === "FREE") {
-      // No active subscription — go through Stripe checkout to start one.
+      // No active subscription — go through Stripe embedded checkout to start one.
       window.location.href = `/checkout?plan=${planKey}&next=/dashboard/settings&back=/dashboard/settings`;
       return;
     }
 
-    // Active subscriber upgrading — charge the prorated difference immediately
-    // against their saved payment method, no new checkout needed.
+    // Active subscriber upgrading — open the Stripe plan-switch flow directly.
+    // Stripe shows available plans, the prorated amount, and the user confirms.
     try {
-      const res = await fetch("/api/stripe/upgrade", {
+      const res = await fetch("/api/stripe/portal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: planKey }),
+        body: JSON.stringify({ upgrade: true }),
       });
       const data = await res.json();
-      if (res.ok) {
-        window.location.reload();
+      if (data.url) {
+        window.location.href = data.url;
       } else {
-        setError(data?.error?.message ?? "Upgrade failed. Please try again or use Manage Billing.");
+        setError(data?.error?.message ?? "Unable to open upgrade page. Please try again.");
         setUpgradeLoading(null);
       }
     } catch {
@@ -164,7 +164,7 @@ export function BillingPanel({ plan, hasSubscription }: Props) {
           </p>
           {isPaid && (
             <p className="text-xs text-muted-foreground">
-              Clicking upgrade takes you to your billing portal where Stripe handles the plan switch and prorates any difference automatically.
+              You&apos;ll be taken to a secure Stripe page showing the prorated price for the remaining days in your billing period. You confirm the charge before anything is billed.
             </p>
           )}
           <div className="grid gap-2">
