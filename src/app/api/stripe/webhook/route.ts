@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getStripe, planFromPriceId, isStripeConfigured } from "@/lib/stripe";
 import { db } from "@/lib/db";
-import { sendSubscriptionCancelledEmail, sendPaymentFailedEmail } from "@/lib/email";
+import { sendSubscriptionCancelledEmail, sendPaymentFailedEmail, sendPlanUpgradeEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -38,15 +38,26 @@ export async function POST(req: NextRequest) {
         const userId = session.metadata?.userId;
         const plan = session.metadata?.plan;
         if (!userId || !plan) break;
-        const existing = await db.user.findUnique({ where: { id: userId }, select: { planOverride: true } });
+        const existing = await db.user.findUnique({
+          where: { id: userId },
+          select: { planOverride: true, email: true, displayName: true },
+        });
+        if (!existing) break;
         await db.user.update({
           where: { id: userId },
           data: {
-            ...(existing?.planOverride == null ? { plan } : {}),
+            ...(existing.planOverride == null ? { plan } : {}),
             stripeCustomerId: session.customer as string,
             stripeSubscriptionId: session.subscription as string,
           },
         });
+        if (plan !== "FREE" && existing.planOverride == null) {
+          sendPlanUpgradeEmail({
+            toEmail: existing.email,
+            toName: existing.displayName.split(" ")[0],
+            plan,
+          }).catch(() => {});
+        }
         break;
       }
 
