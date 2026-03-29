@@ -20,6 +20,15 @@ export async function POST(req: NextRequest) {
       expand: ["subscription"],
     });
 
+    console.log("[stripe/sync-plan] session retrieved", {
+      sessionId,
+      status: checkoutSession.status,
+      paymentStatus: checkoutSession.payment_status,
+      metaUserId: checkoutSession.metadata?.userId,
+      metaPlan: checkoutSession.metadata?.plan,
+      customerId: checkoutSession.customer,
+    });
+
     if (checkoutSession.status !== "complete") {
       return apiError(
         409,
@@ -42,6 +51,8 @@ export async function POST(req: NextRequest) {
       const session = await getServerSession(authOptions);
       userId = session?.user?.id ?? null;
     }
+
+    console.log("[stripe/sync-plan] resolved userId", { userId });
 
     if (!userId) {
       return apiError(401, "UNAUTHORIZED", "Could not identify user. Please sign in and try again.");
