@@ -736,6 +736,98 @@ export async function sendDocSignRequestEmail(args: {
   });
 }
 
+// ── DocSign: All Parties Signed → Agent ──────────────────────────────────────
+
+export async function sendDocSignAllSignedEmail(args: {
+  agentEmail: string;
+  agentName: string;
+  title: string | null;
+  completedAt: string;
+  viewUrl: string;
+  signedPdfUrl?: string;
+  certUrl?: string;
+}): Promise<void> {
+  const { agentEmail, agentName, title, completedAt, viewUrl, signedPdfUrl, certUrl } = args;
+  const linksBlock = [
+    signedPdfUrl ? `<a href="${signedPdfUrl}" style="color:#0057FF;">Download Signed PDF</a>` : null,
+    certUrl ? `<a href="${certUrl}" style="color:#0057FF;">Certificate of Completion</a>` : null,
+  ]
+    .filter(Boolean)
+    .join("  ·  ");
+
+  await send({
+    to: agentEmail,
+    from: FROM_NOTIFICATIONS,
+    subject: title ? `All parties have signed: "${title}"` : "All parties have signed the document",
+    html: emailTemplate({
+      heading: "All parties have signed",
+      body:
+        p(`Hi ${agentName},`) +
+        p(`${title ? `"<strong>${title}</strong>"` : "Your document"} has been fully executed. All signers completed their signatures at <strong>${completedAt}</strong>.`) +
+        (linksBlock ? `<p style="margin:0 0 14px;font-size:15px;color:#475569;line-height:1.7;">${linksBlock}</p>` : ""),
+      ctaLabel: "View Signed Document",
+      ctaUrl: viewUrl,
+    }),
+  });
+}
+
+// ── DocSign: Recipient Signed Copy ────────────────────────────────────────────
+
+export async function sendDocSignRecipientCopyEmail(args: {
+  toEmail: string;
+  recipientName: string;
+  agentName: string;
+  title: string | null;
+  signedPdfUrl: string;
+  certUrl?: string;
+}): Promise<void> {
+  const { toEmail, recipientName, agentName, title, signedPdfUrl, certUrl } = args;
+  await send({
+    to: toEmail,
+    subject: title ? `Your signed copy: "${title}"` : "Your signed document is ready",
+    html: emailTemplate({
+      heading: "Your signed copy is ready",
+      body:
+        p(`Hi ${recipientName},`) +
+        p(`All parties have signed ${title ? `"<strong>${title}</strong>"` : "the document"} prepared by <strong>${agentName}</strong>.`) +
+        p("You can download your signed copy and the Certificate of Completion below."),
+      ctaLabel: "Download Signed Copy",
+      ctaUrl: signedPdfUrl,
+      notice: certUrl
+        ? `<a href="${certUrl}" style="color:#0057FF;">Download Certificate of Completion</a>`
+        : undefined,
+    }),
+  });
+}
+
+// ── DocSign: Next Signer Notified (Sequential) ────────────────────────────────
+
+export async function sendDocSignDeclinedEmail(args: {
+  agentEmail: string;
+  agentName: string;
+  recipientName: string;
+  title: string | null;
+  declineReason: string | null;
+  viewUrl: string;
+}): Promise<void> {
+  const { agentEmail, agentName, recipientName, title, declineReason, viewUrl } = args;
+  await send({
+    to: agentEmail,
+    from: FROM_NOTIFICATIONS,
+    subject: `${recipientName} declined to sign${title ? `: "${title}"` : ""}`,
+    html: emailTemplate({
+      heading: "Signing declined",
+      body:
+        p(`Hi ${agentName},`) +
+        p(`<strong>${recipientName}</strong> declined to sign ${title ? `"<strong>${title}</strong>"` : "your document"}.`) +
+        (declineReason ? p(`Reason: <em>"${declineReason}"</em>`) : "") +
+        p("The document has been voided. You can create a new signing request from your dashboard."),
+      ctaLabel: "View Request",
+      ctaUrl: viewUrl,
+    }),
+  });
+}
+
 // ── DocSign: Completed → Agent ────────────────────────────────────────────────
 
 export async function sendDocSignCompletedEmail(args: {

@@ -1,5 +1,5 @@
-import { DocSignClient } from "@/components/docsign-client";
+import { SigningRouter } from "@/components/signing-router";
 
 export default function SignPage({ params }: { params: { token: string } }) {
-  return <DocSignClient token={params.token} />;
+  return <SigningRouter token={params.token} />;
 }

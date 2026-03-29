@@ -422,6 +422,7 @@ model DocSignRequest {
   // New signing flow fields
   blobUrl         String?   // Vercel Blob URL of original PDF
   documentHash    String?   // SHA-256 of original PDF bytes
+  signedBlobUrl   String?   // Vercel Blob URL of assembled signed PDF (after all sign)
   signingMode     String    @default("PARALLEL") // PARALLEL | SEQUENTIAL
   ccEmails        String?   // JSON array of email strings
   voidedAt        DateTime?
