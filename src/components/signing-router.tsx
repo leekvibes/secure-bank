@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Routing shim: detects whether the token belongs to the new recipient-based
- * signing flow or the legacy DocSignRequest flow, then renders the correct UI.
+ * Routing shim: fetches the signing data once, determines the flow type,
+ * and passes the pre-loaded data to the ceremony so it never needs to re-fetch.
  */
 import { useEffect, useState } from "react";
 import { SigningCeremony } from "./signing-ceremony";
@@ -10,28 +10,36 @@ import { DocSignClient } from "./docsign-client";
 
 type FlowState = "loading" | "new" | "legacy" | "error";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function SigningRouter({ token }: { token: string }) {
   const [flow, setFlow] = useState<FlowState>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Pre-loaded data for the new flow — passed directly to SigningCeremony
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [initialData, setInitialData] = useState<Record<string, any> | null>(null);
 
   useEffect(() => {
-    // Peek at the GET response to determine flow type.
-    // apiSuccess returns data directly (no wrapper), so check r.ok and json._flow.
     fetch(`/api/sign/${token}`)
       .then(async (r) => {
-        const json = await r.json().catch(() => ({}));
+        // Try to parse JSON regardless of status
+        const json = await r.json().catch(() => ({})) as Record<string, unknown>;
         if (!r.ok) {
-          const msg = (json as { error?: { message?: string } })?.error?.message
-            ?? (r.status === 410 ? "This signing link is no longer available." : "Unable to load signing link.");
+          const msg =
+            (json?.error as { message?: string } | undefined)?.message ??
+            (r.status === 410 ? "This signing link is no longer available." : "Unable to load signing link.");
           setErrorMessage(msg);
           setFlow("error");
           return;
         }
-        // apiSuccess returns raw data — _flow is at the top level, not under .data
-        setFlow((json as { _flow?: string })._flow === "new" ? "new" : "legacy");
+        if (json._flow === "new") {
+          setInitialData(json);
+          setFlow("new");
+        } else {
+          setFlow("legacy");
+        }
       })
       .catch(() => {
-        setErrorMessage("Unable to load signing link. Please try again.");
+        setErrorMessage("Unable to load signing link. Please check your connection and try again.");
         setFlow("error");
       });
   }, [token]);
@@ -62,7 +70,8 @@ export function SigningRouter({ token }: { token: string }) {
   }
 
   if (flow === "new") {
-    return <SigningCeremony token={token} />;
+    // Pass the pre-fetched data so the ceremony doesn't make a redundant second request
+    return <SigningCeremony token={token} initialData={initialData} />;
   }
 
   // Legacy flow

@@ -145,44 +145,49 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { token: string } }
 ) {
-  // Try new recipient flow first
-  const newFlowResponse = await handleNewFlow(req, params.token);
-  if (newFlowResponse) return newFlowResponse;
+  try {
+    // Try new recipient flow first
+    const newFlowResponse = await handleNewFlow(req, params.token);
+    if (newFlowResponse) return newFlowResponse;
 
-  // ── Legacy flow: DocSignRequest.token ──────────────────────────────────────
-  const doc = await db.docSignRequest.findUnique({
-    where: { token: params.token },
-    include: { agent: { select: { displayName: true, agencyName: true } } },
-  });
-
-  if (!doc) return apiError(404, "NOT_FOUND", "Signing link not found.");
-  if (doc.status === "COMPLETED")
-    return apiError(409, "ALREADY_SIGNED", "This document has already been signed.");
-  if (doc.status === "EXPIRED" || doc.expiresAt < new Date())
-    return apiError(410, "EXPIRED", "This signing link has expired.");
-
-  if (doc.status === "SENT") {
-    await db.docSignRequest.update({
+    // ── Legacy flow: DocSignRequest.token ────────────────────────────────────
+    const doc = await db.docSignRequest.findUnique({
       where: { token: params.token },
-      data: { status: "OPENED" },
+      include: { agent: { select: { displayName: true, agencyName: true } } },
     });
-    await db.docSignAuditLog.create({
-      data: { requestId: doc.id, event: "OPENED" },
-    });
-  }
 
-  return apiSuccess({
-    _flow: "legacy",
-    id: doc.id,
-    title: doc.title,
-    message: doc.message,
-    clientName: doc.clientName,
-    expiresAt: doc.expiresAt.toISOString(),
-    fields: doc.fieldsJson ? JSON.parse(doc.fieldsJson) : [],
-    agentSignData: doc.agentSignJson ? JSON.parse(doc.agentSignJson) : null,
-    agent: doc.agent,
-    originalName: doc.originalName,
-  });
+    if (!doc) return apiError(404, "NOT_FOUND", "Signing link not found.");
+    if (doc.status === "COMPLETED")
+      return apiError(409, "ALREADY_SIGNED", "This document has already been signed.");
+    if (doc.status === "EXPIRED" || doc.expiresAt < new Date())
+      return apiError(410, "EXPIRED", "This signing link has expired.");
+
+    if (doc.status === "SENT") {
+      await db.docSignRequest.update({
+        where: { token: params.token },
+        data: { status: "OPENED" },
+      });
+      await db.docSignAuditLog.create({
+        data: { requestId: doc.id, event: "OPENED" },
+      });
+    }
+
+    return apiSuccess({
+      _flow: "legacy",
+      id: doc.id,
+      title: doc.title,
+      message: doc.message,
+      clientName: doc.clientName,
+      expiresAt: doc.expiresAt.toISOString(),
+      fields: doc.fieldsJson ? JSON.parse(doc.fieldsJson) : [],
+      agentSignData: doc.agentSignJson ? JSON.parse(doc.agentSignJson) : null,
+      agent: doc.agent,
+      originalName: doc.originalName,
+    });
+  } catch (err) {
+    console.error("[sign/token/get]", err);
+    return apiError(500, "SERVER_ERROR", "Failed to load signing link. Please try again.");
+  }
 }
 
 // ── HEAD (legacy: serve PDF bytes) ───────────────────────────────────────────

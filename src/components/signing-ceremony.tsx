@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import SignaturePad from "signature_pad";
 
-// ── Types ──────────────────────────────────────────────────────────────────────
+// ── Types ────────────────────────────────────────────────────────────────────
 
 interface Field {
   id: string;
@@ -36,13 +36,10 @@ interface DocData {
   completedCount: number;
 }
 
-type Screen = "loading" | "error" | "consent" | "overview" | "signing" | "decline-form" | "complete";
+type Screen = "loading" | "error" | "consent" | "signing" | "decline-form" | "complete";
+type SigMode = "type" | "draw" | "upload";
 
-// ── Field value state ──────────────────────────────────────────────────────────
-
-type FieldValues = Record<string, string>;
-
-// ── Utilities ──────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtExpiry(iso: string) {
   try {
@@ -58,325 +55,732 @@ function fmtExpiry(iso: string) {
   }
 }
 
-function fieldLabel(type: string): string {
-  const labels: Record<string, string> = {
-    SIGNATURE: "Signature",
-    INITIALS: "Initials",
+function fmtDate(iso: string) {
+  try {
+    return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  } catch {
+    return iso;
+  }
+}
+
+function fieldTagLabel(type: string): string {
+  const map: Record<string, string> = {
+    SIGNATURE: "Sign Here",
+    INITIALS: "Initial",
     DATE_SIGNED: "Date",
     FULL_NAME: "Full Name",
     TITLE: "Title",
     COMPANY: "Company",
     TEXT: "Text",
+    CHECKBOX: "Check",
+    RADIO: "Select",
+    DROPDOWN: "Select",
+    ATTACHMENT: "File",
+  };
+  return map[type] ?? type;
+}
+
+function fieldModalTitle(type: string): string {
+  const map: Record<string, string> = {
+    SIGNATURE: "Add Your Signature",
+    INITIALS: "Add Your Initials",
+    DATE_SIGNED: "Date Signed",
+    FULL_NAME: "Full Name",
+    TITLE: "Title",
+    COMPANY: "Company",
+    TEXT: "Text Field",
     CHECKBOX: "Checkbox",
     RADIO: "Selection",
     DROPDOWN: "Dropdown",
-    ATTACHMENT: "Attachment",
   };
-  return labels[type] ?? type;
+  return map[type] ?? "Fill Field";
 }
 
-// ── Signature pad component ────────────────────────────────────────────────────
+function fieldColor(type: string) {
+  switch (type) {
+    case "SIGNATURE":  return { bg: "#dbeafe", border: "#3b82f6", text: "#1d4ed8" };
+    case "INITIALS":   return { bg: "#ede9fe", border: "#8b5cf6", text: "#6d28d9" };
+    case "DATE_SIGNED":return { bg: "#d1fae5", border: "#10b981", text: "#065f46" };
+    case "FULL_NAME":  return { bg: "#fef3c7", border: "#f59e0b", text: "#92400e" };
+    case "CHECKBOX":   return { bg: "#f0f9ff", border: "#0ea5e9", text: "#0369a1" };
+    default:           return { bg: "#f1f5f9", border: "#94a3b8", text: "#475569" };
+  }
+}
 
-function SignaturePadField({
-  fieldId,
-  label,
-  value,
-  onChange,
-}: {
-  fieldId: string;
-  label: string;
-  value: string;
-  onChange: (val: string) => void;
-}) {
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+function isFieldDone(field: Field, value: string): boolean {
+  if (!field.required) return !!value;
+  if (!value) return false;
+  if (field.type === "SIGNATURE" || field.type === "INITIALS") {
+    return value.startsWith("data:image") && value.length > 200;
+  }
+  if (field.type === "CHECKBOX") return true;
+  return value.trim().length > 0;
+}
+
+function requiredAllDone(fields: Field[], values: Record<string, string>): boolean {
+  return fields.filter((f) => f.required).every((f) => isFieldDone(f, values[f.id] ?? ""));
+}
+
+// ── Load Google Font once ─────────────────────────────────────────────────────
+
+let fontLoaded = false;
+function ensureSigFont() {
+  if (fontLoaded || typeof document === "undefined") return;
+  fontLoaded = true;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap";
+  document.head.appendChild(link);
+}
+
+function renderTypedSig(text: string, width = 360, height = 90): string {
+  if (!text.trim() || typeof document === "undefined") return "";
+  const c = document.createElement("canvas");
+  const s = 2;
+  c.width = width * s;
+  c.height = height * s;
+  const ctx = c.getContext("2d")!;
+  ctx.scale(s, s);
+  ctx.clearRect(0, 0, width, height);
+  ctx.font = `${Math.round(height * 0.62)}px "Dancing Script", "Brush Script MT", cursive`;
+  ctx.fillStyle = "#001ea0";
+  ctx.fillText(text, 8, height * 0.76);
+  return c.toDataURL("image/png");
+}
+
+function renderTypedInitials(text: string): string {
+  if (!text.trim() || typeof document === "undefined") return "";
+  const c = document.createElement("canvas");
+  const s = 2;
+  const sz = 80;
+  c.width = sz * s;
+  c.height = sz * s;
+  const ctx = c.getContext("2d")!;
+  ctx.scale(s, s);
+  ctx.clearRect(0, 0, sz, sz);
+  ctx.font = `bold ${Math.round(sz * 0.6)}px "Dancing Script", "Brush Script MT", cursive`;
+  ctx.fillStyle = "#001ea0";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, sz / 2, sz / 2);
+  return c.toDataURL("image/png");
+}
+
+// ── Draw Tab (isolated component so pad init/cleanup is tied to mount) ────────
+
+function DrawTab({ onReady }: { onReady: (getPng: () => string | null) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const padRef = useRef<SignaturePad | null>(null);
-  const [isEmpty, setIsEmpty] = useState(!value);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const pad = new SignaturePad(canvas, {
       minWidth: 1.5,
-      maxWidth: 3,
+      maxWidth: 3.5,
       penColor: "rgb(0, 30, 160)",
       backgroundColor: "rgba(0,0,0,0)",
     });
     padRef.current = pad;
+    onReady(() => (pad.isEmpty() ? null : pad.toDataURL("image/png")));
 
-    // If there's an existing value, load it
-    if (value && value.startsWith("data:image")) {
-      pad.fromDataURL(value);
-      setIsEmpty(false);
-    }
-
-    pad.addEventListener("endStroke", () => {
-      if (!pad.isEmpty()) {
-        setIsEmpty(false);
-        onChange(pad.toDataURL("image/png"));
-      }
-    });
-
-    // Resize observer to handle canvas scaling
     const resize = () => {
-      const ratio = window.devicePixelRatio || 1;
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-      canvas.width = w * ratio;
-      canvas.height = h * ratio;
+      const r = window.devicePixelRatio || 1;
+      canvas.width = canvas.offsetWidth * r;
+      canvas.height = canvas.offsetHeight * r;
       const ctx = canvas.getContext("2d");
-      if (ctx) ctx.scale(ratio, ratio);
-      // Re-draw if had signature
-      if (!pad.isEmpty()) pad.fromData(pad.toData());
+      if (ctx) ctx.scale(r, r);
     };
-
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
     resize();
-
     return () => {
       ro.disconnect();
       pad.off();
     };
-  }, [fieldId]); // only on field change
-
-  const clear = () => {
-    padRef.current?.clear();
-    setIsEmpty(true);
-    onChange("");
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div>
-      <p className="text-xs font-medium text-[color:var(--muted-foreground)] mb-2 uppercase tracking-wide">
-        {label}
-      </p>
       <div
         style={{
-          border: "2px solid var(--border)",
+          border: "1px solid #e2e8f0",
           borderRadius: "10px",
-          background: "#fafafa",
-          position: "relative",
+          background: "#f8fafc",
           overflow: "hidden",
+          position: "relative",
         }}
       >
         <canvas
           ref={canvasRef}
-          style={{
-            display: "block",
-            width: "100%",
-            height: "120px",
-            touchAction: "none",
-            cursor: "crosshair",
-          }}
+          style={{ display: "block", width: "100%", height: "160px", touchAction: "none", cursor: "crosshair" }}
         />
-        {isEmpty && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              pointerEvents: "none",
-            }}
-          >
-            <span style={{ color: "#94a3b8", fontSize: "13px" }}>
-              Draw your {label.toLowerCase()} here
-            </span>
-          </div>
-        )}
-      </div>
-      <div className="flex gap-2 mt-2">
-        <button
-          type="button"
-          onClick={clear}
-          className="text-xs text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] underline"
-        >
-          Clear
-        </button>
-        {!isEmpty && (
-          <span className="text-xs text-green-600 font-medium">✓ Captured</span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Individual field input ─────────────────────────────────────────────────────
-
-function FieldInput({
-  field,
-  recipientName,
-  value,
-  onChange,
-}: {
-  field: Field;
-  recipientName: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  if (field.type === "SIGNATURE" || field.type === "INITIALS") {
-    return (
-      <SignaturePadField
-        fieldId={field.id}
-        label={fieldLabel(field.type)}
-        value={value}
-        onChange={onChange}
-      />
-    );
-  }
-
-  if (field.type === "DATE_SIGNED") {
-    return (
-      <div>
-        <p className="text-xs font-medium text-[color:var(--muted-foreground)] mb-2 uppercase tracking-wide">
-          Date Signed
-        </p>
-        <input
-          type="date"
-          value={value || new Date().toISOString().slice(0, 10)}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full border border-[color:var(--border)] rounded-lg px-3 py-2.5 text-sm bg-[color:var(--background)] focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-    );
-  }
-
-  if (field.type === "FULL_NAME") {
-    return (
-      <div>
-        <p className="text-xs font-medium text-[color:var(--muted-foreground)] mb-2 uppercase tracking-wide">
-          Full Name
-        </p>
-        <input
-          type="text"
-          placeholder={recipientName}
-          value={value || recipientName}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full border border-[color:var(--border)] rounded-lg px-3 py-2.5 text-sm bg-[color:var(--background)] focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-    );
-  }
-
-  if (field.type === "CHECKBOX") {
-    return (
-      <div
-        className="flex items-center gap-3 cursor-pointer select-none"
-        onClick={() => onChange(value === "true" ? "false" : "true")}
-      >
         <div
           style={{
-            width: "22px",
-            height: "22px",
-            border: "2px solid #3b82f6",
-            borderRadius: "5px",
-            background: value === "true" ? "#3b82f6" : "transparent",
+            position: "absolute",
+            inset: 0,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            flexShrink: 0,
-            transition: "all 0.15s",
+            pointerEvents: "none",
+            opacity: 0.35,
           }}
         >
-          {value === "true" && (
-            <svg viewBox="0 0 12 10" width="12" height="10" fill="none">
-              <path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          )}
-        </div>
-        <span className="text-sm text-[color:var(--foreground)]">
-          {fieldLabel(field.type)}
-        </span>
-      </div>
-    );
-  }
-
-  if (field.type === "DROPDOWN" && field.options && field.options.length > 0) {
-    return (
-      <div>
-        <p className="text-xs font-medium text-[color:var(--muted-foreground)] mb-2 uppercase tracking-wide">
-          {fieldLabel(field.type)}
-        </p>
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full border border-[color:var(--border)] rounded-lg px-3 py-2.5 text-sm bg-[color:var(--background)] focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">Select an option…</option>
-          {field.options.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      </div>
-    );
-  }
-
-  if (field.type === "RADIO" && field.options && field.options.length > 0) {
-    return (
-      <div>
-        <p className="text-xs font-medium text-[color:var(--muted-foreground)] mb-2 uppercase tracking-wide">
-          {fieldLabel(field.type)}
-        </p>
-        <div className="flex flex-col gap-2">
-          {field.options.map((opt) => (
-            <label key={opt} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name={field.id}
-                value={opt}
-                checked={value === opt}
-                onChange={() => onChange(opt)}
-                className="accent-blue-600"
-              />
-              <span className="text-sm">{opt}</span>
-            </label>
-          ))}
+          <span style={{ fontSize: "13px", color: "#94a3b8" }}>Draw here</span>
         </div>
       </div>
-    );
-  }
-
-  // Generic text input (TEXT, TITLE, COMPANY, etc.)
-  return (
-    <div>
-      <p className="text-xs font-medium text-[color:var(--muted-foreground)] mb-2 uppercase tracking-wide">
-        {fieldLabel(field.type)}
-      </p>
-      <input
-        type="text"
-        placeholder={`Enter ${fieldLabel(field.type).toLowerCase()}…`}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full border border-[color:var(--border)] rounded-lg px-3 py-2.5 text-sm bg-[color:var(--background)] focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
+      <button
+        type="button"
+        onClick={() => padRef.current?.clear()}
+        style={{
+          marginTop: "8px",
+          fontSize: "12px",
+          color: "#64748b",
+          textDecoration: "underline",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          padding: 0,
+        }}
+      >
+        Clear
+      </button>
     </div>
   );
 }
 
-// ── Field validation ───────────────────────────────────────────────────────────
+// ── Signature / Initials Modal ────────────────────────────────────────────────
 
-function isFieldComplete(field: Field, value: string): boolean {
-  if (!field.required) return true;
-  if (!value) return false;
-  if (field.type === "SIGNATURE" || field.type === "INITIALS") {
-    return value.startsWith("data:image") && value.length > 100;
-  }
-  if (field.type === "CHECKBOX") return true; // checkbox is always "done"
-  return value.trim().length > 0;
+function SigModal({
+  recipientName,
+  mode,
+  onConfirm,
+  onClose,
+}: {
+  recipientName: string;
+  mode: "signature" | "initials";
+  onConfirm: (url: string) => void;
+  onClose: () => void;
+}) {
+  const [tab, setTab] = useState<SigMode>("type");
+  const [typedText, setTypedText] = useState(
+    mode === "initials" ? getInitials(recipientName) : recipientName
+  );
+  const [typedPreview, setTypedPreview] = useState("");
+  const [uploadPreview, setUploadPreview] = useState("");
+  const getDrawPngRef = useRef<(() => string | null) | null>(null);
+
+  useEffect(() => { ensureSigFont(); }, []);
+
+  useEffect(() => {
+    if (tab !== "type") return;
+    const t = setTimeout(() => {
+      setTypedPreview(
+        mode === "initials" ? renderTypedInitials(typedText) : renderTypedSig(typedText)
+      );
+    }, 80);
+    return () => clearTimeout(t);
+  }, [typedText, tab, mode]);
+
+  const handleConfirm = () => {
+    if (tab === "type") {
+      const url = mode === "initials" ? renderTypedInitials(typedText) : renderTypedSig(typedText);
+      if (url) onConfirm(url);
+    } else if (tab === "draw") {
+      const url = getDrawPngRef.current?.();
+      if (url) onConfirm(url);
+    } else if (tab === "upload") {
+      if (uploadPreview) onConfirm(uploadPreview);
+    }
+  };
+
+  const canConfirm =
+    tab === "type"
+      ? typedText.trim().length > 0
+      : tab === "draw"
+      ? true
+      : !!uploadPreview;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
+        background: "rgba(0,0,0,0.55)",
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        style={{
+          background: "white",
+          borderRadius: "24px 24px 0 0",
+          width: "100%",
+          maxWidth: "560px",
+          maxHeight: "92vh",
+          overflowY: "auto",
+          padding: "20px 20px 32px",
+        }}
+      >
+        <div
+          style={{
+            width: "36px",
+            height: "4px",
+            background: "#e2e8f0",
+            borderRadius: "2px",
+            margin: "0 auto 18px",
+          }}
+        />
+
+        <h2 style={{ fontSize: "18px", fontWeight: 700, marginBottom: "18px", color: "#0f172a" }}>
+          {mode === "signature" ? "Add Your Signature" : "Add Your Initials"}
+        </h2>
+
+        {/* Tabs */}
+        <div style={{ display: "flex", gap: "8px", marginBottom: "18px" }}>
+          {(["type", "draw", "upload"] as SigMode[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              style={{
+                flex: 1,
+                padding: "9px 4px",
+                borderRadius: "8px",
+                border: `2px solid ${tab === t ? "#3b82f6" : "#e2e8f0"}`,
+                background: tab === t ? "#eff6ff" : "transparent",
+                color: tab === t ? "#1d4ed8" : "#64748b",
+                fontWeight: 600,
+                fontSize: "13px",
+                cursor: "pointer",
+                transition: "all 0.15s",
+              }}
+            >
+              {t === "type" ? "Type" : t === "draw" ? "Draw" : "Upload"}
+            </button>
+          ))}
+        </div>
+
+        {/* Type tab */}
+        {tab === "type" && (
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: "11px",
+                fontWeight: 700,
+                color: "#64748b",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                marginBottom: "6px",
+              }}
+            >
+              {mode === "initials" ? "Initials" : "Full name"}
+            </label>
+            <input
+              autoFocus
+              type="text"
+              value={typedText}
+              onChange={(e) => setTypedText(e.target.value)}
+              placeholder={mode === "initials" ? "e.g. JS" : "Your full name…"}
+              style={{
+                width: "100%",
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+                padding: "10px 12px",
+                fontSize: "15px",
+                boxSizing: "border-box",
+                marginBottom: "14px",
+                outline: "none",
+              }}
+            />
+            <div
+              style={{
+                border: "1px solid #e2e8f0",
+                borderRadius: "10px",
+                background: "#f8fafc",
+                padding: "16px",
+                minHeight: "96px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: "6px",
+              }}
+            >
+              {typedPreview ? (
+                <img
+                  src={typedPreview}
+                  alt="preview"
+                  style={{ maxWidth: "100%", maxHeight: "80px" }}
+                />
+              ) : (
+                <span style={{ color: "#cbd5e1", fontSize: "13px" }}>Preview appears here</span>
+              )}
+            </div>
+            <p style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px" }}>
+              Signature will render in cursive style
+            </p>
+          </div>
+        )}
+
+        {/* Draw tab */}
+        {tab === "draw" && (
+          <DrawTab onReady={(fn) => { getDrawPngRef.current = fn; }} />
+        )}
+
+        {/* Upload tab */}
+        {tab === "upload" && (
+          <label
+            style={{
+              display: "block",
+              border: `2px dashed ${uploadPreview ? "#10b981" : "#e2e8f0"}`,
+              borderRadius: "10px",
+              padding: uploadPreview ? "12px" : "32px",
+              textAlign: "center",
+              cursor: "pointer",
+              marginBottom: "4px",
+              transition: "border-color 0.2s",
+            }}
+          >
+            <input
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => setUploadPreview((ev.target?.result as string) ?? "");
+                reader.readAsDataURL(file);
+              }}
+            />
+            {uploadPreview ? (
+              <img
+                src={uploadPreview}
+                alt="Uploaded signature"
+                style={{ maxHeight: "100px", maxWidth: "100%", display: "block", margin: "0 auto" }}
+              />
+            ) : (
+              <>
+                <div style={{ fontSize: "28px", marginBottom: "8px" }}>🖼️</div>
+                <p style={{ fontSize: "14px", color: "#475569", marginBottom: "4px" }}>
+                  Tap to choose an image
+                </p>
+                <p style={{ fontSize: "12px", color: "#94a3b8" }}>PNG, JPG supported</p>
+              </>
+            )}
+          </label>
+        )}
+
+        {/* Actions */}
+        <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+          <button
+            onClick={onClose}
+            style={{
+              flex: 1,
+              padding: "12px",
+              borderRadius: "10px",
+              border: "1px solid #e2e8f0",
+              background: "white",
+              fontSize: "14px",
+              fontWeight: 600,
+              cursor: "pointer",
+              color: "#374151",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={!canConfirm}
+            style={{
+              flex: 2,
+              padding: "12px",
+              borderRadius: "10px",
+              border: "none",
+              background: canConfirm
+                ? "linear-gradient(135deg, #00A3FF, #0057FF)"
+                : "#e2e8f0",
+              color: canConfirm ? "white" : "#94a3b8",
+              fontSize: "14px",
+              fontWeight: 700,
+              cursor: canConfirm ? "pointer" : "not-allowed",
+              boxShadow: canConfirm ? "0 4px 12px rgba(0,87,255,0.25)" : "none",
+            }}
+          >
+            {mode === "signature" ? "Apply Signature" : "Apply Initials"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Generic Field Modal ───────────────────────────────────────────────────────
+
+function FieldModal({
+  field,
+  recipientName,
+  currentValue,
+  onConfirm,
+  onClose,
+}: {
+  field: Field;
+  recipientName: string;
+  currentValue: string;
+  onConfirm: (val: string) => void;
+  onClose: () => void;
+}) {
+  const defaultVal =
+    currentValue ||
+    (field.type === "DATE_SIGNED" ? new Date().toISOString().slice(0, 10) :
+     field.type === "FULL_NAME"   ? recipientName : "");
+
+  const [val, setVal] = useState(defaultVal);
+
+  const isReady = field.type === "CHECKBOX" ? true : !!val.trim();
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
+        background: "rgba(0,0,0,0.55)",
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        style={{
+          background: "white",
+          borderRadius: "24px 24px 0 0",
+          width: "100%",
+          maxWidth: "560px",
+          padding: "20px 20px 32px",
+        }}
+      >
+        <div
+          style={{
+            width: "36px",
+            height: "4px",
+            background: "#e2e8f0",
+            borderRadius: "2px",
+            margin: "0 auto 18px",
+          }}
+        />
+        <h2 style={{ fontSize: "18px", fontWeight: 700, marginBottom: "18px", color: "#0f172a" }}>
+          {fieldModalTitle(field.type)}
+        </h2>
+
+        {field.type === "DATE_SIGNED" && (
+          <input
+            type="date"
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            style={{
+              width: "100%",
+              border: "1px solid #e2e8f0",
+              borderRadius: "8px",
+              padding: "12px",
+              fontSize: "16px",
+              boxSizing: "border-box",
+              marginBottom: "20px",
+              outline: "none",
+            }}
+          />
+        )}
+
+        {(field.type === "FULL_NAME" ||
+          field.type === "TEXT" ||
+          field.type === "TITLE" ||
+          field.type === "COMPANY") && (
+          <input
+            autoFocus
+            type="text"
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            placeholder={`Enter ${fieldModalTitle(field.type).toLowerCase()}…`}
+            style={{
+              width: "100%",
+              border: "1px solid #e2e8f0",
+              borderRadius: "8px",
+              padding: "12px",
+              fontSize: "16px",
+              boxSizing: "border-box",
+              marginBottom: "20px",
+              outline: "none",
+            }}
+          />
+        )}
+
+        {field.type === "CHECKBOX" && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              cursor: "pointer",
+              marginBottom: "24px",
+              userSelect: "none",
+            }}
+            onClick={() => setVal(val === "true" ? "false" : "true")}
+          >
+            <div
+              style={{
+                width: "26px",
+                height: "26px",
+                border: "2px solid #3b82f6",
+                borderRadius: "6px",
+                background: val === "true" ? "#3b82f6" : "transparent",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                transition: "background 0.15s",
+              }}
+            >
+              {val === "true" && (
+                <svg viewBox="0 0 12 10" width="13" height="11" fill="none">
+                  <path
+                    d="M1 5l3.5 3.5L11 1"
+                    stroke="white"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+            </div>
+            <span style={{ fontSize: "15px", color: "#374151" }}>
+              {val === "true" ? "Checked ✓" : "Tap to check"}
+            </span>
+          </div>
+        )}
+
+        {field.type === "DROPDOWN" && field.options && (
+          <select
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            style={{
+              width: "100%",
+              border: "1px solid #e2e8f0",
+              borderRadius: "8px",
+              padding: "12px",
+              fontSize: "16px",
+              boxSizing: "border-box",
+              marginBottom: "20px",
+              background: "white",
+              outline: "none",
+            }}
+          >
+            <option value="">Select an option…</option>
+            {field.options.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {field.type === "RADIO" && field.options && (
+          <div style={{ marginBottom: "20px" }}>
+            {field.options.map((opt) => (
+              <label
+                key={opt}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  cursor: "pointer",
+                  marginBottom: "14px",
+                }}
+              >
+                <input
+                  type="radio"
+                  name={field.id}
+                  value={opt}
+                  checked={val === opt}
+                  onChange={() => setVal(opt)}
+                  style={{ accentColor: "#3b82f6", width: "18px", height: "18px" }}
+                />
+                <span style={{ fontSize: "15px", color: "#374151" }}>{opt}</span>
+              </label>
+            ))}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button
+            onClick={onClose}
+            style={{
+              flex: 1,
+              padding: "12px",
+              borderRadius: "10px",
+              border: "1px solid #e2e8f0",
+              background: "white",
+              fontSize: "14px",
+              fontWeight: 600,
+              cursor: "pointer",
+              color: "#374151",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onConfirm(val)}
+            style={{
+              flex: 2,
+              padding: "12px",
+              borderRadius: "10px",
+              border: "none",
+              background: isReady
+                ? "linear-gradient(135deg, #00A3FF, #0057FF)"
+                : "#e2e8f0",
+              color: isReady ? "white" : "#94a3b8",
+              fontSize: "14px",
+              fontWeight: 700,
+              cursor: "pointer",
+              boxShadow: isReady ? "0 4px 12px rgba(0,87,255,0.2)" : "none",
+            }}
+          >
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── Main Signing Ceremony ─────────────────────────────────────────────────────
 
-export function SigningCeremony({ token }: { token: string }) {
+export function SigningCeremony({
+  token,
+  initialData,
+}: {
+  token: string;
+  // Pre-fetched data passed from SigningRouter — avoids a redundant second API call
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  initialData?: Record<string, any> | null;
+}) {
   const [screen, setScreen] = useState<Screen>("loading");
   const [data, setData] = useState<DocData | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
-  const [fieldValues, setFieldValues] = useState<FieldValues>({});
-  const [fieldIndex, setFieldIndex] = useState(0);
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
+  const [pageImages, setPageImages] = useState<string[]>([]);
+  const [pdfRendering, setPdfRendering] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
   const [completionData, setCompletionData] = useState<{
@@ -384,72 +788,105 @@ export function SigningCeremony({ token }: { token: string }) {
     signedBlobUrl?: string;
   }>({});
 
-  // Load signing data
+  const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Helper: process raw API response data into component state
+  const applyDocData = useCallback((json: Record<string, unknown>) => {
+    const d = json as unknown as DocData;
+    const prefill: Record<string, string> = {};
+    for (const f of d.fields) {
+      if (f.type === "DATE_SIGNED") prefill[f.id] = new Date().toISOString().slice(0, 10);
+      else if (f.type === "FULL_NAME") prefill[f.id] = d.recipient.name;
+    }
+    setFieldValues(prefill);
+    setData(d);
+    setScreen("consent");
+  }, []);
+
+  // ── Load signing data ────────────────────────────────────────────────────
+  // If the router pre-fetched the data, use it directly (no second request).
+  // Otherwise (e.g. direct navigation), fetch it ourselves.
   useEffect(() => {
+    if (initialData) {
+      applyDocData(initialData);
+      return;
+    }
     fetch(`/api/sign/${token}`)
       .then(async (r) => {
-        const json = await r.json().catch(() => ({}));
+        const json = await r.json().catch(() => ({})) as Record<string, unknown>;
         if (!r.ok) {
-          // apiSuccess returns data flat (no wrapper) — error shape: { error: { message } }
-          setErrorMsg((json as { error?: { message?: string } }).error?.message ?? "This signing link is not available.");
+          setErrorMsg(
+            (json?.error as { message?: string } | undefined)?.message ??
+              "This signing link is not available."
+          );
           setScreen("error");
           return;
         }
-        // apiSuccess returns data directly at the top level, not wrapped in .data
-        if ((json as { _flow?: string })._flow !== "new") {
-          setErrorMsg("Unexpected flow.");
+        if (json._flow !== "new") {
+          setErrorMsg("Unexpected signing flow.");
           setScreen("error");
           return;
         }
-        const d = json as DocData;
-        setData(d);
-
-        // Pre-fill DATE_SIGNED and FULL_NAME
-        const prefill: FieldValues = {};
-        for (const f of d.fields) {
-          if (f.type === "DATE_SIGNED") {
-            prefill[f.id] = new Date().toISOString().slice(0, 10);
-          } else if (f.type === "FULL_NAME") {
-            prefill[f.id] = d.recipient.name;
-          }
-        }
-        setFieldValues(prefill);
-        setScreen("consent");
+        applyDocData(json);
       })
       .catch(() => {
-        setErrorMsg("Unable to load signing request. Please check your connection and try again.");
+        setErrorMsg("Unable to load signing request. Please check your connection.");
         setScreen("error");
       });
-  }, [token]);
+  }, [token, initialData, applyDocData]);
 
+  // ── Render PDF pages ─────────────────────────────────────────────────────
+  const renderPdf = useCallback(async (blobUrl: string) => {
+    setPdfRendering(true);
+    try {
+      const pdfjsLib = await import("pdfjs-dist");
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+      const pdf = await pdfjsLib.getDocument({ url: blobUrl }).promise;
+      const imgs: string[] = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const vp = page.getViewport({ scale: 2 });
+        const canvas = document.createElement("canvas");
+        canvas.width = vp.width;
+        canvas.height = vp.height;
+        const ctx = canvas.getContext("2d")!;
+        await page.render({ canvasContext: ctx, viewport: vp, canvas }).promise;
+        imgs.push(canvas.toDataURL("image/jpeg", 0.88));
+      }
+      setPageImages(imgs);
+    } catch (err) {
+      console.error("[signing-ceremony] PDF render failed:", err);
+    } finally {
+      setPdfRendering(false);
+    }
+  }, []);
+
+  // ── Consent → Signing ────────────────────────────────────────────────────
   const sendConsent = useCallback(async () => {
     await fetch(`/api/sign/${token}/consent`, { method: "POST" });
-    setScreen("overview");
-  }, [token]);
+    if (data?.request.blobUrl) renderPdf(data.request.blobUrl);
+    setScreen("signing");
+  }, [token, data, renderPdf]);
 
-  const handleFieldChange = (id: string, val: string) => {
+  // ── Field helpers ────────────────────────────────────────────────────────
+  const setFieldValue = useCallback((id: string, val: string) => {
     setFieldValues((prev) => ({ ...prev, [id]: val }));
+  }, []);
+
+  const activeField = activeFieldId && data
+    ? data.fields.find((f) => f.id === activeFieldId) ?? null
+    : null;
+
+  const nextIncompleteField = data?.fields.find(
+    (f) => f.required && !isFieldDone(f, fieldValues[f.id] ?? "")
+  ) ?? null;
+
+  const scrollToField = (fieldId: string) => {
+    fieldRefs.current[fieldId]?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
-  const currentField = data?.fields[fieldIndex] ?? null;
-  const currentValue = currentField ? (fieldValues[currentField.id] ?? "") : "";
-  const currentDone = currentField ? isFieldComplete(currentField, currentValue) : false;
-
-  const goNext = () => {
-    if (!data) return;
-    if (fieldIndex < data.fields.length - 1) {
-      setFieldIndex((i) => i + 1);
-    } else {
-      // All fields done — submit
-      submitSigning();
-    }
-  };
-
-  const goPrev = () => {
-    if (fieldIndex > 0) setFieldIndex((i) => i - 1);
-  };
-
-  const submitSigning = async () => {
+  // ── Submit ───────────────────────────────────────────────────────────────
+  const submitSigning = useCallback(async () => {
     if (!data) return;
     setSubmitting(true);
     try {
@@ -457,22 +894,23 @@ export function SigningCeremony({ token }: { token: string }) {
         id: f.id,
         value: fieldValues[f.id] ?? "",
       }));
-
       const res = await fetch(`/api/sign/${token}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fields }),
       });
-
       const json = await res.json();
-      if (!res.ok || !json.ok) {
-        setErrorMsg(json.error?.message ?? "Submission failed. Please try again.");
+      if (!res.ok) {
+        setErrorMsg(
+          (json as { error?: { message?: string } }).error?.message ??
+            "Submission failed. Please try again."
+        );
         setScreen("error");
         return;
       }
       setCompletionData({
-        certUrl: json.data.certUrl,
-        signedBlobUrl: json.data.signedBlobUrl,
+        certUrl: (json as { certUrl?: string }).certUrl,
+        signedBlobUrl: (json as { signedBlobUrl?: string }).signedBlobUrl,
       });
       setScreen("complete");
     } catch {
@@ -481,7 +919,7 @@ export function SigningCeremony({ token }: { token: string }) {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [data, token, fieldValues]);
 
   const submitDecline = async () => {
     setSubmitting(true);
@@ -491,38 +929,81 @@ export function SigningCeremony({ token }: { token: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason: declineReason }),
       });
-      setScreen("complete"); // reuse complete screen with decline message
       setCompletionData({});
+      setScreen("complete");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ── Screens ──────────────────────────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════
+  // Screens
+  // ════════════════════════════════════════════════════════════════════════
 
   if (screen === "loading") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[color:var(--background)] p-6">
-        <div className="w-8 h-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin mb-4" />
-        <p className="text-sm text-[color:var(--muted-foreground)]">Loading signing request…</p>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "16px",
+        }}
+      >
+        <div
+          style={{
+            width: "32px",
+            height: "32px",
+            borderRadius: "50%",
+            border: "2.5px solid #3b82f6",
+            borderTopColor: "transparent",
+            animation: "sc-spin 0.7s linear infinite",
+          }}
+        />
+        <p style={{ fontSize: "14px", color: "#64748b" }}>Loading signing request…</p>
+        <style>{`@keyframes sc-spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
   if (screen === "error") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[color:var(--background)] p-6 max-w-md mx-auto">
-        <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mb-5">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-red-500">
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "24px",
+          maxWidth: "480px",
+          margin: "0 auto",
+        }}
+      >
+        <div
+          style={{
+            width: "56px",
+            height: "56px",
+            borderRadius: "16px",
+            background: "#fee2e2",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: "20px",
+          }}
+        >
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
             <circle cx="12" cy="12" r="10" />
             <line x1="15" y1="9" x2="9" y2="15" />
             <line x1="9" y1="9" x2="15" y2="15" />
           </svg>
         </div>
-        <h1 className="text-xl font-bold text-[color:var(--foreground)] mb-2 text-center">
+        <h1 style={{ fontSize: "20px", fontWeight: 700, marginBottom: "8px", textAlign: "center", color: "#0f172a" }}>
           Unable to load document
         </h1>
-        <p className="text-sm text-[color:var(--muted-foreground)] text-center leading-relaxed">
+        <p style={{ fontSize: "14px", color: "#64748b", textAlign: "center", lineHeight: 1.6 }}>
           {errorMsg}
         </p>
       </div>
@@ -531,18 +1012,28 @@ export function SigningCeremony({ token }: { token: string }) {
 
   if (!data) return null;
 
-  // ── Screen 1: ESIGN Consent ───────────────────────────────────────────────
-
+  // ── Consent ──────────────────────────────────────────────────────────────
   if (screen === "consent") {
     return (
-      <div className="min-h-screen bg-[color:var(--background)] flex flex-col">
-        <div className="flex-1 flex flex-col items-center justify-center p-6 max-w-lg mx-auto w-full">
-          {/* Logo strip */}
-          <div className="mb-8 text-center">
-            <span className="text-2xl font-extrabold tracking-tight text-[color:var(--foreground)]">
-              Secure<span className="text-blue-500">Link</span>
+      <div style={{ minHeight: "100vh", background: "var(--background)", display: "flex", flexDirection: "column" }}>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "24px",
+            maxWidth: "480px",
+            margin: "0 auto",
+            width: "100%",
+          }}
+        >
+          <div style={{ marginBottom: "28px", textAlign: "center" }}>
+            <span style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.5px", color: "var(--foreground)" }}>
+              Secure<span style={{ color: "#3b82f6" }}>Link</span>
             </span>
-            <p className="text-xs text-[color:var(--muted-foreground)] mt-1 tracking-widest uppercase">
+            <p style={{ fontSize: "11px", color: "var(--muted-foreground)", marginTop: "4px", letterSpacing: "0.12em", textTransform: "uppercase" }}>
               Electronic Signing
             </p>
           </div>
@@ -552,41 +1043,47 @@ export function SigningCeremony({ token }: { token: string }) {
               background: "var(--card)",
               border: "1px solid var(--border)",
               borderRadius: "16px",
-              padding: "32px 28px",
+              padding: "28px 24px",
               width: "100%",
             }}
           >
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
+              <div
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "12px",
+                  background: "#eff6ff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 </svg>
               </div>
               <div>
-                <h2 className="font-bold text-[color:var(--foreground)] text-base leading-tight">
+                <h2 style={{ fontWeight: 700, fontSize: "15px", color: "var(--foreground)", marginBottom: "2px" }}>
                   Electronic Consent
                 </h2>
-                <p className="text-xs text-[color:var(--muted-foreground)]">
-                  Required before signing
-                </p>
+                <p style={{ fontSize: "12px", color: "var(--muted-foreground)" }}>Required before signing</p>
               </div>
             </div>
 
-            <div className="text-sm text-[color:var(--muted-foreground)] leading-relaxed space-y-3 mb-6">
-              <p>
-                By clicking <strong className="text-[color:var(--foreground)]">Agree & Continue</strong>, you agree to sign{" "}
-                <strong className="text-[color:var(--foreground)]">
-                  {data.request.title ?? "this document"}
-                </strong>{" "}
-                electronically.
+            <div style={{ fontSize: "13px", color: "var(--muted-foreground)", lineHeight: 1.65, marginBottom: "20px" }}>
+              <p style={{ marginBottom: "10px" }}>
+                By clicking <strong style={{ color: "var(--foreground)" }}>Agree & Continue</strong>, you agree to sign{" "}
+                <strong style={{ color: "var(--foreground)" }}>{data.request.title ?? "this document"}</strong> electronically.
               </p>
-              <p>
+              <p style={{ marginBottom: "10px" }}>
                 Your electronic signature has the same legal effect as a handwritten signature under the{" "}
-                <strong className="text-[color:var(--foreground)]">Electronic Signatures in Global and National Commerce (ESIGN) Act</strong> and the{" "}
-                <strong className="text-[color:var(--foreground)]">Uniform Electronic Transactions Act (UETA)</strong>.
+                <strong style={{ color: "var(--foreground)" }}>ESIGN Act</strong> and the{" "}
+                <strong style={{ color: "var(--foreground)" }}>UETA</strong>.
               </p>
               <p>
-                Your IP address, browser information, and the exact time of signing will be captured and stored as part of the audit trail.
+                Your IP address, browser information, and the exact time of signing will be captured as part of the audit trail.
               </p>
             </div>
 
@@ -594,36 +1091,49 @@ export function SigningCeremony({ token }: { token: string }) {
               style={{
                 background: "var(--muted)",
                 borderRadius: "8px",
-                padding: "12px 14px",
-                marginBottom: "20px",
+                padding: "11px 14px",
+                marginBottom: "18px",
                 fontSize: "12px",
                 color: "var(--muted-foreground)",
               }}
             >
-              Requested by <strong style={{ color: "var(--foreground)" }}>{data.agent.displayName}</strong>
+              Requested by{" "}
+              <strong style={{ color: "var(--foreground)" }}>{data.agent.displayName}</strong>
               {data.agent.agencyName && ` · ${data.agent.agencyName}`}
               {" · "}Expires {fmtExpiry(data.request.expiresAt)}
             </div>
 
             <button
               onClick={sendConsent}
-              className="w-full rounded-xl py-3 font-semibold text-white text-sm"
               style={{
+                width: "100%",
+                borderRadius: "12px",
+                padding: "13px",
+                fontWeight: 700,
+                fontSize: "14px",
+                color: "white",
+                border: "none",
+                cursor: "pointer",
                 background: "linear-gradient(135deg, #00A3FF, #0057FF)",
-                boxShadow: "0 4px 14px rgba(0,87,255,0.25)",
+                boxShadow: "0 4px 14px rgba(0,87,255,0.28)",
               }}
             >
-              Agree & Continue
+              Agree & Continue →
             </button>
 
-            <p
-              className="text-center text-xs mt-3"
-              style={{ color: "var(--muted-foreground)" }}
-            >
+            <p style={{ textAlign: "center", fontSize: "12px", marginTop: "12px", color: "var(--muted-foreground)" }}>
               You may{" "}
               <button
                 onClick={() => setScreen("decline-form")}
-                className="underline hover:text-[color:var(--foreground)]"
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "inherit",
+                  textDecoration: "underline",
+                  cursor: "pointer",
+                  fontSize: "inherit",
+                  padding: 0,
+                }}
               >
                 decline to sign
               </button>{" "}
@@ -635,304 +1145,22 @@ export function SigningCeremony({ token }: { token: string }) {
     );
   }
 
-  // ── Screen 2: Document Overview ───────────────────────────────────────────
-
-  if (screen === "overview") {
-    const requiredCount = data.fields.filter((f) => f.required).length;
-    return (
-      <div className="min-h-screen bg-[color:var(--background)] flex flex-col">
-        <div className="flex-1 flex flex-col items-center justify-center p-6 max-w-lg mx-auto w-full">
-          <div className="mb-6 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-4">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="1.5">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-                <polyline points="10 9 9 9 8 9" />
-              </svg>
-            </div>
-            <h1 className="text-xl font-bold text-[color:var(--foreground)] mb-1">
-              {data.request.title ?? "Document Ready to Sign"}
-            </h1>
-            <p className="text-sm text-[color:var(--muted-foreground)]">
-              From {data.agent.displayName}
-              {data.agent.agencyName && ` · ${data.agent.agencyName}`}
-            </p>
-          </div>
-
-          <div
-            style={{
-              background: "var(--card)",
-              border: "1px solid var(--border)",
-              borderRadius: "16px",
-              width: "100%",
-              overflow: "hidden",
-              marginBottom: "20px",
-            }}
-          >
-            {data.request.message && (
-              <div
-                style={{
-                  padding: "16px 20px",
-                  borderBottom: "1px solid var(--border)",
-                  fontSize: "14px",
-                  color: "var(--muted-foreground)",
-                  lineHeight: "1.6",
-                  fontStyle: "italic",
-                }}
-              >
-                "{data.request.message}"
-              </div>
-            )}
-
-            {[
-              { label: "Signing for", value: `${data.recipient.name} · ${data.recipient.email}` },
-              { label: "Fields to complete", value: `${requiredCount} required${data.fields.length > requiredCount ? ` · ${data.fields.length - requiredCount} optional` : ""}` },
-              { label: "Expires", value: fmtExpiry(data.request.expiresAt) },
-              ...(data.totalRecipients > 1
-                ? [{ label: "Signing", value: `${data.completedCount} of ${data.totalRecipients} signers completed (${data.request.signingMode.toLowerCase()})` }]
-                : []),
-            ].map(({ label, value }) => (
-              <div
-                key={label}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                  padding: "12px 20px",
-                  borderBottom: "1px solid var(--border)",
-                  gap: "12px",
-                }}
-              >
-                <span style={{ fontSize: "12px", color: "var(--muted-foreground)", flexShrink: 0, paddingTop: "1px" }}>
-                  {label}
-                </span>
-                <span style={{ fontSize: "13px", color: "var(--foreground)", fontWeight: 500, textAlign: "right" }}>
-                  {value}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {data.request.blobUrl && (
-            <a
-              href={data.request.blobUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-blue-500 underline mb-5 flex items-center gap-1"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
-              Preview full document
-            </a>
-          )}
-
-          <button
-            onClick={() => { setFieldIndex(0); setScreen("signing"); }}
-            className="w-full rounded-xl py-3.5 font-semibold text-white text-sm"
-            style={{
-              background: "linear-gradient(135deg, #00A3FF, #0057FF)",
-              boxShadow: "0 4px 14px rgba(0,87,255,0.25)",
-            }}
-          >
-            Start Signing →
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Screen 3: Signing (one field at a time) ───────────────────────────────
-
-  if (screen === "signing" && currentField) {
-    const totalFields = data.fields.length;
-    const progress = (fieldIndex / totalFields) * 100;
-    const isLast = fieldIndex === totalFields - 1;
-    const allRequired = data.fields.filter((f) => f.required);
-    const allRequiredDone = allRequired.every((f) =>
-      isFieldComplete(f, fieldValues[f.id] ?? "")
-    );
-
-    return (
-      <div className="min-h-screen bg-[color:var(--background)] flex flex-col">
-        {/* Top progress bar */}
-        <div style={{ height: "4px", background: "var(--border)" }}>
-          <div
-            style={{
-              height: "100%",
-              width: `${progress}%`,
-              background: "linear-gradient(90deg, #00A3FF, #0057FF)",
-              transition: "width 0.3s ease",
-            }}
-          />
-        </div>
-
-        {/* Header */}
-        <div
-          style={{
-            padding: "14px 20px",
-            borderBottom: "1px solid var(--border)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            background: "var(--card)",
-          }}
-        >
-          <div>
-            <p className="text-xs text-[color:var(--muted-foreground)]">
-              {data.request.title ?? "Document Signing"}
-            </p>
-            <p className="text-xs font-medium text-[color:var(--foreground)]">
-              Field {fieldIndex + 1} of {totalFields}
-            </p>
-          </div>
-          <span
-            style={{
-              fontSize: "11px",
-              fontWeight: 600,
-              padding: "3px 8px",
-              borderRadius: "99px",
-              background: currentDone ? "#dcfce7" : "#fef9c3",
-              color: currentDone ? "#15803d" : "#92400e",
-            }}
-          >
-            {currentDone ? "✓ Done" : "Required"}
-          </span>
-        </div>
-
-        {/* Field area */}
-        <div className="flex-1 flex flex-col justify-between p-5 max-w-lg mx-auto w-full">
-          <div>
-            {/* Mini doc context */}
-            {data.request.blobUrl && (
-              <div
-                style={{
-                  background: "var(--muted)",
-                  borderRadius: "10px",
-                  overflow: "hidden",
-                  marginBottom: "16px",
-                  border: "1px solid var(--border)",
-                  position: "relative",
-                }}
-              >
-                <iframe
-                  src={`${data.request.blobUrl}#page=${currentField.page}&toolbar=0&navpanes=0`}
-                  style={{ width: "100%", height: "180px", border: "none", display: "block" }}
-                  title="Document preview"
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: "40px",
-                    background: "linear-gradient(transparent, var(--muted))",
-                    pointerEvents: "none",
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: "6px",
-                    right: "8px",
-                    fontSize: "10px",
-                    color: "var(--muted-foreground)",
-                  }}
-                >
-                  Page {currentField.page}
-                </div>
-              </div>
-            )}
-
-            {/* The actual field input */}
-            <FieldInput
-              field={currentField}
-              recipientName={data.recipient.name}
-              value={currentValue}
-              onChange={(v) => handleFieldChange(currentField.id, v)}
-            />
-
-            {!currentField.required && (
-              <p className="text-xs text-[color:var(--muted-foreground)] mt-2">
-                This field is optional.
-              </p>
-            )}
-          </div>
-
-          {/* Navigation buttons */}
-          <div className="flex gap-3 mt-6">
-            {fieldIndex > 0 && (
-              <button
-                onClick={goPrev}
-                className="flex-1 rounded-xl py-3 font-medium text-sm border border-[color:var(--border)] text-[color:var(--foreground)] hover:bg-[color:var(--muted)]"
-              >
-                ← Back
-              </button>
-            )}
-            <button
-              onClick={goNext}
-              disabled={currentField.required && !currentDone || submitting}
-              className="flex-1 rounded-xl py-3 font-semibold text-sm text-white disabled:opacity-50"
-              style={{
-                background:
-                  currentField.required && !currentDone
-                    ? "#94a3b8"
-                    : "linear-gradient(135deg, #00A3FF, #0057FF)",
-              }}
-            >
-              {submitting
-                ? "Submitting…"
-                : isLast
-                ? allRequiredDone
-                  ? "Submit Signatures →"
-                  : "Skip (optional)"
-                : "Next Field →"}
-            </button>
-          </div>
-
-          {/* Field navigation pills */}
-          {data.fields.length > 1 && (
-            <div className="flex gap-1.5 mt-4 flex-wrap justify-center">
-              {data.fields.map((f, i) => {
-                const done = isFieldComplete(f, fieldValues[f.id] ?? "");
-                return (
-                  <button
-                    key={f.id}
-                    onClick={() => setFieldIndex(i)}
-                    style={{
-                      width: "8px",
-                      height: "8px",
-                      borderRadius: "50%",
-                      background:
-                        i === fieldIndex
-                          ? "#0057FF"
-                          : done
-                          ? "#22c55e"
-                          : "var(--border)",
-                      border: "none",
-                      cursor: "pointer",
-                      transition: "background 0.2s",
-                    }}
-                  />
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   // ── Decline form ──────────────────────────────────────────────────────────
-
   if (screen === "decline-form") {
     return (
-      <div className="min-h-screen bg-[color:var(--background)] flex flex-col items-center justify-center p-6 max-w-md mx-auto">
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "var(--background)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "24px",
+          maxWidth: "480px",
+          margin: "0 auto",
+        }}
+      >
         <div
           style={{
             background: "var(--card)",
@@ -942,39 +1170,78 @@ export function SigningCeremony({ token }: { token: string }) {
             width: "100%",
           }}
         >
-          <h2 className="text-lg font-bold text-[color:var(--foreground)] mb-2">
+          <h2 style={{ fontSize: "18px", fontWeight: 700, color: "var(--foreground)", marginBottom: "8px" }}>
             Decline to sign?
           </h2>
-          <p className="text-sm text-[color:var(--muted-foreground)] mb-5 leading-relaxed">
+          <p style={{ fontSize: "13px", color: "var(--muted-foreground)", marginBottom: "20px", lineHeight: 1.65 }}>
             If you decline, the document will be voided and{" "}
-            <strong className="text-[color:var(--foreground)]">
-              {data.agent.displayName}
-            </strong>{" "}
-            will be notified. This action cannot be undone.
+            <strong style={{ color: "var(--foreground)" }}>{data.agent.displayName}</strong> will be notified. This
+            cannot be undone.
           </p>
-
-          <label className="block text-xs font-medium text-[color:var(--muted-foreground)] mb-1.5 uppercase tracking-wide">
+          <label
+            style={{
+              display: "block",
+              fontSize: "11px",
+              fontWeight: 700,
+              color: "var(--muted-foreground)",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              marginBottom: "6px",
+            }}
+          >
             Reason (optional)
           </label>
           <textarea
             rows={3}
-            placeholder="Let the sender know why you're declining…"
             value={declineReason}
             onChange={(e) => setDeclineReason(e.target.value)}
-            className="w-full border border-[color:var(--border)] rounded-lg px-3 py-2.5 text-sm bg-[color:var(--background)] focus:outline-none focus:ring-2 focus:ring-red-400 resize-none mb-5"
+            placeholder="Let the sender know why you're declining…"
+            style={{
+              width: "100%",
+              border: "1px solid var(--border)",
+              borderRadius: "8px",
+              padding: "10px 12px",
+              fontSize: "14px",
+              background: "var(--background)",
+              color: "var(--foreground)",
+              resize: "none",
+              outline: "none",
+              boxSizing: "border-box",
+              marginBottom: "20px",
+            }}
           />
-
-          <div className="flex gap-3">
+          <div style={{ display: "flex", gap: "10px" }}>
             <button
               onClick={() => setScreen("consent")}
-              className="flex-1 rounded-xl py-2.5 font-medium text-sm border border-[color:var(--border)] text-[color:var(--foreground)]"
+              style={{
+                flex: 1,
+                padding: "11px",
+                borderRadius: "10px",
+                border: "1px solid var(--border)",
+                background: "var(--card)",
+                fontSize: "14px",
+                fontWeight: 600,
+                cursor: "pointer",
+                color: "var(--foreground)",
+              }}
             >
               Go back
             </button>
             <button
               onClick={submitDecline}
               disabled={submitting}
-              className="flex-1 rounded-xl py-2.5 font-semibold text-sm text-white bg-red-500 disabled:opacity-50"
+              style={{
+                flex: 1,
+                padding: "11px",
+                borderRadius: "10px",
+                border: "none",
+                background: "#ef4444",
+                color: "white",
+                fontSize: "14px",
+                fontWeight: 700,
+                cursor: submitting ? "not-allowed" : "pointer",
+                opacity: submitting ? 0.7 : 1,
+              }}
             >
               {submitting ? "Declining…" : "Confirm Decline"}
             </button>
@@ -984,17 +1251,36 @@ export function SigningCeremony({ token }: { token: string }) {
     );
   }
 
-  // ── Completion screen ─────────────────────────────────────────────────────
-
+  // ── Complete screen ───────────────────────────────────────────────────────
   if (screen === "complete") {
     const didDecline = !completionData.certUrl && !completionData.signedBlobUrl;
     return (
-      <div className="min-h-screen bg-[color:var(--background)] flex flex-col items-center justify-center p-6 max-w-md mx-auto">
-        <div className="text-center">
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "var(--background)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "24px",
+          maxWidth: "480px",
+          margin: "0 auto",
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
           <div
-            className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6"
             style={{
-              background: didDecline ? "#fee2e2" : "linear-gradient(135deg, #d1fae5, #bbf7d0)",
+              width: "80px",
+              height: "80px",
+              borderRadius: "24px",
+              background: didDecline
+                ? "#fee2e2"
+                : "linear-gradient(135deg, #d1fae5, #bbf7d0)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 20px",
             }}
           >
             {didDecline ? (
@@ -1010,24 +1296,53 @@ export function SigningCeremony({ token }: { token: string }) {
             )}
           </div>
 
-          <h1 className="text-2xl font-bold text-[color:var(--foreground)] mb-2">
+          <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--foreground)", marginBottom: "8px" }}>
             {didDecline ? "Declined" : "Signed Successfully"}
           </h1>
-          <p className="text-sm text-[color:var(--muted-foreground)] mb-8 leading-relaxed max-w-xs mx-auto">
+          <p
+            style={{
+              fontSize: "14px",
+              color: "var(--muted-foreground)",
+              lineHeight: 1.65,
+              marginBottom: "28px",
+              maxWidth: "320px",
+              margin: "0 auto 28px",
+            }}
+          >
             {didDecline
               ? `You have declined to sign${data.request.title ? ` "${data.request.title}"` : ""}. The sender has been notified.`
               : `You have successfully signed${data.request.title ? ` "${data.request.title}"` : ""}. An email confirmation will be sent to ${data.recipient.email}.`}
           </p>
 
           {!didDecline && (completionData.signedBlobUrl || completionData.certUrl) && (
-            <div className="flex flex-col gap-3 w-full max-w-xs mx-auto">
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+                maxWidth: "320px",
+                margin: "0 auto",
+              }}
+            >
               {completionData.signedBlobUrl && (
                 <a
                   href={completionData.signedBlobUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 rounded-xl py-3 font-semibold text-sm text-white"
-                  style={{ background: "linear-gradient(135deg, #00A3FF, #0057FF)" }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    borderRadius: "12px",
+                    padding: "13px",
+                    fontWeight: 700,
+                    fontSize: "14px",
+                    color: "white",
+                    textDecoration: "none",
+                    background: "linear-gradient(135deg, #00A3FF, #0057FF)",
+                    boxShadow: "0 4px 14px rgba(0,87,255,0.25)",
+                  }}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -1042,7 +1357,19 @@ export function SigningCeremony({ token }: { token: string }) {
                   href={completionData.certUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 rounded-xl py-3 font-medium text-sm border border-[color:var(--border)] text-[color:var(--foreground)]"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    borderRadius: "12px",
+                    padding: "13px",
+                    fontWeight: 600,
+                    fontSize: "14px",
+                    color: "var(--foreground)",
+                    textDecoration: "none",
+                    border: "1px solid var(--border)",
+                  }}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="12" cy="8" r="6" />
@@ -1054,10 +1381,510 @@ export function SigningCeremony({ token }: { token: string }) {
             </div>
           )}
 
-          <p className="text-xs text-[color:var(--muted-foreground)] mt-8">
+          <p style={{ fontSize: "12px", color: "var(--muted-foreground)", marginTop: "28px" }}>
             You can safely close this window.
           </p>
         </div>
+      </div>
+    );
+  }
+
+  // ── Signing screen (DocuSign-style PDF + field overlays) ─────────────────
+  if (screen === "signing") {
+    const reqFields = data.fields.filter((f) => f.required);
+    const doneCount = reqFields.filter((f) => isFieldDone(f, fieldValues[f.id] ?? "")).length;
+    const canSubmit = requiredAllDone(data.fields, fieldValues);
+    const progressPct = reqFields.length > 0 ? (doneCount / reqFields.length) * 100 : 100;
+
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#e8ecf0",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {/* Sticky header */}
+        <div
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 100,
+            background: "white",
+            borderBottom: "1px solid #e2e8f0",
+            padding: "10px 16px 0",
+          }}
+        >
+          <div style={{ maxWidth: "840px", margin: "0 auto" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                marginBottom: "8px",
+                gap: "12px",
+              }}
+            >
+              <div>
+                <p style={{ fontWeight: 700, fontSize: "13px", color: "#0f172a", lineHeight: 1.3 }}>
+                  {data.request.title ?? "Document Signing"}
+                </p>
+                <p style={{ fontSize: "11px", color: "#64748b" }}>
+                  {data.agent.displayName}
+                  {data.agent.agencyName && ` · ${data.agent.agencyName}`}
+                </p>
+              </div>
+              <div
+                style={{
+                  flexShrink: 0,
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  padding: "4px 10px",
+                  borderRadius: "99px",
+                  background: canSubmit ? "#dcfce7" : "#fef9c3",
+                  color: canSubmit ? "#15803d" : "#92400e",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {canSubmit ? "✓ Ready" : `${doneCount} / ${reqFields.length} required`}
+              </div>
+            </div>
+            {/* Progress bar */}
+            <div style={{ height: "3px", background: "#e2e8f0", borderRadius: "2px", marginBottom: "0" }}>
+              <div
+                style={{
+                  height: "100%",
+                  width: `${progressPct}%`,
+                  background: "linear-gradient(90deg, #00A3FF, #0057FF)",
+                  borderRadius: "2px",
+                  transition: "width 0.35s ease",
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable PDF area */}
+        <div
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            padding: "16px",
+          }}
+        >
+          <div style={{ maxWidth: "840px", margin: "0 auto" }}>
+            {/* PDF rendering spinner */}
+            {pdfRendering && (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "48px 24px",
+                  color: "#64748b",
+                  fontSize: "13px",
+                }}
+              >
+                <div
+                  style={{
+                    width: "28px",
+                    height: "28px",
+                    borderRadius: "50%",
+                    border: "2.5px solid #3b82f6",
+                    borderTopColor: "transparent",
+                    animation: "sc-spin 0.7s linear infinite",
+                    margin: "0 auto 12px",
+                  }}
+                />
+                Rendering document…
+              </div>
+            )}
+
+            {/* No PDF / fallback */}
+            {!pdfRendering && pageImages.length === 0 && (
+              <div
+                style={{
+                  background: "white",
+                  borderRadius: "12px",
+                  padding: "24px",
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+                }}
+              >
+                {data.request.blobUrl && (
+                  <a
+                    href={data.request.blobUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontSize: "13px",
+                      color: "#3b82f6",
+                      textDecoration: "none",
+                      marginBottom: "20px",
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                      <polyline points="15 3 21 3 21 9" />
+                      <line x1="10" y1="14" x2="21" y2="3" />
+                    </svg>
+                    View full document
+                  </a>
+                )}
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: "#64748b",
+                    marginBottom: "20px",
+                  }}
+                >
+                  Click each field below to fill it in.
+                </p>
+                {data.fields.map((field) => {
+                  const val = fieldValues[field.id] ?? "";
+                  const done = isFieldDone(field, val);
+                  const colors = fieldColor(field.type);
+                  return (
+                    <div
+                      key={field.id}
+                      ref={(el) => { fieldRefs.current[field.id] = el; }}
+                      onClick={() => setActiveFieldId(field.id)}
+                      style={{
+                        border: `1.5px solid ${done ? colors.border : "#e2e8f0"}`,
+                        borderRadius: "10px",
+                        padding: "14px 16px",
+                        marginBottom: "10px",
+                        cursor: "pointer",
+                        background: done ? colors.bg + "60" : "white",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "12px",
+                      }}
+                    >
+                      <div>
+                        <p style={{ fontWeight: 600, fontSize: "13px", color: colors.text, marginBottom: "2px" }}>
+                          {fieldTagLabel(field.type)}
+                          {field.required && !done && (
+                            <span style={{ color: "#ef4444", marginLeft: "4px" }}>*</span>
+                          )}
+                        </p>
+                        {val && !val.startsWith("data:image") && (
+                          <p style={{ fontSize: "12px", color: "#64748b" }}>{val}</p>
+                        )}
+                        {val && val.startsWith("data:image") && (
+                          <p style={{ fontSize: "12px", color: "#10b981" }}>✓ Captured</p>
+                        )}
+                      </div>
+                      {done ? (
+                        <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <svg width="10" height="10" viewBox="0 0 12 10" fill="none">
+                            <path d="M1 5l3.5 3.5L11 1" stroke="#15803d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            padding: "4px 8px",
+                            borderRadius: "6px",
+                            background: colors.bg,
+                            color: colors.text,
+                            flexShrink: 0,
+                          }}
+                        >
+                          Tap to fill
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* PDF pages with field overlays */}
+            {!pdfRendering &&
+              pageImages.map((imgSrc, idx) => {
+                const pageNum = idx + 1;
+                const fieldsOnPage = data.fields.filter((f) => f.page === pageNum);
+
+                return (
+                  <div
+                    key={pageNum}
+                    style={{
+                      marginBottom: "16px",
+                      borderRadius: "6px",
+                      overflow: "hidden",
+                      boxShadow: "0 2px 12px rgba(0,0,0,0.12)",
+                      background: "white",
+                    }}
+                  >
+                    {/* Page with overlaid field tags */}
+                    <div style={{ position: "relative", lineHeight: 0 }}>
+                      <img
+                        src={imgSrc}
+                        alt={`Page ${pageNum}`}
+                        style={{ width: "100%", display: "block" }}
+                        draggable={false}
+                      />
+
+                      {fieldsOnPage.map((field) => {
+                        const val = fieldValues[field.id] ?? "";
+                        const done = isFieldDone(field, val);
+                        const isNext = nextIncompleteField?.id === field.id;
+                        const colors = fieldColor(field.type);
+                        const isImg = val.startsWith("data:image");
+
+                        return (
+                          <div
+                            key={field.id}
+                            ref={(el) => { fieldRefs.current[field.id] = el; }}
+                            onClick={() => setActiveFieldId(field.id)}
+                            title={fieldTagLabel(field.type)}
+                            style={{
+                              position: "absolute",
+                              left: `${field.x * 100}%`,
+                              top: `${field.y * 100}%`,
+                              width: `${field.width * 100}%`,
+                              height: `${field.height * 100}%`,
+                              cursor: "pointer",
+                              border: `${isNext && !done ? "2px" : "1.5px"} solid ${colors.border}`,
+                              borderRadius: "3px",
+                              boxSizing: "border-box",
+                              background: done ? (isImg ? "rgba(255,255,255,0.05)" : colors.bg + "cc") : colors.bg + "cc",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              overflow: "hidden",
+                              animation: isNext && !done ? "sc-pulse 1.6s ease-in-out infinite" : "none",
+                              transition: "border-color 0.2s, background 0.2s",
+                            }}
+                          >
+                            {done && isImg ? (
+                              <img
+                                src={val}
+                                alt="field"
+                                style={{
+                                  width: "96%",
+                                  height: "96%",
+                                  objectFit: "contain",
+                                }}
+                              />
+                            ) : done && field.type === "DATE_SIGNED" ? (
+                              <span
+                                style={{
+                                  fontSize: "clamp(7px, 1.8vw, 12px)",
+                                  color: colors.text,
+                                  fontWeight: 600,
+                                  padding: "0 3px",
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  maxWidth: "100%",
+                                }}
+                              >
+                                {fmtDate(val)}
+                              </span>
+                            ) : done ? (
+                              <span
+                                style={{
+                                  fontSize: "clamp(7px, 1.8vw, 12px)",
+                                  color: colors.text,
+                                  fontWeight: 600,
+                                  padding: "0 3px",
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  maxWidth: "100%",
+                                }}
+                              >
+                                {field.type === "CHECKBOX" ? "✓" : val}
+                              </span>
+                            ) : (
+                              <div
+                                style={{
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: "1px",
+                                  pointerEvents: "none",
+                                  width: "100%",
+                                  padding: "2px",
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontSize: "clamp(6px, 1.4vw, 10px)",
+                                    color: colors.text,
+                                    fontWeight: 800,
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.04em",
+                                    lineHeight: 1,
+                                    textAlign: "center",
+                                  }}
+                                >
+                                  {fieldTagLabel(field.type)}
+                                </span>
+                                {field.required && (
+                                  <span
+                                    style={{
+                                      fontSize: "clamp(5px, 1vw, 8px)",
+                                      color: colors.border,
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    ★
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Page footer */}
+                    <div
+                      style={{
+                        padding: "5px 12px",
+                        background: "#f8fafc",
+                        borderTop: "1px solid #e2e8f0",
+                        fontSize: "10px",
+                        color: "#94a3b8",
+                      }}
+                    >
+                      Page {pageNum} of {pageImages.length}
+                    </div>
+                  </div>
+                );
+              })}
+
+            {/* Bottom spacer so content isn't hidden behind sticky bar */}
+            <div style={{ height: "80px" }} />
+          </div>
+        </div>
+
+        {/* Sticky bottom action bar */}
+        <div
+          style={{
+            position: "sticky",
+            bottom: 0,
+            background: "white",
+            borderTop: "1px solid #e2e8f0",
+            padding: "10px 16px",
+            zIndex: 100,
+          }}
+        >
+          <div
+            style={{
+              maxWidth: "840px",
+              margin: "0 auto",
+              display: "flex",
+              gap: "10px",
+              alignItems: "center",
+            }}
+          >
+            <button
+              onClick={() => setScreen("decline-form")}
+              style={{
+                flexShrink: 0,
+                padding: "10px 14px",
+                borderRadius: "10px",
+                border: "1px solid #e2e8f0",
+                background: "white",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "#64748b",
+                cursor: "pointer",
+              }}
+            >
+              Decline
+            </button>
+
+            {canSubmit ? (
+              <button
+                onClick={submitSigning}
+                disabled={submitting}
+                style={{
+                  flex: 1,
+                  padding: "12px",
+                  borderRadius: "10px",
+                  border: "none",
+                  background: submitting ? "#94a3b8" : "linear-gradient(135deg, #00A3FF, #0057FF)",
+                  color: "white",
+                  fontSize: "15px",
+                  fontWeight: 700,
+                  cursor: submitting ? "not-allowed" : "pointer",
+                  boxShadow: submitting ? "none" : "0 4px 14px rgba(0,87,255,0.3)",
+                  transition: "all 0.2s",
+                }}
+              >
+                {submitting ? "Submitting…" : "Finish & Submit →"}
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  if (nextIncompleteField) {
+                    scrollToField(nextIncompleteField.id);
+                    setActiveFieldId(nextIncompleteField.id);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: "12px",
+                  borderRadius: "10px",
+                  border: "none",
+                  background: "linear-gradient(135deg, #00A3FF, #0057FF)",
+                  color: "white",
+                  fontSize: "15px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  boxShadow: "0 4px 14px rgba(0,87,255,0.3)",
+                }}
+              >
+                {nextIncompleteField ? "Next Required Field →" : "Review & Submit →"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Animations */}
+        <style>{`
+          @keyframes sc-spin { to { transform: rotate(360deg); } }
+          @keyframes sc-pulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(59,130,246,0.4); } 50% { opacity: 0.8; box-shadow: 0 0 0 4px rgba(59,130,246,0); } }
+        `}</style>
+
+        {/* Field modal */}
+        {activeField && (() => {
+          if (activeField.type === "SIGNATURE" || activeField.type === "INITIALS") {
+            return (
+              <SigModal
+                recipientName={data.recipient.name}
+                mode={activeField.type === "SIGNATURE" ? "signature" : "initials"}
+                onConfirm={(url) => {
+                  setFieldValue(activeField.id, url);
+                  setActiveFieldId(null);
+                }}
+                onClose={() => setActiveFieldId(null)}
+              />
+            );
+          }
+          return (
+            <FieldModal
+              field={activeField}
+              recipientName={data.recipient.name}
+              currentValue={fieldValues[activeField.id] ?? ""}
+              onConfirm={(val) => {
+                setFieldValue(activeField.id, val);
+                setActiveFieldId(null);
+              }}
+              onClose={() => setActiveFieldId(null)}
+            />
+          );
+        })()}
       </div>
     );
   }

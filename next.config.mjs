@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  webpack: (config) => {
+    // pdfjs-dist tries to require 'canvas' for server-side rendering; alias it away in browser builds
+    config.resolve.alias.canvas = false;
+    return config;
+  },
   // Security headers
   async headers() {
     return [
