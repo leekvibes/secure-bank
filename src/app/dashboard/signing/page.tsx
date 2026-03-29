@@ -2,11 +2,28 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Loader2, Plus, FileSignature, Clock, CheckCircle2, AlertTriangle, Ban } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  FileSignature,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
+  Ban,
+  Send,
+  ArrowRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-type SigningStatus = "DRAFT" | "SENT" | "OPENED" | "COMPLETED" | "VOIDED" | "EXPIRED";
+type SigningStatus =
+  | "DRAFT"
+  | "SENT"
+  | "OPENED"
+  | "PARTIALLY_SIGNED"
+  | "COMPLETED"
+  | "VOIDED"
+  | "EXPIRED";
 
 interface SigningRecipient {
   id: string;
@@ -30,11 +47,31 @@ interface SigningRequestListItem {
   createdAt: string;
   recipients: SigningRecipient[];
   _count: { signingFields: number };
+  displayStatus?: SigningStatus;
+  completedRecipients?: number;
+}
+
+function resolveDisplayStatus(request: SigningRequestListItem): SigningStatus {
+  if (request.displayStatus) return request.displayStatus;
+  const completedCount = request.recipients.filter((recipient) => recipient.status === "COMPLETED").length;
+  if (
+    (request.status === "SENT" || request.status === "OPENED") &&
+    completedCount > 0 &&
+    completedCount < request.recipients.length
+  ) {
+    return "PARTIALLY_SIGNED";
+  }
+  return request.status;
 }
 
 function statusBadge(status: SigningStatus) {
   if (status === "DRAFT") return { label: "Draft", className: "bg-muted text-muted-foreground" };
-  if (status === "SENT" || status === "OPENED") return { label: status === "OPENED" ? "Opened" : "Sent", className: "bg-blue-500/10 text-blue-600" };
+  if (status === "PARTIALLY_SIGNED") {
+    return { label: "Partially Signed", className: "bg-violet-500/10 text-violet-700" };
+  }
+  if (status === "SENT" || status === "OPENED") {
+    return { label: status === "OPENED" ? "Opened" : "Sent", className: "bg-blue-500/10 text-blue-700" };
+  }
   if (status === "COMPLETED") return { label: "Completed", className: "bg-emerald-500/10 text-emerald-600" };
   if (status === "VOIDED") return { label: "Voided", className: "bg-orange-500/10 text-orange-600" };
   return { label: "Expired", className: "bg-red-500/10 text-red-600" };
@@ -42,6 +79,8 @@ function statusBadge(status: SigningStatus) {
 
 function statusIcon(status: SigningStatus) {
   if (status === "COMPLETED") return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
+  if (status === "PARTIALLY_SIGNED") return <CheckCircle2 className="w-4 h-4 text-violet-600" />;
+  if (status === "SENT" || status === "OPENED") return <Send className="w-4 h-4 text-blue-600" />;
   if (status === "VOIDED") return <Ban className="w-4 h-4 text-orange-500" />;
   if (status === "EXPIRED") return <AlertTriangle className="w-4 h-4 text-red-500" />;
   return <Clock className="w-4 h-4 text-muted-foreground" />;
@@ -75,11 +114,13 @@ export default function SigningRequestsPage() {
   }, []);
 
   const totals = useMemo(() => {
+    const statuses = requests.map(resolveDisplayStatus);
     return {
       all: requests.length,
-      draft: requests.filter((r) => r.status === "DRAFT").length,
-      sent: requests.filter((r) => r.status === "SENT" || r.status === "OPENED").length,
-      completed: requests.filter((r) => r.status === "COMPLETED").length,
+      draft: statuses.filter((status) => status === "DRAFT").length,
+      sent: statuses.filter((status) => status === "SENT" || status === "OPENED").length,
+      partial: statuses.filter((status) => status === "PARTIALLY_SIGNED").length,
+      completed: statuses.filter((status) => status === "COMPLETED").length,
     };
   }, [requests]);
 
@@ -100,7 +141,7 @@ export default function SigningRequestsPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="rounded-xl border border-border bg-card p-3">
           <p className="text-xs text-muted-foreground">Total</p>
           <p className="text-lg font-semibold text-foreground">{totals.all}</p>
@@ -112,6 +153,10 @@ export default function SigningRequestsPage() {
         <div className="rounded-xl border border-border bg-card p-3">
           <p className="text-xs text-muted-foreground">Sent</p>
           <p className="text-lg font-semibold text-foreground">{totals.sent}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-3">
+          <p className="text-xs text-muted-foreground">Partially Signed</p>
+          <p className="text-lg font-semibold text-foreground">{totals.partial}</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-3">
           <p className="text-xs text-muted-foreground">Completed</p>
@@ -143,9 +188,18 @@ export default function SigningRequestsPage() {
       ) : (
         <div className="space-y-3">
           {requests.map((request) => {
-            const badge = statusBadge(request.status);
+            const displayStatus = resolveDisplayStatus(request);
+            const badge = statusBadge(displayStatus);
+            const completedRecipients =
+              typeof request.completedRecipients === "number"
+                ? request.completedRecipients
+                : request.recipients.filter((recipient) => recipient.status === "COMPLETED").length;
             return (
-              <div key={request.id} className="rounded-xl border border-border bg-card p-4">
+              <Link
+                key={request.id}
+                href={`/dashboard/signing/${request.id}`}
+                className="block rounded-xl border border-border bg-card p-4 hover:border-primary/30 hover:bg-primary/5 transition-colors"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate">
@@ -156,16 +210,25 @@ export default function SigningRequestsPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {statusIcon(request.status)}
+                    {statusIcon(displayStatus)}
                     <Badge className={badge.className}>{badge.label}</Badge>
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <span>
+                    Progress: {completedRecipients}/{request.recipients.length} signed
+                  </span>
                   <span>Mode: {request.signingMode === "SEQUENTIAL" ? "Sequential" : "Parallel"}</span>
-                  <span>Created: {new Date(request.createdAt).toLocaleString()}</span>
+                  <span>{request.status === "DRAFT" ? "Created" : "Sent"}: {new Date(request.createdAt).toLocaleString()}</span>
                   <span>Expires: {new Date(request.expiresAt).toLocaleString()}</span>
                 </div>
-              </div>
+                <div className="mt-3 flex justify-end">
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+                    View details
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+              </Link>
             );
           })}
         </div>
@@ -173,4 +236,3 @@ export default function SigningRequestsPage() {
     </div>
   );
 }
-

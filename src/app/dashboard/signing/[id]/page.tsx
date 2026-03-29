@@ -1,0 +1,383 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Ban,
+  BellRing,
+  CheckCircle2,
+  Clock,
+  Download,
+  Loader2,
+  Send,
+  ShieldAlert,
+  UserCheck,
+  XCircle,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+
+type RequestStatus = "DRAFT" | "SENT" | "OPENED" | "PARTIALLY_SIGNED" | "COMPLETED" | "VOIDED" | "EXPIRED";
+type RecipientStatus = "PENDING" | "OPENED" | "COMPLETED" | "DECLINED";
+
+interface Recipient {
+  id: string;
+  name: string;
+  email: string;
+  order: number;
+  status: RecipientStatus;
+  completedAt: string | null;
+}
+
+interface AuditLog {
+  id: string;
+  event: string;
+  metadata: string | null;
+  createdAt: string;
+}
+
+interface SigningField {
+  id: string;
+  recipientId: string;
+}
+
+interface SigningRequestDetail {
+  id: string;
+  title: string | null;
+  originalName: string | null;
+  status: RequestStatus;
+  displayStatus?: RequestStatus;
+  signingMode: "PARALLEL" | "SEQUENTIAL" | string;
+  expiresAt: string;
+  completedAt: string | null;
+  voidedAt: string | null;
+  createdAt: string;
+  recipients: Recipient[];
+  signingFields: SigningField[];
+  auditLogs: AuditLog[];
+}
+
+function resolveDisplayStatus(request: SigningRequestDetail): RequestStatus {
+  if (request.displayStatus) return request.displayStatus;
+  const completedCount = request.recipients.filter((recipient) => recipient.status === "COMPLETED").length;
+  if (
+    (request.status === "SENT" || request.status === "OPENED") &&
+    completedCount > 0 &&
+    completedCount < request.recipients.length
+  ) {
+    return "PARTIALLY_SIGNED";
+  }
+  return request.status;
+}
+
+function requestBadge(status: RequestStatus) {
+  if (status === "DRAFT") return { label: "Draft", className: "bg-muted text-muted-foreground" };
+  if (status === "PARTIALLY_SIGNED") return { label: "Partially Signed", className: "bg-violet-500/10 text-violet-700" };
+  if (status === "SENT" || status === "OPENED") return { label: "Sent", className: "bg-blue-500/10 text-blue-700" };
+  if (status === "COMPLETED") return { label: "Completed", className: "bg-emerald-500/10 text-emerald-700" };
+  if (status === "VOIDED") return { label: "Voided", className: "bg-orange-500/10 text-orange-700" };
+  return { label: "Expired", className: "bg-red-500/10 text-red-700" };
+}
+
+function recipientStatusBadge(status: RecipientStatus) {
+  if (status === "COMPLETED") return { label: "Signed", className: "bg-emerald-500/10 text-emerald-700" };
+  if (status === "OPENED") return { label: "Opened", className: "bg-blue-500/10 text-blue-700" };
+  if (status === "DECLINED") return { label: "Declined", className: "bg-red-500/10 text-red-700" };
+  return { label: "Waiting", className: "bg-muted text-muted-foreground" };
+}
+
+function eventLabel(event: string) {
+  const map: Record<string, string> = {
+    DOCUMENT_UPLOADED: "Document uploaded",
+    SENT: "Request sent",
+    OPENED: "Recipient opened",
+    CONSENT: "Recipient consented",
+    RECIPIENT_SIGNED: "Recipient completed assigned fields",
+    COMPLETED: "All parties completed",
+    DECLINED: "Recipient declined",
+    VOIDED: "Request voided",
+    REMINDER_SENT: "Reminder sent",
+  };
+  return map[event] ?? event;
+}
+
+export default function SigningRequestDetailPage() {
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const id = typeof params?.id === "string" ? params.id : "";
+
+  const [loading, setLoading] = useState(true);
+  const [request, setRequest] = useState<SigningRequestDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [voidBusy, setVoidBusy] = useState(false);
+  const [remindBusy, setRemindBusy] = useState(false);
+  const [downloadBusy, setDownloadBusy] = useState<null | "signed" | "cert" | "original">(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!id) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}`, { cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to load signing request.");
+        const detail = (data?.request ?? data) as SigningRequestDetail;
+        if (!cancelled) setRequest(detail);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load signing request.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const status = useMemo(() => (request ? resolveDisplayStatus(request) : null), [request]);
+  const statusBadge = status ? requestBadge(status) : null;
+  const completedRecipients = request?.recipients.filter((recipient) => recipient.status === "COMPLETED").length ?? 0;
+  const canRemind = status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED";
+  const canVoid = status !== "COMPLETED" && status !== "VOIDED" && status !== "EXPIRED";
+
+  async function reload() {
+    if (!id) return;
+    const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}`, { cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to reload signing request.");
+    setRequest((data?.request ?? data) as SigningRequestDetail);
+  }
+
+  async function handleRemind() {
+    if (!id) return;
+    setRemindBusy(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}/remind`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to send reminders.");
+      await reload();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to send reminders.");
+    } finally {
+      setRemindBusy(false);
+    }
+  }
+
+  async function handleVoid() {
+    if (!id) return;
+    setVoidBusy(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}/void`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to void request.");
+      await reload();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to void request.");
+    } finally {
+      setVoidBusy(false);
+    }
+  }
+
+  async function handleDownload(type: "signed" | "cert" | "original") {
+    if (!id) return;
+    setDownloadBusy(type);
+    setActionError(null);
+    try {
+      const res = await fetch(
+        `/api/signing/requests/${encodeURIComponent(id)}/download${type === "signed" ? "" : `?type=${type}`}`
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error?.message ?? data?.error ?? "Download failed.");
+      }
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = `${request?.title?.trim() || request?.originalName || "document"}_${type}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Download failed.");
+    } finally {
+      setDownloadBusy(null);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="h-56 flex items-center justify-center">
+        <Loader2 className="w-5 h-5 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error || !request) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
+          <Link href="/dashboard/signing">
+            <ArrowLeft className="w-4 h-4" />
+            Back to Signing
+          </Link>
+        </Button>
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error || "Signing request not found."}
+        </div>
+      </div>
+    );
+  }
+
+  const fieldCountsByRecipient = request.recipients.map((recipient) => ({
+    recipient,
+    count: request.signingFields.filter((field) => field.recipientId === recipient.id).length,
+  }));
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
+            <Link href="/dashboard/signing">
+              <ArrowLeft className="w-4 h-4" />
+              Back to Signing
+            </Link>
+          </Button>
+          <h1 className="ui-page-title mt-2">{request.title?.trim() || request.originalName || "Untitled request"}</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {request.originalName || "No document name"} · {request.signingMode === "SEQUENTIAL" ? "Sequential" : "Parallel"} flow
+          </p>
+        </div>
+        {statusBadge ? <Badge className={statusBadge.className}>{statusBadge.label}</Badge> : null}
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="rounded-xl border border-border bg-card p-3">
+          <p className="text-xs text-muted-foreground">Recipients</p>
+          <p className="text-lg font-semibold text-foreground">{request.recipients.length}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-3">
+          <p className="text-xs text-muted-foreground">Progress</p>
+          <p className="text-lg font-semibold text-foreground">
+            {completedRecipients}/{request.recipients.length}
+          </p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-3">
+          <p className="text-xs text-muted-foreground">Fields</p>
+          <p className="text-lg font-semibold text-foreground">{request.signingFields.length}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-3">
+          <p className="text-xs text-muted-foreground">Expires</p>
+          <p className="text-sm font-medium text-foreground">{new Date(request.expiresAt).toLocaleString()}</p>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={() => handleDownload("signed")} disabled={downloadBusy !== null} className="gap-2">
+            {downloadBusy === "signed" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            Download Signed PDF
+          </Button>
+          <Button variant="outline" onClick={() => handleDownload("cert")} disabled={downloadBusy !== null} className="gap-2">
+            {downloadBusy === "cert" ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />}
+            Download Certificate
+          </Button>
+          <Button variant="outline" onClick={() => handleDownload("original")} disabled={downloadBusy !== null} className="gap-2">
+            {downloadBusy === "original" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            Download Original
+          </Button>
+          <Button variant="outline" onClick={handleRemind} disabled={!canRemind || remindBusy} className="gap-2">
+            {remindBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <BellRing className="w-4 h-4" />}
+            Send Reminder
+          </Button>
+          <Button variant="destructive" onClick={handleVoid} disabled={!canVoid || voidBusy} className="gap-2">
+            {voidBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+            Void Request
+          </Button>
+        </div>
+        {actionError ? (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{actionError}</div>
+        ) : null}
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-5">
+        <section className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <UserCheck className="w-4 h-4" />
+            Recipient Status
+          </h2>
+          <div className="space-y-2">
+            {fieldCountsByRecipient.map(({ recipient, count }) => {
+              const badge = recipientStatusBadge(recipient.status);
+              return (
+                <div key={recipient.id} className="rounded-lg border border-border p-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{recipient.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{recipient.email}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {request.signingMode === "SEQUENTIAL" ? `Order ${recipient.order + 1}` : "Parallel"} · {count} field{count === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <Badge className={badge.className}>{badge.label}</Badge>
+                    {recipient.completedAt ? (
+                      <p className="text-[11px] text-muted-foreground mt-1">{new Date(recipient.completedAt).toLocaleString()}</p>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Clock className="w-4 h-4" />
+            Activity Timeline
+          </h2>
+          {request.auditLogs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No activity yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {request.auditLogs.map((log) => (
+                <div key={log.id} className="flex items-start gap-3">
+                  <div className="pt-1">
+                    {log.event === "COMPLETED" ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    ) : log.event === "DECLINED" ? (
+                      <XCircle className="w-4 h-4 text-red-600" />
+                    ) : log.event === "SENT" ? (
+                      <Send className="w-4 h-4 text-blue-600" />
+                    ) : (
+                      <Clock className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm text-foreground">{eventLabel(log.event)}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(log.createdAt).toLocaleString()}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
+      <div className="flex justify-end">
+        <Button variant="outline" onClick={() => router.push("/dashboard/signing")}>
+          Back to List
+        </Button>
+      </div>
+    </div>
+  );
+}
