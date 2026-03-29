@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import { getStripe, PRICE_IDS, isStripeConfigured } from "@/lib/stripe";
 import { apiError, apiSuccess } from "@/lib/api-response";
+import { writeAuditLog } from "@/lib/audit";
 
 type PriceKey = keyof typeof PRICE_IDS;
 
@@ -53,6 +54,18 @@ export async function POST(req: NextRequest) {
       return_url: stripeReturnUrl,
       metadata: { userId: session.user.id, plan },
       subscription_data: { metadata: { userId: session.user.id, plan } },
+    });
+
+    await writeAuditLog({
+      event: "BILLING_CHECKOUT_STARTED",
+      agentId: session.user.id,
+      request: req,
+      metadata: {
+        selectedPlan: plan,
+        priceId,
+        stripeCheckoutSessionId: checkoutSession.id,
+        stripeCustomerId: customerId,
+      },
     });
 
     if (!checkoutSession.client_secret) {
