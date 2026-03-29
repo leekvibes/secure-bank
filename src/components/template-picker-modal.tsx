@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, X, FileText, Link2, Star, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  Loader2, X, FileText, Link2, Star, ShieldCheck, ArrowRight,
+  Shield, Building2, Home, Users, LayoutGrid, Search,
+} from "lucide-react";
 
-type Category = "All" | "Insurance" | "Banking" | "Compliance" | "Mortgage" | "HR & Compliance" | "General";
+// ── types ─────────────────────────────────────────────────────────────────────
 
 interface SystemTemplate {
   id: string;
@@ -22,11 +24,39 @@ interface Props {
   onClose: () => void;
 }
 
-const CATEGORIES: Category[] = ["All", "Insurance", "Banking", "Compliance", "Mortgage", "HR & Compliance", "General"];
+// ── category config ───────────────────────────────────────────────────────────
+
+const CATEGORIES = [
+  { label: "All",              icon: LayoutGrid },
+  { label: "Insurance",        icon: Shield },
+  { label: "Banking",          icon: Building2 },
+  { label: "Compliance",       icon: ShieldCheck },
+  { label: "Mortgage",         icon: Home },
+  { label: "HR & Compliance",  icon: Users },
+  { label: "General",          icon: LayoutGrid },
+] as const;
+
+type CategoryLabel = typeof CATEGORIES[number]["label"];
+
+const CATEGORY_ICON: Record<string, React.ElementType> = Object.fromEntries(
+  CATEGORIES.map((c) => [c.label, c.icon])
+);
+
+const ICON_COLOR: Record<string, string> = {
+  Insurance:         "text-blue-600 bg-blue-50 border-blue-100",
+  Banking:           "text-emerald-600 bg-emerald-50 border-emerald-100",
+  Compliance:        "text-violet-600 bg-violet-50 border-violet-100",
+  Mortgage:          "text-orange-500 bg-orange-50 border-orange-100",
+  "HR & Compliance": "text-pink-600 bg-pink-50 border-pink-100",
+  General:           "text-slate-500 bg-slate-50 border-slate-100",
+};
+
+// ── modal ─────────────────────────────────────────────────────────────────────
 
 export function TemplatePickerModal({ open, onClose }: Props) {
   const router = useRouter();
-  const [category, setCategory] = useState<Category>("All");
+  const [category, setCategory] = useState<CategoryLabel>("All");
+  const [search, setSearch] = useState("");
   const [templates, setTemplates] = useState<SystemTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [usingId, setUsingId] = useState<string | null>(null);
@@ -38,7 +68,7 @@ export function TemplatePickerModal({ open, onClose }: Props) {
     setLoading(true);
     setError(null);
 
-    async function loadTemplates() {
+    async function load() {
       try {
         const query = category === "All" ? "" : `?category=${encodeURIComponent(category)}`;
         const res = await fetch(`/api/templates${query}`);
@@ -55,11 +85,11 @@ export function TemplatePickerModal({ open, onClose }: Props) {
       }
     }
 
-    loadTemplates();
+    load();
     return () => { cancelled = true; };
   }, [open, category]);
 
-  async function handleUseTemplate(template: SystemTemplate) {
+  async function handleUse(template: SystemTemplate) {
     setError(null);
     setUsingId(template.id);
     try {
@@ -68,11 +98,10 @@ export function TemplatePickerModal({ open, onClose }: Props) {
         router.push(`/dashboard/new?template=${encodeURIComponent(template.id)}`);
         return;
       }
-
       const res = await fetch(`/api/templates/${template.id}/use`, { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Failed to apply template.");
-      if (data?.type === "form" && typeof data?.formId === "string") {
+      if (data?.type === "form" && typeof data.formId === "string") {
         onClose();
         router.push(`/dashboard/forms/${data.formId}`);
         return;
@@ -85,6 +114,16 @@ export function TemplatePickerModal({ open, onClose }: Props) {
     }
   }
 
+  const filtered = search.trim()
+    ? templates.filter((t) =>
+        t.title.toLowerCase().includes(search.toLowerCase()) ||
+        (t.description ?? "").toLowerCase().includes(search.toLowerCase())
+      )
+    : templates;
+
+  const secureLinks = filtered.filter((t) => t.type === "SECURE_LINK");
+  const forms = filtered.filter((t) => t.type === "FORM");
+
   if (!open) return null;
 
   return (
@@ -93,14 +132,16 @@ export function TemplatePickerModal({ open, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="relative bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-4xl max-h-[92vh] sm:max-h-[88vh] flex flex-col overflow-hidden"
+        className="relative bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-4xl max-h-[92vh] sm:max-h-[86vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
+        {/* ── Header ── */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div>
             <h2 className="text-sm font-semibold text-foreground">Start from a Template</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Choose a pre-built template to speed up setup.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Choose a template to pre-fill your form or secure link.
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -110,94 +151,168 @@ export function TemplatePickerModal({ open, onClose }: Props) {
           </button>
         </div>
 
-        {/* Category filters */}
-        <div className="px-5 pt-3 pb-3 border-b border-border shrink-0">
-          <div className="flex flex-wrap gap-2">
-            {CATEGORIES.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setCategory(item)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  category === item
-                    ? "bg-[#00A3FF]/10 text-[#0077CC] border border-[#00A3FF]/30"
-                    : "bg-secondary text-muted-foreground border border-border hover:bg-muted"
-                }`}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* ── Body: sidebar + content ── */}
+        <div className="flex flex-1 overflow-hidden">
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5">
-          {error ? (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-              {error}
-            </div>
-          ) : loading ? (
-            <div className="h-40 flex items-center justify-center">
-              <Loader2 className="w-5 h-5 animate-spin text-[#00A3FF]" />
-            </div>
-          ) : templates.length === 0 ? (
-            <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
-              No templates found in this category.
-            </div>
-          ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {templates.map((template) => (
-                <div
-                  key={template.id}
-                  className={`rounded-xl border bg-card p-4 flex flex-col ${
-                    template.isFeatured ? "border-primary/30 bg-primary/[0.02]" : "border-border"
+          {/* Sidebar — hidden on mobile, shown sm+ */}
+          <aside className="hidden sm:flex flex-col w-44 shrink-0 border-r border-border bg-secondary/40 py-3 gap-0.5 overflow-y-auto">
+            {CATEGORIES.map(({ label, icon: Icon }) => {
+              const active = category === label;
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => { setCategory(label); setSearch(""); }}
+                  className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium transition-colors text-left ${
+                    active
+                      ? "bg-card text-foreground border-r-2 border-primary"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <h3 className="text-sm font-semibold text-foreground leading-snug flex-1">{template.title}</h3>
-                    <div className="flex items-center gap-1 shrink-0 mt-0.5">
-                      {template.complianceGuarded && (
-                        <ShieldCheck className="w-3.5 h-3.5 text-blue-500" aria-label="Compliance Guarded" />
-                      )}
-                      {template.isFeatured && (
-                        <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                      )}
-                    </div>
-                  </div>
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  {label}
+                </button>
+              );
+            })}
+          </aside>
 
-                  <p className="text-xs text-muted-foreground line-clamp-2 min-h-[32px] flex-1">
-                    {template.description ?? "No description provided."}
-                  </p>
+          {/* Main content */}
+          <div className="flex-1 flex flex-col overflow-hidden">
 
-                  <div className="mt-3 flex items-center gap-2">
-                    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                      template.type === "FORM"
-                        ? "bg-violet-50 text-violet-700 border-violet-200"
-                        : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                    }`}>
-                      {template.type === "FORM"
-                        ? <FileText className="w-3 h-3" />
-                        : <Link2 className="w-3 h-3" />}
-                      {template.type === "FORM" ? "Form" : "Secure Link"}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">{template.category}</span>
-                  </div>
-
-                  <Button
+            {/* Mobile category tabs + search */}
+            <div className="px-4 pt-3 pb-2 border-b border-border shrink-0 space-y-2">
+              {/* Mobile tabs */}
+              <div className="flex sm:hidden gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+                {CATEGORIES.map(({ label, icon: Icon }) => (
+                  <button
+                    key={label}
                     type="button"
-                    className="mt-3 h-8 text-xs"
-                    onClick={() => handleUseTemplate(template)}
-                    disabled={usingId !== null}
+                    onClick={() => { setCategory(label); setSearch(""); }}
+                    className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
+                      category === label
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-muted-foreground border border-border"
+                    }`}
                   >
-                    {usingId === template.id
-                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      : "Use Template"}
-                  </Button>
-                </div>
-              ))}
+                    <Icon className="w-3 h-3" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search templates..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full h-8 pl-8 pr-3 text-xs bg-secondary border border-border rounded-lg placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-colors"
+                />
+              </div>
             </div>
-          )}
+
+            {/* Template list */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {error ? (
+                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  {error}
+                </div>
+              ) : loading ? (
+                <div className="h-40 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="h-40 flex flex-col items-center justify-center gap-2">
+                  <Search className="w-7 h-7 text-muted-foreground/30" />
+                  <p className="text-sm text-muted-foreground">
+                    {search ? `No results for "${search}"` : "No templates in this category."}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {secureLinks.length > 0 && (
+                    <section>
+                      <div className="flex items-center gap-2 mb-2.5">
+                        <Link2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <span className="text-xs font-semibold text-foreground">Secure Links</span>
+                        <div className="flex-1 h-px bg-border" />
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-2">
+                        {secureLinks.map((t) => (
+                          <ModalCard key={t.id} template={t} onUse={handleUse} loadingId={usingId} />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                  {forms.length > 0 && (
+                    <section>
+                      <div className="flex items-center gap-2 mb-2.5">
+                        <FileText className="w-3.5 h-3.5 text-violet-600" />
+                        <span className="text-xs font-semibold text-foreground">Intake Forms</span>
+                        <div className="flex-1 h-px bg-border" />
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-2">
+                        {forms.map((t) => (
+                          <ModalCard key={t.id} template={t} onUse={handleUse} loadingId={usingId} />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── modal card ────────────────────────────────────────────────────────────────
+
+function ModalCard({
+  template,
+  onUse,
+  loadingId,
+}: {
+  template: SystemTemplate;
+  onUse: (t: SystemTemplate) => void;
+  loadingId: string | null;
+}) {
+  const Icon = CATEGORY_ICON[template.category] ?? LayoutGrid;
+  const iconStyle = ICON_COLOR[template.category] ?? "text-muted-foreground bg-muted border-border";
+  const isLoading = loadingId === template.id;
+
+  return (
+    <div className={`group rounded-xl border bg-card p-3 flex gap-3 items-start cursor-pointer hover:border-primary/25 hover:shadow-sm transition-all ${
+      template.isFeatured ? "border-primary/20" : "border-border"
+    }`}>
+      <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${iconStyle}`}>
+        <Icon className="w-3.5 h-3.5" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-1">
+          <p className="text-xs font-semibold text-foreground leading-snug">{template.title}</p>
+          <div className="flex items-center gap-0.5 shrink-0">
+            {template.complianceGuarded && <ShieldCheck className="w-3 h-3 text-blue-500" aria-label="Compliance Guarded" />}
+            {template.isFeatured && <Star className="w-3 h-3 text-amber-400 fill-amber-400" />}
+          </div>
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
+          {template.description ?? ""}
+        </p>
+        <button
+          type="button"
+          onClick={() => onUse(template)}
+          disabled={loadingId !== null}
+          className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+        >
+          {isLoading
+            ? <><Loader2 className="w-3 h-3 animate-spin" /> Applying...</>
+            : <>Use this template <ArrowRight className="w-3 h-3" /></>}
+        </button>
       </div>
     </div>
   );
