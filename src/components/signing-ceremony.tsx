@@ -783,6 +783,8 @@ export function SigningCeremony({
   const [pdfRendering, setPdfRendering] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
+  // "signed" | "declined" | null — tracks how the user exited the signing flow
+  const [completionType, setCompletionType] = useState<"signed" | "declined" | null>(null);
   const [completionData, setCompletionData] = useState<{
     certUrl?: string;
     signedBlobUrl?: string;
@@ -912,6 +914,7 @@ export function SigningCeremony({
         certUrl: (json as { certUrl?: string }).certUrl,
         signedBlobUrl: (json as { signedBlobUrl?: string }).signedBlobUrl,
       });
+      setCompletionType("signed");
       setScreen("complete");
     } catch {
       setErrorMsg("Network error. Please check your connection and try again.");
@@ -930,6 +933,7 @@ export function SigningCeremony({
         body: JSON.stringify({ reason: declineReason }),
       });
       setCompletionData({});
+      setCompletionType("declined");
       setScreen("complete");
     } finally {
       setSubmitting(false);
@@ -1253,7 +1257,9 @@ export function SigningCeremony({
 
   // ── Complete screen ───────────────────────────────────────────────────────
   if (screen === "complete") {
-    const didDecline = !completionData.certUrl && !completionData.signedBlobUrl;
+    // Use the explicit completionType flag — never infer decline from missing URLs
+    // (not-all-signed responses also have no URLs but the signer DID successfully sign)
+    const didDecline = completionType === "declined";
     return (
       <div
         style={{
@@ -1304,15 +1310,35 @@ export function SigningCeremony({
               fontSize: "14px",
               color: "var(--muted-foreground)",
               lineHeight: 1.65,
-              marginBottom: "28px",
+              marginBottom: "16px",
               maxWidth: "320px",
-              margin: "0 auto 28px",
+              margin: "0 auto 16px",
             }}
           >
             {didDecline
               ? `You have declined to sign${data.request.title ? ` "${data.request.title}"` : ""}. The sender has been notified.`
               : `You have successfully signed${data.request.title ? ` "${data.request.title}"` : ""}. An email confirmation will be sent to ${data.recipient.email}.`}
           </p>
+
+          {/* Show pending signers message if others still need to sign */}
+          {!didDecline && data.totalRecipients > 1 && !completionData.signedBlobUrl && (
+            <div
+              style={{
+                background: "#f0f9ff",
+                border: "1px solid #bae6fd",
+                borderRadius: "10px",
+                padding: "12px 16px",
+                marginBottom: "20px",
+                fontSize: "13px",
+                color: "#0369a1",
+                maxWidth: "320px",
+                margin: "0 auto 20px",
+                textAlign: "left",
+              }}
+            >
+              <strong>Your signature has been recorded.</strong> The document will be finalized once all {data.totalRecipients} parties have signed. The sender will be notified automatically.
+            </div>
+          )}
 
           {!didDecline && (completionData.signedBlobUrl || completionData.certUrl) && (
             <div

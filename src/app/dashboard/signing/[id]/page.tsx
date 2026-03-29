@@ -59,9 +59,12 @@ interface SigningRequestDetail {
   completedAt: string | null;
   voidedAt: string | null;
   createdAt: string;
+  blobUrl: string | null;
+  signedBlobUrl: string | null;
   recipients: Recipient[];
   signingFields: SigningField[];
   auditLogs: AuditLog[];
+  certificate?: { blobUrl: string } | null;
 }
 
 function resolveDisplayStatus(request: SigningRequestDetail): RequestStatus {
@@ -123,6 +126,7 @@ export default function SigningRequestDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [docPreviewOpen, setDocPreviewOpen] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resendFormId, setResendFormId] = useState<string | null>(null);
   const [resendEmail, setResendEmail] = useState<string>("");
@@ -407,6 +411,73 @@ export default function SigningRequestDetailPage() {
           <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{actionError}</div>
         ) : null}
       </div>
+
+      {/* ── Document Viewer ──────────────────────────────────────────── */}
+      {(request.blobUrl || request.signedBlobUrl) && (
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setDocPreviewOpen((v) => !v)}
+            className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/40 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Download className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-semibold text-foreground">
+                {request.signedBlobUrl ? "View Signed Document" : "View Document"}
+              </span>
+              {request.signedBlobUrl && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700">
+                  Signed
+                </span>
+              )}
+            </div>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className={`text-muted-foreground transition-transform ${docPreviewOpen ? "rotate-180" : ""}`}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+
+          {docPreviewOpen && (
+            <div className="border-t border-border">
+              {/* Inline PDF viewer */}
+              <iframe
+                src={`/api/signing/requests/${encodeURIComponent(id)}/download${request.signedBlobUrl ? "" : "?type=original"}`}
+                className="w-full"
+                style={{ height: "70vh", minHeight: "500px" }}
+                title="Document preview"
+              />
+              {/* Export/download row */}
+              <div className="flex flex-wrap gap-2 p-3 border-t border-border bg-muted/30">
+                {request.signedBlobUrl && (
+                  <Button size="sm" variant="outline" onClick={() => handleDownload("signed")} disabled={downloadBusy !== null} className="gap-1.5">
+                    {downloadBusy === "signed" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                    Download Signed PDF
+                  </Button>
+                )}
+                {request.certificate?.blobUrl && (
+                  <Button size="sm" variant="outline" onClick={() => handleDownload("cert")} disabled={downloadBusy !== null} className="gap-1.5">
+                    {downloadBusy === "cert" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldAlert className="w-3.5 h-3.5" />}
+                    Download Certificate
+                  </Button>
+                )}
+                {request.blobUrl && (
+                  <Button size="sm" variant="ghost" onClick={() => handleDownload("original")} disabled={downloadBusy !== null} className="gap-1.5 text-muted-foreground">
+                    {downloadBusy === "original" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                    Download Original
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {(status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED") && (
         <div className="rounded-xl border border-border bg-card p-4 space-y-3">
