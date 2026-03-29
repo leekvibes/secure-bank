@@ -7,7 +7,7 @@ import {
 } from "@/lib/schemas";
 import { writeAuditLog } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { sendSubmissionNotification, sendSubmissionConfirmationToClient } from "@/lib/email";
+import { sendSubmissionNotification, sendSubmissionConfirmationToClient, sendRequestOpenedNotification } from "@/lib/email";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { buildEncryptedSubmissionData } from "@/lib/submission-storage";
 import { isValidSingleUseToken } from "@/lib/validation";
@@ -46,6 +46,8 @@ export async function GET(
           agencyName: true,
           destinationLabel: true,
           logoUrl: true,
+          email: true,
+          notificationEmail: true,
         },
       },
     },
@@ -83,6 +85,17 @@ export async function GET(
       request: req,
       metadata: { via: "api" },
     });
+    // Notify agent that client opened the link
+    const agentEmail = link.agent.notificationEmail || link.agent.email;
+    const appUrl = process.env.NEXTAUTH_URL ?? "https://mysecurelink.co";
+    sendRequestOpenedNotification({
+      agentEmail,
+      agentName: link.agent.displayName,
+      clientName: link.clientName ?? null,
+      requestType: link.linkType.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()),
+      openedAt: new Date().toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }),
+      dashboardUrl: `${appUrl}/dashboard/links`,
+    }).catch(() => {});
   }
 
   const fallbackAssets = await db.agentAsset.findMany({
