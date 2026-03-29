@@ -124,9 +124,12 @@ function ReturnInner() {
             <XCircle className="w-12 h-12 text-red-400 mx-auto" />
             <h1 className="text-xl font-bold text-gray-900">Something went wrong</h1>
             <p className="text-sm text-gray-500">{message}</p>
-            <Link href="/dashboard/settings" className="inline-block mt-2 text-sm font-medium text-[#00A3FF] hover:underline">
-              Go to settings →
-            </Link>
+            <p className="text-xs text-gray-400 mt-1">If your card was charged, your plan may still activate within a few minutes. Check your dashboard settings.</p>
+            <div className="flex flex-col gap-2 mt-3">
+              <Link href="/dashboard/settings" className="inline-block text-sm font-medium text-[#00A3FF] hover:underline">
+                Go to settings →
+              </Link>
+            </div>
           </>
         )}
       </div>

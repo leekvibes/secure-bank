@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
     const checkoutSession = await getStripe().checkout.sessions.create({
       customer: customerId,
       ui_mode: "embedded_page",
+      redirect_on_completion: "always",
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
       return_url: stripeReturnUrl,
