@@ -32,7 +32,18 @@ export async function GET(
     if (!request) return apiError(404, "NOT_FOUND", "Signing request not found.");
     if (request.agentId !== session.user.id) return apiError(403, "FORBIDDEN", "Access denied.");
 
-    return apiSuccess({ request });
+    // Computed display status
+    const now = new Date();
+    let displayStatus = request.status;
+    if ((request.status === "SENT" || request.status === "OPENED") && request.expiresAt < now) {
+      displayStatus = "EXPIRED";
+    }
+    const completedCount = request.recipients.filter((r) => r.status === "COMPLETED").length;
+    if ((request.status === "SENT" || request.status === "OPENED") && completedCount > 0 && completedCount < request.recipients.length) {
+      displayStatus = "PARTIALLY_SIGNED";
+    }
+
+    return apiSuccess({ request: { ...request, displayStatus, completedRecipients: completedCount } });
   } catch (err) {
     console.error("[signing/requests/get]", err);
     return apiError(500, "SERVER_ERROR", "Failed to load signing request.");

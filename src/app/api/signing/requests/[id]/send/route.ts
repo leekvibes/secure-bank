@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { sendDocSignRequestEmail } from "@/lib/email";
+import { checkDocSignLimit, getPlan } from "@/lib/plans";
 
 // POST /api/signing/requests/[id]/send
 // Validates the draft is complete, locks it to SENT, and emails recipients.
@@ -20,13 +21,26 @@ export async function POST(
       include: {
         recipients: { orderBy: { order: "asc" } },
         signingFields: { select: { id: true } },
-        agent: { select: { displayName: true, email: true, notificationEmail: true } },
+        agent: { select: { displayName: true, email: true, notificationEmail: true, plan: true } },
       },
     });
 
     if (!request) return apiError(404, "NOT_FOUND", "Signing request not found.");
     if (request.agentId !== session.user.id) return apiError(403, "FORBIDDEN", "Access denied.");
     if (request.status !== "DRAFT") return apiError(409, "CONFLICT", "This request has already been sent.");
+
+    // Re-validate plan limit at send time (prevents race: user created draft when under
+    // limit, but another request was sent before this one, pushing them over).
+    const agentPlan = request.agent.plan ?? "FREE";
+    const { allowed, used, limit } = await checkDocSignLimit(db, session.user.id, agentPlan);
+    if (!allowed) {
+      const planConfig = getPlan(agentPlan);
+      return apiError(
+        403,
+        "SIGNING_LIMIT_REACHED",
+        `You've used ${used}/${limit} document signatures this month on the ${planConfig.name} plan. Upgrade to send more.`
+      );
+    }
 
     // Validate completeness
     if (!request.blobUrl) return apiError(400, "NO_DOCUMENT", "Upload a document before sending.");

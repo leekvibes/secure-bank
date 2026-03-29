@@ -101,7 +101,35 @@ export async function GET(req: NextRequest) {
       take: 100,
     });
 
-    return apiSuccess({ requests });
+    // Augment each request with a computed display status:
+    // PARTIALLY_SIGNED — some but not all recipients have completed (for dashboard badge)
+    const now = new Date();
+    const augmented = requests.map((r) => {
+      let displayStatus = r.status;
+
+      // Treat as EXPIRED if past expiresAt and still active
+      if (
+        (r.status === "SENT" || r.status === "OPENED") &&
+        r.expiresAt < now
+      ) {
+        displayStatus = "EXPIRED";
+      }
+
+      // PARTIALLY_SIGNED — at least one signer done, but not all
+      const completedCount = r.recipients.filter((rec) => rec.status === "COMPLETED").length;
+      if (
+        r.status === "SENT" ||
+        r.status === "OPENED"
+      ) {
+        if (completedCount > 0 && completedCount < r.recipients.length) {
+          displayStatus = "PARTIALLY_SIGNED";
+        }
+      }
+
+      return { ...r, displayStatus, completedRecipients: completedCount };
+    });
+
+    return apiSuccess({ requests: augmented });
   } catch (err) {
     console.error("[signing/requests/list]", err);
     return apiError(500, "SERVER_ERROR", "Failed to load signing requests.");
