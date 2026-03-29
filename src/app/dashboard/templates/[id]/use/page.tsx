@@ -9,7 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isDocumentTemplatesEnabledClient } from "@/lib/feature-flags";
 
-type Block = { kind: "heading" | "paragraph" | "spacer"; text?: string; size?: number; clauseId?: string };
+type Block = {
+  id?: string;
+  kind: "heading" | "paragraph" | "spacer";
+  text?: string;
+  size?: number;
+  clauseId?: string;
+  editable?: boolean;
+};
 type VariableDef = {
   key: string;
   label: string;
@@ -53,6 +60,8 @@ export default function UseDocumentTemplatePage() {
   const [schema, setSchema] = useState<DocSchema | null>(null);
   const [requestTitle, setRequestTitle] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
+  const [fullTextEditing, setFullTextEditing] = useState(false);
+  const [blockOverrides, setBlockOverrides] = useState<Record<string, string>>({});
   const [enabledClauses, setEnabledClauses] = useState<string[]>([]);
 
   useEffect(() => {
@@ -119,6 +128,11 @@ export default function UseDocumentTemplatePage() {
     return schema.blocks.filter((block) => !block.clauseId || enabled.has(block.clauseId));
   }, [schema, enabledClauses]);
 
+  const editableBlocks = useMemo(
+    () => visibleBlocks.filter((block) => block.kind === "paragraph" && block.editable),
+    [visibleBlocks],
+  );
+
   function toggleClause(clauseId: string, forced: boolean) {
     if (forced) return;
     setEnabledClauses((prev) => {
@@ -150,7 +164,7 @@ export default function UseDocumentTemplatePage() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ values, enabledClauseIds: enabledClauses }),
+          body: JSON.stringify({ values, enabledClauseIds: enabledClauses, blockOverrides }),
         },
       );
       const renderData = await renderRes.json().catch(() => ({}));
@@ -287,6 +301,45 @@ export default function UseDocumentTemplatePage() {
             </div>
           ) : null}
 
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={fullTextEditing}
+                onChange={(event) => setFullTextEditing(event.target.checked)}
+              />
+              <span className="text-foreground font-medium">Enable advanced text editing</span>
+            </label>
+            <p className="text-xs text-muted-foreground">
+              Turn on to rewrite editable clauses and paragraphs before rendering.
+            </p>
+          </div>
+
+          {fullTextEditing && editableBlocks.length > 0 ? (
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-foreground">Editable Paragraphs</p>
+              {editableBlocks.map((block, index) => {
+                const key = block.id ?? `block_${index}`;
+                return (
+                  <div key={key}>
+                    <Label htmlFor={key}>Paragraph {index + 1}</Label>
+                    <textarea
+                      id={key}
+                      value={blockOverrides[key] ?? block.text ?? ""}
+                      onChange={(event) =>
+                        setBlockOverrides((prev) => ({
+                          ...prev,
+                          [key]: event.target.value,
+                        }))
+                      }
+                      className="mt-1.5 w-full rounded-md border border-input bg-card px-3 py-2 text-sm resize-none min-h-[100px]"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+
           <Button type="submit" disabled={submitting} className="w-full gap-2">
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Continue to Signing Setup"}
           </Button>
@@ -302,7 +355,9 @@ export default function UseDocumentTemplatePage() {
               if (block.kind === "spacer") {
                 return <div key={`spacer-${index}`} style={{ height: Math.min(40, Math.max(4, block.size ?? 16)) }} />;
               }
-              const text = interpolate(block.text ?? "", values);
+              const blockKey = block.id ?? `block_${index}`;
+              const sourceText = blockOverrides[blockKey] ?? block.text ?? "";
+              const text = interpolate(sourceText, values);
               if (block.kind === "heading") {
                 return (
                   <h3 key={`heading-${index}`} className="text-lg font-semibold text-slate-900">

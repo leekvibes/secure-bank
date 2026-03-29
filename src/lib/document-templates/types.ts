@@ -25,10 +25,12 @@ export interface DocumentClauseDef {
 }
 
 export interface DocumentBlockDef {
+  id?: string;
   kind: "heading" | "paragraph" | "spacer";
   text?: string;
   size?: number;
   clauseId?: string;
+  editable?: boolean;
 }
 
 export interface DocumentTemplateSchema {
@@ -63,4 +65,3 @@ export interface DocumentSigningDefault {
   required?: boolean;
   options?: string[];
 }
-

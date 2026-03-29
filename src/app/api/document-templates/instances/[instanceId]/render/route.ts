@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import {
+  applyBlockOverrides,
   normalizeDocumentValues,
   parseDocumentTemplateSchema,
   resolveEnabledClauses,
@@ -17,6 +18,7 @@ import { isDocumentTemplatesEnabledServer } from "@/lib/feature-flags";
 const bodySchema = z.object({
   values: z.record(z.unknown()).default({}),
   enabledClauseIds: z.array(z.string()).optional(),
+  blockOverrides: z.record(z.unknown()).optional(),
 });
 
 // POST /api/document-templates/instances/[instanceId]/render
@@ -54,12 +56,17 @@ export async function POST(
     const schema = parseDocumentTemplateSchema(instance.template.docSchemaJson);
     const { values, errors } = normalizeDocumentValues(schema, parsedBody.data.values);
     const clauseResolution = resolveEnabledClauses(schema, parsedBody.data.enabledClauseIds);
-    const allErrors = [...errors, ...clauseResolution.errors];
+    const blockOverrideResult = applyBlockOverrides(schema, parsedBody.data.blockOverrides ?? {});
+    const allErrors = [...errors, ...clauseResolution.errors, ...blockOverrideResult.errors];
     if (allErrors.length > 0) {
       return apiError(400, "VALIDATION_ERROR", allErrors[0], { errors: allErrors });
     }
 
-    const rendered = await renderDocumentTemplatePdf(schema, values, clauseResolution.enabledClauseIds);
+    const rendered = await renderDocumentTemplatePdf(
+      blockOverrideResult.schema,
+      values,
+      clauseResolution.enabledClauseIds,
+    );
     const fileName = `${instance.template.title.replace(/[^a-zA-Z0-9._\- ]/g, "_")}_v${instance.template.docVersion}.pdf`;
     const processed = await processPdf(rendered, fileName);
     const renderHash = createHash("sha256").update(rendered).digest("hex");

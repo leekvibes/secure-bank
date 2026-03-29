@@ -23,10 +23,12 @@ const clauseSchema = z.object({
 });
 
 const blockSchema = z.object({
+  id: z.string().optional(),
   kind: z.enum(["heading", "paragraph", "spacer"]),
   text: z.string().optional(),
   size: z.number().int().min(0).max(80).optional(),
   clauseId: z.string().optional(),
+  editable: z.boolean().optional(),
 });
 
 const templateSchema = z.object({
@@ -147,6 +149,31 @@ export function resolveEnabledClauses(
   }
 
   return { enabledClauseIds: Array.from(requested), errors };
+}
+
+export function applyBlockOverrides(
+  schema: DocumentTemplateSchema,
+  blockOverrides: Record<string, unknown>,
+): { schema: DocumentTemplateSchema; errors: string[] } {
+  const errors: string[] = [];
+  if (!blockOverrides || typeof blockOverrides !== "object") return { schema, errors };
+
+  const nextBlocks = schema.blocks.map((block, index) => {
+    const key = block.id ?? `block_${index}`;
+    const override = blockOverrides[key];
+    if (override == null) return block;
+    if (!block.editable) {
+      errors.push(`Block ${key} is not editable.`);
+      return block;
+    }
+    if (typeof override !== "string") {
+      errors.push(`Block ${key} override must be a string.`);
+      return block;
+    }
+    return { ...block, text: override.trim() };
+  });
+
+  return { schema: { ...schema, blocks: nextBlocks }, errors };
 }
 
 function normalizeValue(variable: DocumentVariableDef, input: unknown): string {

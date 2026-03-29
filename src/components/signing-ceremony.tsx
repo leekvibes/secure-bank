@@ -57,10 +57,21 @@ function fmtExpiry(iso: string) {
 
 function fmtDate(iso: string) {
   try {
-    return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    // Parse as local date to avoid UTC-midnight timezone offset issues
+    const [y, m, d] = iso.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   } catch {
     return iso;
   }
+}
+
+function todayLocalISO() {
+  const t = new Date();
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
 }
 
 function fieldTagLabel(type: string): string {
@@ -797,7 +808,7 @@ export function SigningCeremony({
     const d = json as unknown as DocData;
     const prefill: Record<string, string> = {};
     for (const f of d.fields) {
-      if (f.type === "DATE_SIGNED") prefill[f.id] = new Date().toISOString().slice(0, 10);
+      if (f.type === "DATE_SIGNED") prefill[f.id] = todayLocalISO();
       else if (f.type === "FULL_NAME") prefill[f.id] = d.recipient.name;
     }
     setFieldValues(prefill);
@@ -865,7 +876,19 @@ export function SigningCeremony({
 
   // ── Consent → Signing ────────────────────────────────────────────────────
   const sendConsent = useCallback(async () => {
-    await fetch(`/api/sign/${token}/consent`, { method: "POST" });
+    try {
+      const res = await fetch(`/api/sign/${token}/consent`, { method: "POST" });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({})) as { error?: { message?: string } };
+        const msg = json?.error?.message;
+        // Only block on hard errors (voided/expired); ignore idempotent "already" errors
+        if (msg && res.status !== 409) {
+          setErrorMsg(msg);
+          setScreen("error");
+          return;
+        }
+      }
+    } catch { /* non-critical — proceed to signing */ }
     if (data?.request.blobUrl) renderPdf(data.request.blobUrl);
     setScreen("signing");
   }, [token, data, renderPdf]);
@@ -886,6 +909,30 @@ export function SigningCeremony({
   const scrollToField = (fieldId: string) => {
     fieldRefs.current[fieldId]?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
+
+  // Auto-place INITIALS and DATE_SIGNED without opening a modal
+  const handleFieldClick = useCallback(
+    (field: Field) => {
+      if (field.type === "INITIALS") {
+        ensureSigFont();
+        const initials = getInitials(data?.recipient.name ?? "");
+        const url = renderTypedInitials(initials);
+        if (url) setFieldValue(field.id, url);
+        return;
+      }
+      if (field.type === "DATE_SIGNED") {
+        // If already filled, open modal to let them change it; otherwise auto-fill today
+        if (!fieldValues[field.id]) {
+          setFieldValue(field.id, todayLocalISO());
+          return;
+        }
+        setActiveFieldId(field.id);
+        return;
+      }
+      setActiveFieldId(field.id);
+    },
+    [data, fieldValues, setFieldValue]
+  );
 
   // ── Submit ───────────────────────────────────────────────────────────────
   const submitSigning = useCallback(async () => {
@@ -1303,7 +1350,7 @@ export function SigningCeremony({
           </div>
 
           <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--foreground)", marginBottom: "8px" }}>
-            {didDecline ? "Declined" : "Signed Successfully"}
+            {didDecline ? "Signing Declined" : "Document Submitted Securely"}
           </h1>
           <p
             style={{
@@ -1317,7 +1364,7 @@ export function SigningCeremony({
           >
             {didDecline
               ? `You have declined to sign${data.request.title ? ` "${data.request.title}"` : ""}. The sender has been notified.`
-              : `You have successfully signed${data.request.title ? ` "${data.request.title}"` : ""}. An email confirmation will be sent to ${data.recipient.email}.`}
+              : `Your signature has been securely recorded${data.request.title ? ` for "${data.request.title}"` : ""}. A confirmation will be sent to ${data.recipient.email}.`}
           </p>
 
           {/* Show pending signers message if others still need to sign */}
@@ -1575,7 +1622,7 @@ export function SigningCeremony({
                     <div
                       key={field.id}
                       ref={(el) => { fieldRefs.current[field.id] = el; }}
-                      onClick={() => setActiveFieldId(field.id)}
+                      onClick={() => handleFieldClick(field)}
                       style={{
                         border: `1.5px solid ${done ? colors.border : "#e2e8f0"}`,
                         borderRadius: "10px",
@@ -1667,7 +1714,7 @@ export function SigningCeremony({
                           <div
                             key={field.id}
                             ref={(el) => { fieldRefs.current[field.id] = el; }}
-                            onClick={() => setActiveFieldId(field.id)}
+                            onClick={() => handleFieldClick(field)}
                             title={fieldTagLabel(field.type)}
                             style={{
                               position: "absolute",
@@ -1885,11 +1932,11 @@ export function SigningCeremony({
 
         {/* Field modal */}
         {activeField && (() => {
-          if (activeField.type === "SIGNATURE" || activeField.type === "INITIALS") {
+          if (activeField.type === "SIGNATURE") {
             return (
               <SigModal
                 recipientName={data.recipient.name}
-                mode={activeField.type === "SIGNATURE" ? "signature" : "initials"}
+                mode="signature"
                 onConfirm={(url) => {
                   setFieldValue(activeField.id, url);
                   setActiveFieldId(null);

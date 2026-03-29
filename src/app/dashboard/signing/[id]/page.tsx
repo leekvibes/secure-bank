@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { SigningLiveViewer, type LiveField } from "@/components/signing-live-viewer";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -46,6 +47,20 @@ interface AuditLog {
 interface SigningField {
   id: string;
   recipientId: string;
+  type: string;
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  value: string | null;
+  required: boolean;
+}
+
+interface PageDim {
+  page: number;
+  widthPts: number;
+  heightPts: number;
 }
 
 interface SigningRequestDetail {
@@ -63,6 +78,7 @@ interface SigningRequestDetail {
   signedBlobUrl: string | null;
   recipients: Recipient[];
   signingFields: SigningField[];
+  pages: PageDim[];
   auditLogs: AuditLog[];
   certificate?: { blobUrl: string } | null;
 }
@@ -164,6 +180,29 @@ export default function SigningRequestDetailPage() {
   const canVoid = status !== "COMPLETED" && status !== "VOIDED" && status !== "EXPIRED";
   const isEditable = (request as unknown as { isEditable?: boolean })?.isEditable ?? status === "DRAFT";
   const canDelete = status === "DRAFT" || status === "VOIDED" || status === "EXPIRED";
+
+  // Build live field overlays for the document viewer
+  const liveFields = useMemo<LiveField[]>(() => {
+    if (!request) return [];
+    const recipientMap = new Map(
+      request.recipients.map((r, i) => [r.id, { name: r.name, index: i }])
+    );
+    return request.signingFields.map((f) => {
+      const rec = recipientMap.get(f.recipientId);
+      return {
+        id: f.id,
+        type: f.type,
+        page: f.page,
+        x: f.x,
+        y: f.y,
+        width: f.width,
+        height: f.height,
+        value: f.value ?? null,
+        recipientName: rec?.name ?? "Unknown",
+        recipientIndex: rec?.index ?? 0,
+      };
+    });
+  }, [request]);
 
   async function reload() {
     if (!id) return;
@@ -364,11 +403,22 @@ export default function SigningRequestDetailPage() {
               </Link>
             </Button>
           )}
-          <Button onClick={() => handleDownload("signed")} disabled={downloadBusy !== null} className="gap-2">
+          <Button
+            onClick={() => handleDownload("signed")}
+            disabled={downloadBusy !== null || !request.signedBlobUrl}
+            title={!request.signedBlobUrl ? "Available when all parties have signed" : undefined}
+            className="gap-2"
+          >
             {downloadBusy === "signed" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             Download Signed PDF
           </Button>
-          <Button variant="outline" onClick={() => handleDownload("cert")} disabled={downloadBusy !== null} className="gap-2">
+          <Button
+            variant="outline"
+            onClick={() => handleDownload("cert")}
+            disabled={downloadBusy !== null || !request.certificate?.blobUrl}
+            title={!request.certificate?.blobUrl ? "Available when all parties have signed" : undefined}
+            className="gap-2"
+          >
             {downloadBusy === "cert" ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />}
             Download Certificate
           </Button>
@@ -413,7 +463,7 @@ export default function SigningRequestDetailPage() {
       </div>
 
       {/* ── Document Viewer ──────────────────────────────────────────── */}
-      {(request.blobUrl || request.signedBlobUrl) && (
+      {request.blobUrl && (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <button
             type="button"
@@ -423,11 +473,15 @@ export default function SigningRequestDetailPage() {
             <div className="flex items-center gap-2">
               <Download className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-semibold text-foreground">
-                {request.signedBlobUrl ? "View Signed Document" : "View Document"}
+                {request.signedBlobUrl ? "View Signed Document" : "Live Document View"}
               </span>
-              {request.signedBlobUrl && (
+              {request.signedBlobUrl ? (
                 <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700">
-                  Signed
+                  Completed
+                </span>
+              ) : (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700">
+                  Live
                 </span>
               )}
             </div>
@@ -446,13 +500,17 @@ export default function SigningRequestDetailPage() {
 
           {docPreviewOpen && (
             <div className="border-t border-border">
-              {/* Inline PDF viewer */}
-              <iframe
-                src={`/api/signing/requests/${encodeURIComponent(id)}/download${request.signedBlobUrl ? "" : "?type=original"}`}
-                className="w-full"
-                style={{ height: "70vh", minHeight: "500px" }}
-                title="Document preview"
-              />
+              {/* Signed: show final PDF via iframe; In-progress: live viewer with overlays */}
+              {request.signedBlobUrl ? (
+                <iframe
+                  src={`/api/signing/requests/${encodeURIComponent(id)}/download`}
+                  className="w-full"
+                  style={{ height: "70vh", minHeight: "500px" }}
+                  title="Signed document"
+                />
+              ) : (
+                <SigningLiveViewer blobUrl={request.blobUrl} fields={liveFields} />
+              )}
               {/* Export/download row */}
               <div className="flex flex-wrap gap-2 p-3 border-t border-border bg-muted/30">
                 {request.signedBlobUrl && (
@@ -467,11 +525,14 @@ export default function SigningRequestDetailPage() {
                     Download Certificate
                   </Button>
                 )}
-                {request.blobUrl && (
-                  <Button size="sm" variant="ghost" onClick={() => handleDownload("original")} disabled={downloadBusy !== null} className="gap-1.5 text-muted-foreground">
-                    {downloadBusy === "original" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                    Download Original
-                  </Button>
+                <Button size="sm" variant="ghost" onClick={() => handleDownload("original")} disabled={downloadBusy !== null} className="gap-1.5 text-muted-foreground">
+                  {downloadBusy === "original" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                  Download Original
+                </Button>
+                {!request.signedBlobUrl && (
+                  <span className="text-xs text-muted-foreground self-center ml-1">
+                    Signed PDF &amp; Certificate available once all parties complete
+                  </span>
                 )}
               </div>
             </div>
