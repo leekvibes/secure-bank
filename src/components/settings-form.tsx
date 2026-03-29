@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { INDUSTRIES } from "@/lib/industries";
 import { PhotoCropUploader } from "@/components/photo-crop-uploader";
+import { BillingPanel } from "@/components/billing-panel";
 
 interface Props {
   user: {
@@ -35,6 +36,8 @@ interface Props {
     dataRetentionDays: number;
     trustMessage: string | null;
     defaultExpirationHours: number;
+    plan: string;
+    stripeCustomerId: string | null;
   };
 }
 
@@ -44,6 +47,7 @@ const TABS = [
   { key: "client", label: "Client Experience" },
   { key: "trust", label: "Trust & Security" },
   { key: "account", label: "Account Settings" },
+  { key: "billing", label: "Billing" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -768,6 +772,10 @@ export function SettingsForm({ user }: Props) {
             </div>
           </div>
         </div>
+      )}
+
+      {activeTab === "billing" && (
+        <BillingPanel plan={user.plan ?? "FREE"} hasSubscription={!!user.stripeCustomerId} />
       )}
 
       {activeTab === "trust" && (

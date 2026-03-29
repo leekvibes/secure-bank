@@ -191,7 +191,7 @@ export default function PricingPage() {
       // Go to checkout — after payment, redirect to email verification, then onboarding
       const afterVerify = encodeURIComponent("/onboarding/first-request");
       const next = encodeURIComponent(`/verify-email?redirect=${afterVerify}`);
-      window.location.href = `/checkout?plan=${selectedPlan}&next=${next}`;
+      window.location.href = `/checkout?plan=${selectedPlan}&next=${next}&back=${encodeURIComponent("/pricing")}`;
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
@@ -216,7 +216,7 @@ export default function PricingPage() {
         setLoading(false);
         return;
       }
-      window.location.href = `/checkout?plan=${selectedPlan}&next=${encodeURIComponent("/dashboard/settings")}`;
+      window.location.href = `/checkout?plan=${selectedPlan}&next=${encodeURIComponent("/dashboard/settings")}&back=${encodeURIComponent("/pricing")}`;
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);

@@ -44,10 +44,12 @@ export async function POST(req: NextRequest) {
       return apiError(400, "NO_SUBSCRIPTION_ITEM", "Subscription has no items to update.");
     }
 
-    // Update the subscription with proration — Stripe handles the credit/charge automatically
+    // Update the subscription and invoice the prorated difference immediately.
+    // "always_invoice" tells Stripe to generate + charge the invoice right now
+    // against the customer's saved payment method — no new checkout needed.
     await getStripe().subscriptions.update(user.stripeSubscriptionId, {
       items: [{ id: existingItem.id, price: newPriceId }],
-      proration_behavior: "create_prorations",
+      proration_behavior: "always_invoice",
     });
 
     await db.user.update({

@@ -69,19 +69,35 @@ export function BillingPanel({ plan, hasSubscription }: Props) {
     }
   }
 
-  function startUpgrade(planKey: string) {
+  async function startUpgrade(planKey: string) {
     setError(null);
     setUpgradeLoading(planKey);
 
-    if (hasSubscription) {
-      // Already a paying subscriber — send to Stripe portal to switch plans.
-      // The portal handles proration automatically (enabled in Stripe dashboard).
-      openPortal();
+    if (plan === "FREE") {
+      // No active subscription — go through Stripe checkout to start one.
+      window.location.href = `/checkout?plan=${planKey}&next=/dashboard/settings&back=/dashboard/settings`;
       return;
     }
 
-    // No subscription yet — go through Stripe checkout to start one.
-    window.location.href = `/checkout?plan=${planKey}&next=/dashboard/settings`;
+    // Active subscriber upgrading — charge the prorated difference immediately
+    // against their saved payment method, no new checkout needed.
+    try {
+      const res = await fetch("/api/stripe/upgrade", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: planKey }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        setError(data?.error?.message ?? "Upgrade failed. Please try again or use Manage Billing.");
+        setUpgradeLoading(null);
+      }
+    } catch {
+      setError("Network error. Please try again.");
+      setUpgradeLoading(null);
+    }
   }
 
   const isPaid = plan !== "FREE";
