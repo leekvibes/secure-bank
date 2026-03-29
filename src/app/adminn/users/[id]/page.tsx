@@ -1,20 +1,28 @@
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Mail, Calendar, Link2, FileText, Shield } from "lucide-react";
+import { ArrowLeft, Mail, Calendar, Link2, FileText, Shield, CreditCard } from "lucide-react";
 import { AdminnnUserActions } from "@/components/adminn-user-actions";
 import { formatDate } from "@/lib/utils";
 
 const PLAN_COLORS: Record<string, string> = { FREE: "bg-gray-500/20 text-gray-300", BEGINNER: "bg-blue-500/20 text-blue-300", PRO: "bg-[#00A3FF]/20 text-[#00A3FF]", AGENCY: "bg-purple-500/20 text-purple-300" };
 const LINK_TYPE_LABELS: Record<string, string> = { BANKING_INFO: "Banking", SSN_ONLY: "SSN", FULL_INTAKE: "Full Intake", ID_UPLOAD: "ID Upload", CUSTOM_FORM: "Form" };
 const STATUS_COLORS: Record<string, string> = { CREATED: "text-blue-400 bg-blue-500/10", OPENED: "text-amber-400 bg-amber-500/10", SUBMITTED: "text-emerald-400 bg-emerald-500/10", EXPIRED: "text-white/30 bg-white/5" };
+const BILLING_EVENT_LABELS: Record<string, string> = {
+  BILLING_CHECKOUT_STARTED: "Checkout started",
+  BILLING_FIRST_PURCHASE: "First purchase",
+  BILLING_PLAN_UPGRADED: "Plan upgraded",
+  BILLING_PLAN_DOWNGRADED: "Plan downgraded",
+  BILLING_SUBSCRIPTION_CANCELLED: "Subscription cancelled",
+  BILLING_PAYMENT_FAILED: "Payment failed",
+};
 
 function CheckCircleIcon({ className }: { className?: string }) {
   return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
 }
 
 export default async function AdminnnUserDetailPage({ params }: { params: { id: string } }) {
-  const [user, recentLinks, auditLogs] = await Promise.all([
+  const [user, recentLinks, auditLogs, billingEvents] = await Promise.all([
     db.user.findUnique({
       where: { id: params.id },
       select: {
@@ -32,6 +40,15 @@ export default async function AdminnnUserDetailPage({ params }: { params: { id: 
     }),
     db.adminAuditLog.findMany({
       where: { targetId: params.id }, orderBy: { createdAt: "desc" }, take: 20,
+    }),
+    db.auditLog.findMany({
+      where: {
+        agentId: params.id,
+        event: { in: Object.keys(BILLING_EVENT_LABELS) },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+      select: { id: true, event: true, metadata: true, createdAt: true },
     }),
   ]);
 
@@ -135,6 +152,47 @@ export default async function AdminnnUserDetailPage({ params }: { params: { id: 
               ))}
             </div>
           )}
+
+          {/* Billing Activity */}
+          <div className="bg-[#0D1425] rounded-2xl border border-white/10 overflow-hidden">
+            <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-[#00A3FF]" />
+              <h2 className="text-sm font-bold text-white">Billing Activity</h2>
+              <span className="ml-auto text-xs text-white/30">{billingEvents.length}</span>
+            </div>
+            {billingEvents.length === 0 ? (
+              <p className="px-5 py-8 text-center text-white/30 text-sm">No billing events yet.</p>
+            ) : (
+              billingEvents.map((event, i) => {
+                const label = BILLING_EVENT_LABELS[event.event] ?? event.event;
+                let details: string[] = [];
+                try {
+                  const meta = event.metadata ? JSON.parse(event.metadata) as Record<string, unknown> : {};
+                  const oldPlan = typeof meta.oldPlan === "string" ? meta.oldPlan : null;
+                  const newPlan = typeof meta.newPlan === "string" ? meta.newPlan : null;
+                  const invoiceId = typeof meta.stripeInvoiceId === "string" ? meta.stripeInvoiceId : null;
+                  const subId = typeof meta.stripeSubscriptionId === "string" ? meta.stripeSubscriptionId : null;
+                  const checkoutId = typeof meta.stripeCheckoutSessionId === "string" ? meta.stripeCheckoutSessionId : null;
+                  if (oldPlan || newPlan) details.push(`${oldPlan ?? "?"} → ${newPlan ?? "?"}`);
+                  if (invoiceId) details.push(`Invoice: ${invoiceId}`);
+                  if (subId) details.push(`Sub: ${subId}`);
+                  if (checkoutId) details.push(`Checkout: ${checkoutId}`);
+                } catch {
+                  // Ignore malformed metadata and render event label only.
+                }
+                return (
+                  <div key={event.id} className={`flex items-start gap-3 px-5 py-3 ${i < billingEvents.length - 1 ? "border-b border-white/5" : ""}`}>
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#00A3FF]/70 mt-1.5 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-white/80">{label}</p>
+                      {details.length > 0 && <p className="text-[11px] text-white/40 mt-0.5 truncate">{details.join(" · ")}</p>}
+                    </div>
+                    <span className="text-[10px] text-white/30 shrink-0">{new Date(event.createdAt).toLocaleString()}</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
 
         {/* Actions panel */}

@@ -13,6 +13,15 @@ async function getAdminSession() {
   return session;
 }
 
+const BILLING_EVENTS = [
+  "BILLING_CHECKOUT_STARTED",
+  "BILLING_FIRST_PURCHASE",
+  "BILLING_PLAN_UPGRADED",
+  "BILLING_PLAN_DOWNGRADED",
+  "BILLING_SUBSCRIPTION_CANCELLED",
+  "BILLING_PAYMENT_FAILED",
+] as const;
+
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -31,7 +40,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const [recentLinks, auditLogs] = await Promise.all([
+  const [recentLinks, auditLogs, billingEvents] = await Promise.all([
     db.secureLink.findMany({
       where: { agentId: params.id },
       orderBy: { createdAt: "desc" },
@@ -43,9 +52,15 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
+    db.auditLog.findMany({
+      where: { agentId: params.id, event: { in: [...BILLING_EVENTS] } },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+      select: { id: true, event: true, metadata: true, createdAt: true },
+    }),
   ]);
 
-  return NextResponse.json({ user, recentLinks, auditLogs });
+  return NextResponse.json({ user, recentLinks, auditLogs, billingEvents });
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
