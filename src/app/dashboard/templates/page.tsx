@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, FileText, Link2, Star, LayoutTemplate } from "lucide-react";
+import { Loader2, FileText, Link2, Star, LayoutTemplate, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type Category = "All" | "Insurance" | "Banking" | "Compliance" | "Mortgage";
+type Category = "All" | "Insurance" | "Banking" | "Compliance" | "Mortgage" | "HR & Compliance" | "General";
 
 interface SystemTemplate {
   id: string;
@@ -15,9 +15,10 @@ interface SystemTemplate {
   type: "FORM" | "SECURE_LINK";
   isFeatured: boolean;
   usageCount: number;
+  complianceGuarded: boolean;
 }
 
-const CATEGORIES: Category[] = ["All", "Insurance", "Banking", "Compliance", "Mortgage"];
+const CATEGORIES: Category[] = ["All", "Insurance", "Banking", "Compliance", "Mortgage", "HR & Compliance", "General"];
 
 export default function TemplatesPage() {
   const router = useRouter();
@@ -150,9 +151,14 @@ export default function TemplatesPage() {
                 <h3 className="text-sm font-semibold text-foreground leading-snug flex-1">
                   {template.title}
                 </h3>
-                {template.isFeatured && (
-                  <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0 mt-0.5" />
-                )}
+                <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                  {template.complianceGuarded && (
+                    <ShieldCheck className="w-3.5 h-3.5 text-blue-500" aria-label="Compliance Guarded" />
+                  )}
+                  {template.isFeatured && (
+                    <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                  )}
+                </div>
               </div>
 
               {/* Description */}

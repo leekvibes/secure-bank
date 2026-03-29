@@ -455,10 +455,13 @@ model SystemTemplate {
   optionsJson String?
   // For FORM templates — JSON array of field definitions
   fieldsJson  String?
-  tags        String?  // comma-separated
-  isFeatured  Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  usageCount  Int      @default(0)
+  tags              String?  // comma-separated
+  isFeatured        Boolean  @default(false)
+  isActive          Boolean  @default(true)
+  usageCount        Int      @default(0)
+  // Compliance mode
+  complianceGuarded Boolean  @default(false)
+  coreFieldLabels   String?  // JSON array of field labels that are "core" (locked in guarded mode)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

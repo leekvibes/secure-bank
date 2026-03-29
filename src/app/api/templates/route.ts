@@ -39,6 +39,8 @@ export async function GET(req: NextRequest) {
         tags: true,
         isFeatured: true,
         usageCount: true,
+        complianceGuarded: true,
+        coreFieldLabels: true,
       },
       orderBy: [{ isFeatured: "desc" }, { usageCount: "desc" }, { title: "asc" }],
     });
