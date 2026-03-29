@@ -6,7 +6,7 @@ import { signOut } from "next-auth/react";
 import { useState } from "react";
 import {
   LayoutDashboard, Inbox,
-  Upload, Settings, LogOut, Link2, Menu, X, FolderUp, MessageSquare, FileText,
+  Upload, Settings, LogOut, Link2, Menu, X, FolderUp, MessageSquare, FileText, FileSignature,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,7 @@ const NAV = [
   { href: "/dashboard/links", label: "Secure Links", icon: Link2, exact: false },
   { href: "/dashboard/submissions", label: "Submissions", icon: Inbox },
   { href: "/dashboard/templates", label: "Templates", icon: FileText },
+  { href: "/dashboard/signing", label: "Signing", icon: FileSignature },
   { href: "/dashboard/uploads", label: "Uploads", icon: Upload },
   { href: "/dashboard/transfers", label: "Transfers", icon: FolderUp, beta: true },
   { href: "/dashboard/feedback", label: "Feedback", icon: MessageSquare },
@@ -45,6 +46,8 @@ export function DashboardSidebar({ user, canUseTransfers }: Props) {
       return pathname.startsWith("/dashboard/links") || pathname === "/dashboard/new" || pathname.startsWith("/dashboard/forms");
     if (href === "/dashboard/templates")
       return pathname.startsWith("/dashboard/templates");
+    if (href === "/dashboard/signing")
+      return pathname.startsWith("/dashboard/signing");
     return pathname.startsWith(href);
   }
 

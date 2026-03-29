@@ -1,0 +1,106 @@
+import { NextRequest } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth/options";
+import { db } from "@/lib/db";
+import { apiError, apiSuccess } from "@/lib/api-response";
+import { sendDocSignRequestEmail } from "@/lib/email";
+
+// POST /api/signing/requests/[id]/send
+// Validates the draft is complete, locks it to SENT, and emails recipients.
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return apiError(401, "UNAUTHORIZED", "Sign in required.");
+
+  try {
+    const request = await db.docSignRequest.findUnique({
+      where: { id: params.id },
+      include: {
+        recipients: { orderBy: { order: "asc" } },
+        signingFields: { select: { id: true } },
+        agent: { select: { displayName: true, email: true, notificationEmail: true } },
+      },
+    });
+
+    if (!request) return apiError(404, "NOT_FOUND", "Signing request not found.");
+    if (request.agentId !== session.user.id) return apiError(403, "FORBIDDEN", "Access denied.");
+    if (request.status !== "DRAFT") return apiError(409, "CONFLICT", "This request has already been sent.");
+
+    // Validate completeness
+    if (!request.blobUrl) return apiError(400, "NO_DOCUMENT", "Upload a document before sending.");
+    if (request.recipients.length === 0) return apiError(400, "NO_RECIPIENTS", "Add at least one recipient before sending.");
+    if (request.signingFields.length === 0) return apiError(400, "NO_FIELDS", "Place at least one signing field before sending.");
+
+    // Determine which recipients get emailed now
+    // PARALLEL: all recipients at once
+    // SEQUENTIAL: only the first (order=0) recipient
+    const baseUrl = process.env.NEXTAUTH_URL ?? "https://mysecurelink.co";
+    const agentName = request.agent.displayName;
+
+    const recipientsToNotify =
+      request.signingMode === "SEQUENTIAL"
+        ? request.recipients.filter((r) => r.order === 0)
+        : request.recipients;
+
+    // Lock the request status first
+    await db.docSignRequest.update({
+      where: { id: request.id },
+      data: { status: "SENT" },
+    });
+
+    await db.docSignAuditLog.create({
+      data: {
+        requestId: request.id,
+        event: "SENT",
+        metadata: JSON.stringify({
+          recipientCount: request.recipients.length,
+          fieldCount: request.signingFields.length,
+          signingMode: request.signingMode,
+        }),
+      },
+    });
+
+    // Send emails — fire and forget, don't fail the send if email fails
+    for (const recipient of recipientsToNotify) {
+      const signUrl = `${baseUrl}/sign/${recipient.token}`;
+      sendDocSignRequestEmail({
+        toEmail: recipient.email,
+        agentName,
+        title: request.title,
+        message: request.message,
+        signUrl,
+        expiresAt: request.expiresAt,
+      }).catch((err) => {
+        console.error(`[signing/send] email failed for ${recipient.email}:`, err);
+      });
+    }
+
+    // Send CC copies (notification only, no signing link)
+    if (request.ccEmails) {
+      try {
+        const ccList: string[] = JSON.parse(request.ccEmails);
+        const recipientNames = request.recipients.map((r) => r.name).join(", ");
+        const viewUrl = `${baseUrl}/dashboard/signing/${request.id}`;
+        for (const ccEmail of ccList) {
+          sendDocSignRequestEmail({
+            toEmail: ccEmail,
+            agentName,
+            title: request.title ? `[CC] ${request.title}` : "[CC] Document sent for signature",
+            message: `You are CC'd on this signing request. Recipients: ${recipientNames}. View the request at: ${viewUrl}`,
+            signUrl: viewUrl,
+            expiresAt: request.expiresAt,
+          }).catch(() => {});
+        }
+      } catch {
+        // malformed ccEmails JSON — not fatal
+      }
+    }
+
+    return apiSuccess({ sent: true, recipientsNotified: recipientsToNotify.length });
+  } catch (err) {
+    console.error("[signing/send]", err);
+    return apiError(500, "SERVER_ERROR", "Failed to send signing request.");
+  }
+}
