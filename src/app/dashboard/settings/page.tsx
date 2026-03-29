@@ -4,7 +4,6 @@ import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { SettingsForm } from "@/components/settings-form";
-import { BillingPanel } from "@/components/billing-panel";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -50,7 +49,6 @@ export default async function SettingsPage() {
           Manage your profile, branding, and security settings.
         </p>
       </div>
-      <BillingPanel plan={user.plan ?? "FREE"} hasSubscription={!!user.stripeCustomerId} />
       <SettingsForm user={user} />
     </div>
   );

@@ -52,6 +52,7 @@ function CheckoutInner() {
   const router = useRouter();
   const plan = searchParams.get("plan") ?? "PRO";
   const next = searchParams.get("next") ?? "/dashboard";
+  const back = searchParams.get("back") ?? "/pricing";
   const { status } = useSession();
 
   const [stripeReady, setStripeReady] = useState<Promise<Stripe | null> | null>(null);
@@ -96,9 +97,9 @@ function CheckoutInner() {
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col">
       {/* Header */}
       <header className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-        <Link href="/pricing" className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors">
+        <Link href={back} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors">
           <ArrowLeft className="w-4 h-4" />
-          Back to pricing
+          Back
         </Link>
         <BrandLogo size="sm" />
         <div className="w-24" />
