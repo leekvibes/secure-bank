@@ -38,6 +38,7 @@ import {
   DECLINE_REASON_LABELS,
   isDeclineReasonCode,
 } from "@/lib/signing/decline-reasons";
+import { toast } from "@/lib/toast";
 
 type RequestStatus = "DRAFT" | "SENT" | "OPENED" | "PARTIALLY_SIGNED" | "COMPLETED" | "VOIDED" | "EXPIRED";
 type RecipientStatus = "PENDING" | "OPENED" | "COMPLETED" | "DECLINED";
@@ -256,8 +257,6 @@ export default function SigningRequestDetailPage() {
 
   const [loading, setLoading] = useState(true);
   const [request, setRequest] = useState<SigningRequestDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<DetailTab>("OVERVIEW");
 
   const [voidBusy, setVoidBusy] = useState(false);
@@ -270,9 +269,6 @@ export default function SigningRequestDetailPage() {
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resendFormId, setResendFormId] = useState<string | null>(null);
   const [resendEmail, setResendEmail] = useState<string>("");
-  const [resendError, setResendError] = useState<string | null>(null);
-  const [resendSuccess, setResendSuccess] = useState<string | null>(null);
-  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [extendBusy, setExtendBusy] = useState(false);
   const [showExtendMenu, setShowExtendMenu] = useState(false);
   const [reassignTarget, setReassignTarget] = useState<Recipient | null>(null);
@@ -295,7 +291,7 @@ export default function SigningRequestDetailPage() {
     async function load() {
       if (!id) return;
       setLoading(true);
-      setError(null);
+      // error cleared;
       try {
         const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}`, { cache: "no-store" });
         const data = await res.json().catch(() => ({}));
@@ -306,7 +302,7 @@ export default function SigningRequestDetailPage() {
           setAnalyticsUpdatedAt(new Date());
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load signing request.");
+        if (!cancelled) toast.error(err instanceof Error ? err.message : "Failed to load signing request.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -374,7 +370,7 @@ export default function SigningRequestDetailPage() {
     try {
       await reload();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Failed to refresh analytics.");
+      toast.error(err instanceof Error ? err.message : "Failed to refresh analytics.");
     } finally {
       setAnalyticsRefreshing(false);
     }
@@ -429,16 +425,15 @@ export default function SigningRequestDetailPage() {
   async function handleSendNow() {
     if (!id) return;
     setSendBusy(true);
-    setActionError(null);
-    setActionSuccess(null);
+    // action error cleared;
     try {
       const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}/send`, { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to send request.");
       await reload();
-      setActionSuccess("Agreement sent. Recipients have been notified.");
+      toast.success("Agreement sent. Recipients have been notified.");
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Failed to send request.");
+      toast.error(err instanceof Error ? err.message : "Failed to send request.");
     } finally {
       setSendBusy(false);
     }
@@ -447,21 +442,20 @@ export default function SigningRequestDetailPage() {
   async function handleRemind() {
     if (!id) return;
     setRemindBusy(true);
-    setActionError(null);
-    setActionSuccess(null);
+    // action error cleared;
     try {
       const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}/remind`, { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to send reminders.");
       await reload();
       const remindedCount = Number((data as { reminded?: number }).reminded ?? 0);
-      setActionSuccess(
+      toast.success(
         remindedCount > 0
           ? `Resent to ${remindedCount} pending recipient${remindedCount === 1 ? "" : "s"}.`
           : "No pending recipients to resend."
       );
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Failed to send reminders.");
+      toast.error(err instanceof Error ? err.message : "Failed to send reminders.");
     } finally {
       setRemindBusy(false);
     }
@@ -470,14 +464,14 @@ export default function SigningRequestDetailPage() {
   async function handleVoid() {
     if (!id) return;
     setVoidBusy(true);
-    setActionError(null);
+    // action error cleared;
     try {
       const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}/void`, { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to void request.");
       await reload();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Failed to void request.");
+      toast.error(err instanceof Error ? err.message : "Failed to void request.");
     } finally {
       setVoidBusy(false);
     }
@@ -486,16 +480,11 @@ export default function SigningRequestDetailPage() {
   function openResendForm(recipient: { id: string; email: string }) {
     setResendFormId(recipient.id);
     setResendEmail(recipient.email);
-    setResendError(null);
-    setResendSuccess(null);
   }
 
   async function handleResend(recipientId: string) {
     if (!id) return;
     setResendingId(recipientId);
-    setResendError(null);
-    setResendSuccess(null);
-    setActionSuccess(null);
     try {
       const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}/resend-recipient`, {
         method: "POST",
@@ -504,11 +493,11 @@ export default function SigningRequestDetailPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to resend email.");
-      setResendSuccess(`Sent to ${(data as { sentTo?: string }).sentTo ?? resendEmail}`);
+      toast.success(`Sent to ${(data as { sentTo?: string }).sentTo ?? resendEmail}`);
       setResendFormId(null);
       await reload();
     } catch (err) {
-      setResendError(err instanceof Error ? err.message : "Failed to resend email.");
+      toast.error(err instanceof Error ? err.message : "Failed to resend email.");
     } finally {
       setResendingId(null);
     }
@@ -524,14 +513,14 @@ export default function SigningRequestDetailPage() {
   async function handleDelete() {
     if (!id) return;
     setDeleteBusy(true);
-    setActionError(null);
+    // action error cleared;
     try {
       const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to delete request.");
       router.push("/dashboard/signing");
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Failed to delete request.");
+      toast.error(err instanceof Error ? err.message : "Failed to delete request.");
       setDeleteBusy(false);
       setConfirmDelete(false);
     }
@@ -540,7 +529,7 @@ export default function SigningRequestDetailPage() {
   async function handleDownload(type: "signed" | "cert" | "original") {
     if (!id) return;
     setDownloadBusy(type);
-    setActionError(null);
+    // action error cleared;
     try {
       const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}/download${type === "signed" ? "" : `?type=${type}`}`);
       if (!res.ok) {
@@ -557,7 +546,7 @@ export default function SigningRequestDetailPage() {
       anchor.remove();
       URL.revokeObjectURL(objectUrl);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Download failed.");
+      toast.error(err instanceof Error ? err.message : "Download failed.");
     } finally {
       setDownloadBusy(null);
     }
@@ -567,7 +556,7 @@ export default function SigningRequestDetailPage() {
     if (!id) return;
     setExtendBusy(true);
     setShowExtendMenu(false);
-    setActionError(null);
+    // action error cleared;
     try {
       const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}/extend`, {
         method: "POST",
@@ -578,7 +567,7 @@ export default function SigningRequestDetailPage() {
       if (!res.ok) throw new Error((data as { error?: { message?: string } }).error?.message ?? "Failed to extend deadline.");
       await reload();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Failed to extend deadline.");
+      toast.error(err instanceof Error ? err.message : "Failed to extend deadline.");
     } finally {
       setExtendBusy(false);
     }
@@ -598,7 +587,7 @@ export default function SigningRequestDetailPage() {
       setSaveTemplateSuccess(true);
       setTimeout(() => setSaveTemplateSuccess(false), 3000);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Failed to save template.");
+      toast.error(err instanceof Error ? err.message : "Failed to save template.");
     } finally {
       setSaveTemplateBusy(false);
     }
@@ -612,7 +601,7 @@ export default function SigningRequestDetailPage() {
     );
   }
 
-  if (error || !request) {
+  if (!request) {
     return (
       <div className="space-y-4">
         <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
@@ -622,7 +611,7 @@ export default function SigningRequestDetailPage() {
           </Link>
         </Button>
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error || "Signing request not found."}
+          Signing request not found.
         </div>
       </div>
     );
@@ -755,13 +744,6 @@ export default function SigningRequestDetailPage() {
           )}
         </div>
       </div>
-
-      {actionError ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</div>
-      ) : null}
-      {actionSuccess ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{actionSuccess}</div>
-      ) : null}
 
       {/* Floating metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 border border-border rounded-2xl overflow-hidden">
@@ -993,9 +975,6 @@ export default function SigningRequestDetailPage() {
       {activeTab === "RECIPIENTS" && (
         <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Recipients</h2>
-          {resendSuccess ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{resendSuccess}</div> : null}
-          {resendError ? <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{resendError}</div> : null}
-
           <SigningOrderFlow
             signingMode={request.signingMode}
             recipients={request.recipients.map((r) => ({
@@ -1489,11 +1468,9 @@ function CreatePublicLinkModal({
   const [requireEmail, setRequireEmail] = useState(false);
   const [slotRecipientId, setSlotRecipientId] = useState(recipientsWithFields[0]?.id ?? "");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleCreate() {
     setBusy(true);
-    setError(null);
     try {
       const res = await fetch(`/api/signing/requests/${requestId}/public-links`, {
         method: "POST",
@@ -1510,7 +1487,7 @@ function CreatePublicLinkModal({
       if (!res.ok) throw new Error((data as { error?: { message?: string } }).error?.message ?? "Failed to create link.");
       onCreated((data as { link: PublicLink }).link);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create link.");
+      toast.error(err instanceof Error ? err.message : "Failed to create link.");
     } finally {
       setBusy(false);
     }
@@ -1594,7 +1571,6 @@ function CreatePublicLinkModal({
             </div>
           )}
 
-          {error && <p className="text-xs text-red-600">{error}</p>}
         </div>
         <div className="px-5 py-3 border-t border-border flex gap-2">
           <Button variant="outline" size="sm" className="flex-1" onClick={onClose} disabled={busy}>Cancel</Button>
@@ -1622,13 +1598,11 @@ function ReassignModal({
   const [name, setName] = useState(recipient.name);
   const [email, setEmail] = useState(recipient.email);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleConfirm() {
-    if (!name.trim()) { setError("Name is required."); return; }
-    if (!email.trim()) { setError("Email is required."); return; }
+    if (!name.trim()) { toast.error("Name is required."); return; }
+    if (!email.trim()) { toast.error("Email is required."); return; }
     setBusy(true);
-    setError(null);
     try {
       const res = await fetch(`/api/signing/requests/${requestId}/recipients/${recipient.id}`, {
         method: "PATCH",
@@ -1639,7 +1613,7 @@ function ReassignModal({
       if (!res.ok) throw new Error((data as { error?: { message?: string } }).error?.message ?? "Failed to reassign.");
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to reassign.");
+      toast.error(err instanceof Error ? err.message : "Failed to reassign.");
     } finally {
       setBusy(false);
     }
@@ -1664,7 +1638,6 @@ function ReassignModal({
             <label className="text-xs font-semibold text-muted-foreground block mb-1">Email Address</label>
             <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" className="h-9 text-sm" placeholder="email@example.com" />
           </div>
-          {error && <p className="text-xs text-red-600">{error}</p>}
         </div>
         <div className="px-5 py-3 border-t border-border flex gap-2">
           <Button variant="outline" size="sm" className="flex-1" onClick={onClose} disabled={busy}>Cancel</Button>

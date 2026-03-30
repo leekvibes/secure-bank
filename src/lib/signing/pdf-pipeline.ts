@@ -50,39 +50,34 @@ export async function processPdf(
 }
 
 async function extractPageDimensions(buffer: Buffer): Promise<PageDimension[]> {
+  // Primary: pdfjs-dist (most accurate viewport dimensions)
   try {
-    // Dynamic import — pdfjs-dist is ESM and can be large; import only when needed
     const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs" as string);
-
-    // Disable worker in Node.js environment
     pdfjsLib.GlobalWorkerOptions.workerSrc = "";
-
     const uint8 = new Uint8Array(buffer);
-    const doc = await pdfjsLib.getDocument({
-      data: uint8,
-      disableWorker: true,
-      verbosity: 0,
-    }).promise;
-
+    const doc = await pdfjsLib.getDocument({ data: uint8, disableWorker: true, verbosity: 0 }).promise;
     const dimensions: PageDimension[] = [];
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i);
-      // At scale 1, viewport width/height equal PDF points
       const vp = page.getViewport({ scale: 1 });
-      dimensions.push({
-        page: i,
-        widthPts: vp.width,
-        heightPts: vp.height,
-      });
+      dimensions.push({ page: i, widthPts: vp.width, heightPts: vp.height });
       page.cleanup();
     }
+    if (dimensions.length > 0) return dimensions;
+  } catch (pdfjsErr) {
+    console.warn("[pdf-pipeline] pdfjs extraction failed, falling back to pdf-lib:", pdfjsErr);
+  }
 
-    return dimensions;
-  } catch (err) {
-    // Fallback: return a standard letter-size page if pdfjs fails
-    // This is safe — the field coordinate math still works, just the
-    // aspect ratio hint to the client may be slightly off for unusual PDFs.
-    console.error("[pdf-pipeline] pdfjs page extraction failed, using fallback:", err);
+  // Fallback: pdf-lib (already used elsewhere, very reliable)
+  try {
+    const { PDFDocument } = await import("pdf-lib");
+    const pdfDoc = await PDFDocument.load(new Uint8Array(buffer), { ignoreEncryption: true });
+    return pdfDoc.getPages().map((page, idx) => {
+      const { width, height } = page.getSize();
+      return { page: idx + 1, widthPts: width, heightPts: height };
+    });
+  } catch (pdfLibErr) {
+    console.error("[pdf-pipeline] pdf-lib fallback also failed:", pdfLibErr);
     return [{ page: 1, widthPts: 612, heightPts: 792 }];
   }
 }

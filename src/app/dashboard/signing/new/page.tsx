@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { toast } from "@/lib/toast";
 
 type Step = 1 | 2 | 3 | 4;
 type SigningMode = "PARALLEL" | "SEQUENTIAL";
@@ -264,8 +265,6 @@ export default function NewSigningRequestPage() {
   const [busy, setBusy] = useState(false);
   const [sendBusy, setSendBusy] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   const [requestId, setRequestId] = useState<string | null>(null);
   const [templateInstanceId, setTemplateInstanceId] = useState<string | null>(null);
   const [requestToken, setRequestToken] = useState<string | null>(null);
@@ -378,7 +377,7 @@ export default function NewSigningRequestPage() {
     let cancelled = false;
     async function hydrateExistingRequest() {
       setBusy(true);
-      setError(null);
+      // error cleared;
       try {
         const res = await fetch(`/api/signing/requests/${encodeURIComponent(requestIdParam)}`, { cache: "no-store" });
         const data = await res.json().catch(() => ({}));
@@ -421,7 +420,7 @@ export default function NewSigningRequestPage() {
         }
         if (normalized.fields.length > 0) setPlacedFields(normalized.fields);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load existing request.");
+        if (!cancelled) toast.error(err instanceof Error ? err.message : "Failed to load existing request.");
       } finally {
         if (!cancelled) setBusy(false);
       }
@@ -606,18 +605,18 @@ export default function NewSigningRequestPage() {
 
   async function uploadPdf(file: File) {
     if (!ACCEPTED_UPLOAD_TYPES.has(file.type)) {
-      setError("Unsupported file type. Please upload a PDF, image (JPG, PNG, WebP, GIF), or Word document (.doc, .docx).");
+      toast.error("Unsupported file type. Please upload a PDF, image (JPG, PNG, WebP, GIF), or Word document (.doc, .docx).");
       return;
     }
     if (file.size > 50 * 1024 * 1024) {
-      setError("File must be 50MB or smaller.");
+      toast.error("File must be 50MB or smaller.");
       return;
     }
 
     const isPdf = file.type === "application/pdf";
     setBusy(true);
     setUploadStatus(isPdf ? "uploading" : "converting");
-    setError(null);
+    // error cleared;
     try {
       const created = await ensureRequest();
       const formData = new FormData();
@@ -636,7 +635,7 @@ export default function NewSigningRequestPage() {
       setDocumentBlobUrl(typeof data?.blobUrl === "string" ? data.blobUrl : null);
       setDocumentHash(typeof data?.documentHash === "string" ? data.documentHash : null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed.");
+      toast.error(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setBusy(false);
       setUploadStatus(null);
@@ -746,15 +745,15 @@ export default function NewSigningRequestPage() {
 
   async function saveFieldsAndContinue() {
     if (!requestId) {
-      setError("Missing request ID.");
+      toast.error("Missing request ID.");
       return;
     }
     if (placedFields.length === 0) {
-      setError("Place at least one field before continuing.");
+      toast.error("Place at least one field before continuing.");
       return;
     }
     setSaveBusy(true);
-    setError(null);
+    // error cleared;
     try {
       const payload = {
         fields: placedFields.map((field) => ({
@@ -780,7 +779,7 @@ export default function NewSigningRequestPage() {
       }
       setStep(4);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save fields.");
+      toast.error(err instanceof Error ? err.message : "Failed to save fields.");
     } finally {
       setSaveBusy(false);
     }
@@ -788,11 +787,11 @@ export default function NewSigningRequestPage() {
 
   async function sendRequest() {
     if (!requestId) {
-      setError("Missing request ID.");
+      toast.error("Missing request ID.");
       return;
     }
     setSendBusy(true);
-    setError(null);
+    // error cleared;
     try {
       const res = await fetch(`/api/signing/requests/${encodeURIComponent(requestId)}/send`, { method: "POST" });
       const data = await res.json().catch(() => ({}));
@@ -822,13 +821,13 @@ export default function NewSigningRequestPage() {
       }
 
       if (data?.emailWarning) {
-        setError(`Request sent. Warning: ${data.emailWarning}`);
+        toast.error(`Request sent. Warning: ${data.emailWarning}`);
         setSendBusy(false);
         setTimeout(() => { window.location.href = "/dashboard/signing"; }, 4000);
         return;
       }
       if (data?.emailConfigured === false) {
-        setError(
+        toast.error(
           "Request sent successfully, but email delivery is not configured (RESEND_API_KEY missing). Recipients will not receive automated emails — share the signing link manually."
         );
         setSendBusy(false);
@@ -837,7 +836,7 @@ export default function NewSigningRequestPage() {
       }
       window.location.href = "/dashboard/signing";
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send request.");
+      toast.error(err instanceof Error ? err.message : "Failed to send request.");
     } finally {
       setSendBusy(false);
     }
@@ -934,12 +933,12 @@ export default function NewSigningRequestPage() {
     if (step === 2) {
       if (!canContinueFromStep2()) return;
       setBusy(true);
-      setError(null);
+      // error cleared;
       try {
         await saveRecipientsAndLoadDetail();
         setStep(3);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to prepare field placement.");
+        toast.error(err instanceof Error ? err.message : "Failed to prepare field placement.");
       } finally {
         setBusy(false);
       }
@@ -1032,10 +1031,6 @@ export default function NewSigningRequestPage() {
           })}
         </div>
       </div>
-
-      {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 shadow-sm">{error}</div>
-      )}
 
       {step === 1 && (
         <div className="space-y-5">
