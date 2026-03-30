@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { processPdf } from "@/lib/signing/pdf-pipeline";
+import { convertToPdf, ACCEPTED_MIME_TYPES } from "@/lib/signing/convert-to-pdf";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -36,11 +37,15 @@ export async function POST(
     if (!file || typeof file === "string") return apiError(400, "BAD_REQUEST", "PDF file is required.");
 
     const fileObj = file as File;
-    if (fileObj.type !== "application/pdf") return apiError(400, "BAD_REQUEST", "Only PDF files are accepted.");
+    if (!ACCEPTED_MIME_TYPES.has(fileObj.type)) {
+      return apiError(400, "BAD_REQUEST", "Unsupported file type. Please upload a PDF, image (JPG, PNG, WebP, GIF), or Word document (.doc, .docx).");
+    }
     if (fileObj.size > 50 * 1024 * 1024) return apiError(400, "BAD_REQUEST", "File must be under 50 MB.");
 
-    const buffer = Buffer.from(await fileObj.arrayBuffer());
-    const originalName = fileObj.name || "document.pdf";
+    const rawBuffer = Buffer.from(await fileObj.arrayBuffer());
+
+    // Convert to PDF if needed (images → pdf-lib, Word docs → CloudConvert)
+    const { buffer, name: originalName } = await convertToPdf(rawBuffer, fileObj.type, fileObj.name || "document");
 
     // Run pipeline: upload to Blob + extract page dims + hash
     const result = await processPdf(buffer, originalName);

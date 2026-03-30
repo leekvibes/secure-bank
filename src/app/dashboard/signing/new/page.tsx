@@ -276,6 +276,7 @@ export default function NewSigningRequestPage() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [documentBlobUrl, setDocumentBlobUrl] = useState<string | null>(null);
   const [documentHash, setDocumentHash] = useState<string | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<"uploading" | "converting" | null>(null);
   const [pages, setPages] = useState<UploadedPage[]>([]);
   const [detailPages, setDetailPages] = useState<DetailPage[]>([]);
 
@@ -595,9 +596,17 @@ export default function NewSigningRequestPage() {
     return { id: data.id, token: typeof data?.token === "string" ? data.token : undefined };
   }
 
+  const ACCEPTED_UPLOAD_TYPES = new Set([
+    "application/pdf",
+    "image/jpeg", "image/jpg", "image/png", "image/webp",
+    "image/gif", "image/tiff", "image/bmp", "image/heic",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ]);
+
   async function uploadPdf(file: File) {
-    if (file.type !== "application/pdf") {
-      setError("Only PDF files are accepted.");
+    if (!ACCEPTED_UPLOAD_TYPES.has(file.type)) {
+      setError("Unsupported file type. Please upload a PDF, image (JPG, PNG, WebP, GIF), or Word document (.doc, .docx).");
       return;
     }
     if (file.size > 50 * 1024 * 1024) {
@@ -605,7 +614,9 @@ export default function NewSigningRequestPage() {
       return;
     }
 
+    const isPdf = file.type === "application/pdf";
     setBusy(true);
+    setUploadStatus(isPdf ? "uploading" : "converting");
     setError(null);
     try {
       const created = await ensureRequest();
@@ -628,6 +639,7 @@ export default function NewSigningRequestPage() {
       setError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setBusy(false);
+      setUploadStatus(null);
     }
   }
 
@@ -1069,7 +1081,7 @@ export default function NewSigningRequestPage() {
           <div className="rounded-2xl border border-border/50 bg-card shadow-sm p-6 space-y-5">
             <div>
               <h2 className="text-base font-semibold text-foreground">Upload document</h2>
-              <p className="text-sm text-muted-foreground mt-0.5">PDF format only, up to 50 MB.</p>
+              <p className="text-sm text-muted-foreground mt-0.5">PDF, Word (.doc/.docx), or image — up to 50 MB.</p>
             </div>
             <div
               onDragOver={(event) => { event.preventDefault(); setDraggingUpload(true); }}
@@ -1088,20 +1100,24 @@ export default function NewSigningRequestPage() {
               )}>
                 <UploadCloud className={cn("w-6 h-6 transition-colors", draggingUpload ? "text-primary" : "text-muted-foreground")} />
               </div>
-              <p className="text-sm font-semibold text-foreground">Drop your PDF here</p>
-              <p className="text-xs text-muted-foreground mt-1.5">or click to browse files</p>
+              <p className="text-sm font-semibold text-foreground">Drop your document here</p>
+              <p className="text-xs text-muted-foreground mt-1.5">PDF, Word (.doc/.docx), or image — or click to browse</p>
               <label className="mt-5 inline-flex">
-                <input type="file" accept="application/pdf" className="hidden" onChange={onFileInputChange} />
+                <input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.gif,.tiff,.bmp,.heic" className="hidden" onChange={onFileInputChange} />
                 <span className="inline-flex items-center justify-center rounded-lg border border-border/60 bg-background px-4 py-2 text-sm font-medium cursor-pointer hover:bg-muted/60 transition-colors shadow-sm">
-                  Choose PDF
+                  Choose file
                 </span>
               </label>
             </div>
 
-            {busy && (
+            {busy && uploadStatus && (
               <div className="flex items-center gap-3 text-sm text-muted-foreground px-1">
                 <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                <span>Processing document…</span>
+                <span>
+                  {uploadStatus === "converting"
+                    ? "Converting to PDF…"
+                    : "Uploading document…"}
+                </span>
               </div>
             )}
 
