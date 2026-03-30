@@ -1396,6 +1396,21 @@ export default function NewSigningRequestPage() {
                       <span className={`block w-3.5 h-3.5 rounded-full bg-white shadow transition-transform mx-0.5 ${sel.required ? "translate-x-4" : "translate-x-0"}`} />
                     </button>
                   </div>
+                  {sel.type === "ATTACHMENT" && (
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">Instructions for signer</label>
+                      <input
+                        type="text"
+                        value={sel.options?.[0] ?? ""}
+                        onChange={(e) =>
+                          updateField(sel.id, { options: e.target.value.trim() ? [e.target.value] : undefined })
+                        }
+                        placeholder="e.g. Upload your driver's license"
+                        className="w-full rounded-md border border-input bg-card px-2 py-1.5 text-sm"
+                      />
+                      <p className="text-[11px] text-muted-foreground mt-1">Shown above the upload button.</p>
+                    </div>
+                  )}
                   <Button
                     type="button"
                     variant="destructive"

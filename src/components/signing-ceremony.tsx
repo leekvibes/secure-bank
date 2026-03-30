@@ -110,6 +110,7 @@ function fieldModalTitle(type: string): string {
     CHECKBOX: "Checkbox",
     RADIO: "Selection",
     DROPDOWN: "Dropdown",
+    ATTACHMENT: "Upload Document",
   };
   return map[type] ?? "Fill Field";
 }
@@ -138,7 +139,10 @@ function isFieldDone(field: Field, value: string): boolean {
     return value.startsWith("data:image") && value.length > 200;
   }
   if (field.type === "CHECKBOX") return true;
-  if (field.type === "ATTACHMENT") return value.startsWith("data:") && value.length > 100;
+  if (field.type === "ATTACHMENT") {
+    if (value.startsWith("data:") && value.length > 100) return true;
+    try { const p = JSON.parse(value) as { url?: unknown }; return typeof p.url === "string" && p.url.length > 0; } catch { return false; }
+  }
   return value.trim().length > 0;
 }
 
@@ -550,12 +554,14 @@ function FieldModal({
   field,
   recipientName,
   currentValue,
+  token,
   onConfirm,
   onClose,
 }: {
   field: Field;
   recipientName: string;
   currentValue: string;
+  token: string;
   onConfirm: (val: string) => void;
   onClose: () => void;
 }) {
@@ -565,6 +571,14 @@ function FieldModal({
      field.type === "FULL_NAME"   ? recipientName : "");
 
   const [val, setVal] = useState(defaultVal);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Derive display name for an existing attachment value
+  const attachedFileName = (() => {
+    if (!val || field.type !== "ATTACHMENT") return null;
+    try { const p = JSON.parse(val) as { name?: string }; return p.name ?? null; } catch { return null; }
+  })();
 
   const isReady = field.type === "CHECKBOX" ? true : field.type === "ATTACHMENT" ? !!val : !!val.trim();
 
@@ -741,40 +755,80 @@ function FieldModal({
         )}
 
         {field.type === "ATTACHMENT" && (
-          <label
-            style={{
-              display: "block",
-              border: `2px dashed ${val ? "#10b981" : "#e2e8f0"}`,
-              borderRadius: "10px",
-              padding: val ? "12px" : "28px",
-              textAlign: "center",
-              cursor: "pointer",
-              marginBottom: "8px",
-            }}
-          >
-            <input
-              type="file"
-              accept="image/*,application/pdf"
-              style={{ display: "none" }}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (ev) => setVal((ev.target?.result as string) ?? "");
-                reader.readAsDataURL(file);
-              }}
-            />
-            {val ? (
-              <p style={{ fontSize: "13px", color: "#10b981", fontWeight: 600 }}>
-                ✓ File attached — tap to replace
+          <div style={{ marginBottom: "8px" }}>
+            {/* Agent-provided instructions from field options */}
+            {field.options?.[0] && (
+              <p style={{ fontSize: "13px", color: "#475569", marginBottom: "10px", lineHeight: 1.5, background: "#f8fafc", borderRadius: "8px", padding: "10px 12px" }}>
+                {field.options[0]}
               </p>
-            ) : (
-              <>
-                <p style={{ fontSize: "14px", color: "#475569", marginBottom: "4px" }}>Tap to attach a file</p>
-                <p style={{ fontSize: "12px", color: "#94a3b8" }}>Images or PDF</p>
-              </>
             )}
-          </label>
+            <label
+              style={{
+                display: "block",
+                border: `2px dashed ${val ? "#10b981" : uploadError ? "#ef4444" : "#e2e8f0"}`,
+                borderRadius: "10px",
+                padding: val ? "14px" : "28px",
+                textAlign: "center",
+                cursor: uploadingFile ? "wait" : "pointer",
+                opacity: uploadingFile ? 0.7 : 1,
+                transition: "border-color 0.15s",
+              }}
+            >
+              <input
+                type="file"
+                accept="image/*,application/pdf,.doc,.docx"
+                style={{ display: "none" }}
+                disabled={uploadingFile}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setUploadingFile(true);
+                  setUploadError(null);
+                  try {
+                    const fd = new FormData();
+                    fd.append("file", file);
+                    fd.append("fieldId", field.id);
+                    const res = await fetch(`/api/sign/${token}/attachment`, { method: "POST", body: fd });
+                    const json = await res.json().catch(() => ({})) as { url?: string; name?: string; size?: number; type?: string; error?: { message?: string } };
+                    if (!res.ok) throw new Error(json?.error?.message ?? "Upload failed. Please try again.");
+                    setVal(JSON.stringify({ url: json.url, name: json.name, size: json.size, type: json.type }));
+                  } catch (err) {
+                    const msg = err instanceof Error ? err.message : "Upload failed.";
+                    setUploadError(msg);
+                    // Fallback: store as base64 so signer isn't blocked
+                    const reader = new FileReader();
+                    reader.onload = (ev) => setVal((ev.target?.result as string) ?? "");
+                    reader.readAsDataURL(file);
+                  } finally {
+                    setUploadingFile(false);
+                  }
+                }}
+              />
+              {uploadingFile ? (
+                <div>
+                  <p style={{ fontSize: "14px", color: "#3b82f6", fontWeight: 600, marginBottom: "4px" }}>Uploading...</p>
+                  <p style={{ fontSize: "12px", color: "#94a3b8" }}>Please wait</p>
+                </div>
+              ) : val ? (
+                <div>
+                  <p style={{ fontSize: "13px", color: "#10b981", fontWeight: 600, marginBottom: "2px" }}>
+                    ✓ {attachedFileName ?? "File attached"}
+                  </p>
+                  <p style={{ fontSize: "11px", color: "#94a3b8" }}>Tap to replace</p>
+                </div>
+              ) : (
+                <>
+                  <p style={{ fontSize: "14px", color: "#475569", marginBottom: "4px" }}>Tap to upload a file</p>
+                  <p style={{ fontSize: "12px", color: "#94a3b8" }}>Images, PDF, or Word documents — max 20 MB</p>
+                </>
+              )}
+            </label>
+            {uploadError && (
+              <p style={{ fontSize: "12px", color: "#ef4444", marginTop: "6px", textAlign: "center" }}>
+                {uploadError}
+              </p>
+            )}
+          </div>
         )}
 
         <div style={{ display: "flex", gap: "10px" }}>
@@ -847,8 +901,18 @@ export function SigningCeremony({
     certUrl?: string;
     signedBlobUrl?: string;
   }>({});
+  const [visiblePage, setVisiblePage] = useState<number | null>(null);
 
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const pageRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const visiblePageRatiosRef = useRef<Record<number, number>>({});
+  const activePageViewRef = useRef<{
+    page: number;
+    startedAtMs: number;
+    maxScrollPct: number;
+    eventId: string;
+  } | null>(null);
 
   // ── OTP state ─────────────────────────────────────────────────────────────
   const [otpInput, setOtpInput] = useState("");
@@ -1013,6 +1077,149 @@ export function SigningCeremony({
     fieldRefs.current[fieldId]?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
+  const flushActivePageView = useCallback(
+    async (source: string, opts?: { keepalive?: boolean }) => {
+      if (screen !== "signing") return;
+      const active = activePageViewRef.current;
+      if (!active) return;
+      const endedAtMs = Date.now();
+      const dwellMs = Math.max(0, endedAtMs - active.startedAtMs);
+      activePageViewRef.current = null;
+
+      // Drop ultra-short noise.
+      if (dwellMs < 1000) return;
+
+      const payload = {
+        eventId: active.eventId,
+        page: active.page,
+        startedAt: new Date(active.startedAtMs).toISOString(),
+        endedAt: new Date(endedAtMs).toISOString(),
+        dwellMs,
+        maxScrollPct: Math.max(0, Math.min(100, active.maxScrollPct)),
+        source,
+      };
+
+      try {
+        await fetch(`/api/sign/${token}/analytics/page-view`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          keepalive: opts?.keepalive ?? false,
+        });
+      } catch {
+        // Non-blocking analytics call.
+      }
+    },
+    [screen, token]
+  );
+
+  const startPageView = useCallback(
+    (page: number) => {
+      const now = Date.now();
+      activePageViewRef.current = {
+        page,
+        startedAtMs: now,
+        maxScrollPct: 0,
+        eventId: crypto.randomUUID(),
+      };
+    },
+    []
+  );
+
+  const updateActiveScrollDepth = useCallback(() => {
+    const active = activePageViewRef.current;
+    if (!active) return;
+    const container = scrollContainerRef.current;
+    const pageEl = pageRefs.current[active.page];
+    if (!container || !pageEl) return;
+
+    const top = pageEl.offsetTop;
+    const height = pageEl.offsetHeight;
+    if (height <= 0) return;
+    const viewedPx = container.scrollTop + container.clientHeight - top;
+    const pct = Math.max(0, Math.min(100, (viewedPx / height) * 100));
+    if (pct > active.maxScrollPct) {
+      active.maxScrollPct = pct;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (screen !== "signing") return;
+    if (!visiblePage) return;
+
+    const run = async () => {
+      const active = activePageViewRef.current;
+      if (active?.page === visiblePage) return;
+      await flushActivePageView("page-switch");
+      startPageView(visiblePage);
+      updateActiveScrollDepth();
+    };
+    void run();
+  }, [screen, visiblePage, flushActivePageView, startPageView, updateActiveScrollDepth]);
+
+  useEffect(() => {
+    if (screen !== "signing") return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const onScroll = () => updateActiveScrollDepth();
+    container.addEventListener("scroll", onScroll, { passive: true });
+    return () => container.removeEventListener("scroll", onScroll);
+  }, [screen, updateActiveScrollDepth]);
+
+  useEffect(() => {
+    if (screen !== "signing") return;
+    if (pageImages.length === 0) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const rawPage = (entry.target as HTMLElement).dataset.pageNum;
+          const page = Number(rawPage ?? 0);
+          if (!page) continue;
+          visiblePageRatiosRef.current[page] = entry.isIntersecting ? entry.intersectionRatio : 0;
+        }
+        const top = Object.entries(visiblePageRatiosRef.current)
+          .map(([page, ratio]) => ({ page: Number(page), ratio }))
+          .filter((row) => row.ratio > 0.3)
+          .sort((a, b) => b.ratio - a.ratio)[0];
+        if (top?.page) setVisiblePage(top.page);
+      },
+      { root: container, threshold: [0.3, 0.5, 0.7, 0.9] }
+    );
+
+    for (const [page, node] of Object.entries(pageRefs.current)) {
+      if (!node) continue;
+      node.dataset.pageNum = page;
+      observer.observe(node);
+    }
+
+    return () => observer.disconnect();
+  }, [screen, pageImages.length]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        void flushActivePageView("tab-hidden", { keepalive: true });
+      }
+    };
+    const handleUnload = () => {
+      void flushActivePageView("before-unload", { keepalive: true });
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("beforeunload", handleUnload);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("beforeunload", handleUnload);
+    };
+  }, [flushActivePageView]);
+
+  useEffect(() => {
+    if (screen === "signing") return;
+    void flushActivePageView("screen-exit", { keepalive: true });
+  }, [screen, flushActivePageView]);
+
   // Auto-place INITIALS and DATE_SIGNED without opening a modal
   const handleFieldClick = useCallback(
     (field: Field) => {
@@ -1048,6 +1255,7 @@ export function SigningCeremony({
     if (!data) return;
     setSubmitting(true);
     try {
+      await flushActivePageView("submit-signing", { keepalive: true });
       const fields = data.fields.map((f) => ({
         id: f.id,
         value: fieldValues[f.id] ?? "",
@@ -1078,7 +1286,7 @@ export function SigningCeremony({
     } finally {
       setSubmitting(false);
     }
-  }, [data, token, fieldValues]);
+  }, [data, token, fieldValues, flushActivePageView]);
 
   const submitDecline = async () => {
     setDeclineError(null);
@@ -1089,6 +1297,7 @@ export function SigningCeremony({
     }
     setSubmitting(true);
     try {
+      await flushActivePageView("submit-decline", { keepalive: true });
       const res = await fetch(`/api/sign/${token}/decline`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2092,6 +2301,7 @@ export function SigningCeremony({
 
         {/* Scrollable PDF area */}
         <div
+          ref={scrollContainerRef}
           style={{
             flex: 1,
             overflowY: "auto",
@@ -2244,6 +2454,7 @@ export function SigningCeremony({
                 return (
                   <div
                     key={pageNum}
+                    ref={(el) => { pageRefs.current[pageNum] = el; }}
                     style={{
                       marginBottom: "16px",
                       borderRadius: "6px",
@@ -2524,6 +2735,7 @@ export function SigningCeremony({
               field={activeField}
               recipientName={data.recipient.name}
               currentValue={fieldValues[activeField.id] ?? ""}
+              token={token}
               onConfirm={(val) => {
                 setFieldValue(activeField.id, val);
                 setActiveFieldId(null);

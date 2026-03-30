@@ -21,6 +21,7 @@ import {
   Link2,
   Loader2,
   Mail,
+  Paperclip,
   Plus,
   Send,
   ShieldCheck,
@@ -38,7 +39,7 @@ import {
 
 type RequestStatus = "DRAFT" | "SENT" | "OPENED" | "PARTIALLY_SIGNED" | "COMPLETED" | "VOIDED" | "EXPIRED";
 type RecipientStatus = "PENDING" | "OPENED" | "COMPLETED" | "DECLINED";
-type DetailTab = "OVERVIEW" | "RECIPIENTS" | "FIELDS" | "TIMELINE" | "PUBLIC_LINKS";
+type DetailTab = "OVERVIEW" | "RECIPIENTS" | "FIELDS" | "TIMELINE" | "READING" | "PUBLIC_LINKS";
 
 interface Recipient {
   id: string;
@@ -121,6 +122,36 @@ interface SigningRequestDetail {
   auditLogs: AuditLog[];
   certificate?: { blobUrl: string } | null;
   isEditable?: boolean;
+  readingAnalytics?: {
+    pages: number[];
+    recipients: Array<{
+      recipientId: string;
+      recipientName: string;
+      recipientEmail: string;
+      status: string | null;
+      completedAt: string | null;
+      pagesTotal: number;
+      pagesViewed: number;
+      pagesCompleted: number;
+      totalDwellMs: number;
+      readCompletenessPct: number;
+      unreadPages: number[];
+      signedWithUnreadPages: boolean;
+      pages: Array<{
+        page: number;
+        totalDwellMs: number;
+        maxScrollPct: number;
+        viewCount: number;
+        completed: boolean;
+      }>;
+    }>;
+    summary: {
+      totalDwellMs: number;
+      avgReadCompletenessPct: number;
+      signedWithUnreadCount: number;
+      recipientCount: number;
+    };
+  };
 }
 
 function resolveDisplayStatus(request: SigningRequestDetail): RequestStatus {
@@ -171,6 +202,7 @@ function eventLabel(event: string) {
     EXPIRY_REMINDER_SENT: "Expiry reminder sent",
     PUBLIC_LINK_CREATED: "Public signing link created",
     PUBLIC_LINK_USED: "Someone signed via public link",
+    READING_ANALYTICS_SNAPSHOT: "Reading analytics snapshot saved",
   };
   return map[event] ?? event;
 }
@@ -195,6 +227,15 @@ function parseAuditMetadata(metadata: string | null): Record<string, unknown> | 
 function declineReasonLabel(code: string | null | undefined): string | null {
   if (!code || !isDeclineReasonCode(code)) return null;
   return DECLINE_REASON_LABELS[code];
+}
+
+function fmtDuration(ms: number): string {
+  if (!Number.isFinite(ms) || ms <= 0) return "0s";
+  const totalSec = Math.round(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  if (min <= 0) return `${sec}s`;
+  return `${min}m ${sec}s`;
 }
 
 export default function SigningRequestDetailPage() {
@@ -545,6 +586,7 @@ export default function SigningRequestDetailPage() {
     { id: "RECIPIENTS", label: "Recipients" },
     { id: "FIELDS", label: "Fields" },
     { id: "TIMELINE", label: "Timeline" },
+    { id: "READING", label: "Reading" },
     { id: "PUBLIC_LINKS", label: "Public Links" },
   ];
 
@@ -793,6 +835,51 @@ export default function SigningRequestDetailPage() {
               )}
             </section>
           </div>
+
+          {/* Collected Files (ATTACHMENT fields) */}
+          {request.signingFields.some((f) => f.type === "ATTACHMENT" && f.value) && (
+            <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Collected Files</h2>
+              </div>
+              <div className="space-y-1">
+                {request.signingFields
+                  .filter((f) => f.type === "ATTACHMENT" && f.value)
+                  .map((f) => {
+                    const signer = request.recipients.find((r) => r.id === f.recipientId);
+                    let meta: { url?: string; name?: string; size?: number; type?: string } = {};
+                    try { meta = JSON.parse(f.value!) as typeof meta; } catch { /* base64 fallback */ }
+                    const isBlob = !!meta.url;
+                    const displayName = meta.name ?? "Attachment";
+                    const fileSizeLabel = meta.size ? ` · ${meta.size > 1024 * 1024 ? `${(meta.size / 1024 / 1024).toFixed(1)} MB` : `${Math.round(meta.size / 1024)} KB`}` : "";
+                    return (
+                      <div key={f.id} className="flex items-center justify-between gap-3 py-2 border-b border-border last:border-0">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+                            <Paperclip className="w-3.5 h-3.5 text-emerald-600" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
+                            <p className="text-xs text-muted-foreground">{signer?.name ?? "Unknown signer"}{fileSizeLabel}</p>
+                          </div>
+                        </div>
+                        {isBlob ? (
+                          <a href={meta.url} target="_blank" rel="noopener noreferrer" download={meta.name}>
+                            <Button variant="outline" size="sm" className="h-8 text-xs gap-1 shrink-0">
+                              <Download className="w-3 h-3" />
+                              Download
+                            </Button>
+                          </a>
+                        ) : (
+                          <span className="text-[11px] text-muted-foreground shrink-0">No download</span>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </section>
+          )}
 
           {/* Files & downloads */}
           <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
@@ -1190,6 +1277,85 @@ export default function SigningRequestDetailPage() {
                 );
               })}
             </div>
+          )}
+        </section>
+      )}
+
+      {/* ── READING ANALYTICS ── */}
+      {activeTab === "READING" && (
+        <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Per-Page View Analytics</h2>
+
+          {!request.readingAnalytics || request.readingAnalytics.recipients.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No reading analytics captured yet.</p>
+          ) : (
+            <>
+              <div className="grid md:grid-cols-4 gap-3">
+                <div className="rounded-lg border border-border px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Avg Read</p>
+                  <p className="text-sm font-semibold text-foreground mt-0.5">{request.readingAnalytics.summary.avgReadCompletenessPct}%</p>
+                </div>
+                <div className="rounded-lg border border-border px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Total View Time</p>
+                  <p className="text-sm font-semibold text-foreground mt-0.5">{fmtDuration(request.readingAnalytics.summary.totalDwellMs)}</p>
+                </div>
+                <div className="rounded-lg border border-border px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Signed w/ Unread</p>
+                  <p className="text-sm font-semibold text-foreground mt-0.5">{request.readingAnalytics.summary.signedWithUnreadCount}</p>
+                </div>
+                <div className="rounded-lg border border-border px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Recipients</p>
+                  <p className="text-sm font-semibold text-foreground mt-0.5">{request.readingAnalytics.summary.recipientCount}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {request.readingAnalytics.recipients.map((recipient) => (
+                  <div key={recipient.recipientId} className="rounded-xl border border-border p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">{recipient.recipientName}</p>
+                        <p className="text-xs text-muted-foreground">{recipient.recipientEmail}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-foreground">{recipient.readCompletenessPct}% read</p>
+                        <p className="text-[11px] text-muted-foreground">{fmtDuration(recipient.totalDwellMs)}</p>
+                      </div>
+                    </div>
+
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all"
+                        style={{ width: `${recipient.readCompletenessPct}%` }}
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {recipient.pages.map((p) => (
+                        <span
+                          key={`${recipient.recipientId}-${p.page}`}
+                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] ${
+                            p.completed
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-amber-200 bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          P{p.page}
+                          <span className="text-[10px] opacity-80">{fmtDuration(p.totalDwellMs)}</span>
+                          <span className="text-[10px] opacity-80">{Math.round(p.maxScrollPct)}%</span>
+                        </span>
+                      ))}
+                    </div>
+
+                    {recipient.unreadPages.length > 0 && (
+                      <p className="text-xs text-amber-700">
+                        Unread pages: {recipient.unreadPages.join(", ")}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </section>
       )}

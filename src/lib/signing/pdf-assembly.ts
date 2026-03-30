@@ -117,7 +117,41 @@ export async function assemblePdf(
   const pageDimMap = new Map(pages.map((p) => [p.page, p]));
 
   for (const field of fields) {
-    if (field.type === "ATTACHMENT") continue; // attachments stored as data URLs, not drawn in PDF
+    if (field.type === "ATTACHMENT") {
+      // Draw a reference box indicating a file was collected for this field
+      if (!field.value) continue;
+      const attachPage = pdfPages[field.page - 1];
+      if (!attachPage) continue;
+      const attachDim = pageDimMap.get(field.page);
+      const { width: attachW, height: attachH } = attachPage.getSize();
+      const attachCoords = pctToPdfPts(
+        field.x, field.y, field.width, field.height,
+        attachDim?.widthPts ?? attachW, attachDim?.heightPts ?? attachH
+      );
+      let attachName = "File collected";
+      try {
+        const meta = JSON.parse(field.value) as { name?: string };
+        if (meta.name) attachName = sanitizeText(meta.name);
+      } catch { /* base64 fallback — just show generic label */ }
+      attachPage.drawRectangle({
+        x: attachCoords.x, y: attachCoords.y,
+        width: attachCoords.width, height: attachCoords.height,
+        borderColor: hex(16, 185, 129), borderWidth: 1,
+        color: hex(240, 253, 250), opacity: 0.85,
+      });
+      attachPage.drawText(
+        truncate(`Attachment: ${attachName}`, 60),
+        {
+          x: attachCoords.x + 4,
+          y: attachCoords.y + Math.max(attachCoords.height * 0.25, 2),
+          font,
+          size: Math.min(8, Math.max(attachCoords.height * 0.45, 5)),
+          color: hex(6, 95, 70),
+          maxWidth: attachCoords.width - 8,
+        }
+      );
+      continue;
+    }
     if (!field.value?.trim() && field.type !== "CHECKBOX") continue;
     if (field.type === "CHECKBOX" && field.value !== "true") continue;
 
