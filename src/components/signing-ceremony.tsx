@@ -131,6 +131,7 @@ function isFieldDone(field: Field, value: string): boolean {
     return value.startsWith("data:image") && value.length > 200;
   }
   if (field.type === "CHECKBOX") return true;
+  if (field.type === "ATTACHMENT") return value.startsWith("data:") && value.length > 100;
   return value.trim().length > 0;
 }
 
@@ -558,7 +559,7 @@ function FieldModal({
 
   const [val, setVal] = useState(defaultVal);
 
-  const isReady = field.type === "CHECKBOX" ? true : !!val.trim();
+  const isReady = field.type === "CHECKBOX" ? true : field.type === "ATTACHMENT" ? !!val : !!val.trim();
 
   return (
     <div
@@ -730,6 +731,43 @@ function FieldModal({
               </label>
             ))}
           </div>
+        )}
+
+        {field.type === "ATTACHMENT" && (
+          <label
+            style={{
+              display: "block",
+              border: `2px dashed ${val ? "#10b981" : "#e2e8f0"}`,
+              borderRadius: "10px",
+              padding: val ? "12px" : "28px",
+              textAlign: "center",
+              cursor: "pointer",
+              marginBottom: "8px",
+            }}
+          >
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => setVal((ev.target?.result as string) ?? "");
+                reader.readAsDataURL(file);
+              }}
+            />
+            {val ? (
+              <p style={{ fontSize: "13px", color: "#10b981", fontWeight: 600 }}>
+                ✓ File attached — tap to replace
+              </p>
+            ) : (
+              <>
+                <p style={{ fontSize: "14px", color: "#475569", marginBottom: "4px" }}>Tap to attach a file</p>
+                <p style={{ fontSize: "12px", color: "#94a3b8" }}>Images or PDF</p>
+              </>
+            )}
+          </label>
         )}
 
         <div style={{ display: "flex", gap: "10px" }}>
@@ -1643,11 +1681,14 @@ export function SigningCeremony({
                             <span style={{ color: "#ef4444", marginLeft: "4px" }}>*</span>
                           )}
                         </p>
-                        {val && !val.startsWith("data:image") && (
+                        {val && !val.startsWith("data:") && (
                           <p style={{ fontSize: "12px", color: "#64748b" }}>{val}</p>
                         )}
                         {val && val.startsWith("data:image") && (
                           <p style={{ fontSize: "12px", color: "#10b981" }}>✓ Captured</p>
+                        )}
+                        {val && val.startsWith("data:") && !val.startsWith("data:image") && (
+                          <p style={{ fontSize: "12px", color: "#10b981" }}>📎 File attached</p>
                         )}
                       </div>
                       {done ? (
@@ -1745,17 +1786,20 @@ export function SigningCeremony({
                                   objectFit: "contain",
                                 }}
                               />
+                            ) : done && field.type === "ATTACHMENT" ? (
+                              <span style={{ fontSize: "clamp(9px,2vw,12px)", color: colors.text, fontWeight: 700 }}>📎 Attached</span>
                             ) : done && field.type === "DATE_SIGNED" ? (
                               <span
                                 style={{
-                                  fontSize: "clamp(7px, 1.8vw, 12px)",
+                                  fontSize: "clamp(9px, 1.8vw, 13px)",
                                   color: colors.text,
-                                  fontWeight: 600,
+                                  fontWeight: 700,
                                   padding: "0 3px",
                                   whiteSpace: "nowrap",
                                   overflow: "hidden",
                                   textOverflow: "ellipsis",
                                   maxWidth: "100%",
+                                  lineHeight: 1.1,
                                 }}
                               >
                                 {fmtDate(val)}
@@ -1763,7 +1807,7 @@ export function SigningCeremony({
                             ) : done ? (
                               <span
                                 style={{
-                                  fontSize: "clamp(7px, 1.8vw, 12px)",
+                                  fontSize: "clamp(9px, 1.8vw, 13px)",
                                   color: colors.text,
                                   fontWeight: 600,
                                   padding: "0 3px",

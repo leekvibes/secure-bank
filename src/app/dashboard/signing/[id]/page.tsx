@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { SigningLiveViewer, type LiveField } from "@/components/signing-live-viewer";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -142,7 +141,6 @@ export default function SigningRequestDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
-  const [docPreviewOpen, setDocPreviewOpen] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resendFormId, setResendFormId] = useState<string | null>(null);
   const [resendEmail, setResendEmail] = useState<string>("");
@@ -180,29 +178,6 @@ export default function SigningRequestDetailPage() {
   const canVoid = status !== "COMPLETED" && status !== "VOIDED" && status !== "EXPIRED";
   const isEditable = (request as unknown as { isEditable?: boolean })?.isEditable ?? status === "DRAFT";
   const canDelete = status === "DRAFT" || status === "VOIDED" || status === "EXPIRED";
-
-  // Build live field overlays for the document viewer
-  const liveFields = useMemo<LiveField[]>(() => {
-    if (!request) return [];
-    const recipientMap = new Map(
-      request.recipients.map((r, i) => [r.id, { name: r.name, index: i }])
-    );
-    return request.signingFields.map((f) => {
-      const rec = recipientMap.get(f.recipientId);
-      return {
-        id: f.id,
-        type: f.type,
-        page: f.page,
-        x: f.x,
-        y: f.y,
-        width: f.width,
-        height: f.height,
-        value: f.value ?? null,
-        recipientName: rec?.name ?? "Unknown",
-        recipientIndex: rec?.index ?? 0,
-      };
-    });
-  }, [request]);
 
   async function reload() {
     if (!id) return;
@@ -465,9 +440,11 @@ export default function SigningRequestDetailPage() {
       {/* ── Document Viewer ──────────────────────────────────────────── */}
       {request.blobUrl && (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setDocPreviewOpen((v) => !v)}
+          {/* Open preview in new tab */}
+          <a
+            href={`/dashboard/signing/${id}/preview`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/40 transition-colors"
           >
             <div className="flex items-center gap-2">
@@ -485,58 +462,36 @@ export default function SigningRequestDetailPage() {
                 </span>
               )}
             </div>
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className={`text-muted-foreground transition-transform ${docPreviewOpen ? "rotate-180" : ""}`}
-            >
-              <polyline points="6 9 12 15 18 9" />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
             </svg>
-          </button>
-
-          {docPreviewOpen && (
-            <div className="border-t border-border">
-              {/* Signed: show final PDF via iframe; In-progress: live viewer with overlays */}
-              {request.signedBlobUrl ? (
-                <iframe
-                  src={`/api/signing/requests/${encodeURIComponent(id)}/download`}
-                  className="w-full"
-                  style={{ height: "70vh", minHeight: "500px" }}
-                  title="Signed document"
-                />
-              ) : (
-                <SigningLiveViewer blobUrl={request.blobUrl} fields={liveFields} />
-              )}
-              {/* Export/download row */}
-              <div className="flex flex-wrap gap-2 p-3 border-t border-border bg-muted/30">
-                {request.signedBlobUrl && (
-                  <Button size="sm" variant="outline" onClick={() => handleDownload("signed")} disabled={downloadBusy !== null} className="gap-1.5">
-                    {downloadBusy === "signed" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                    Download Signed PDF
-                  </Button>
-                )}
-                {request.certificate?.blobUrl && (
-                  <Button size="sm" variant="outline" onClick={() => handleDownload("cert")} disabled={downloadBusy !== null} className="gap-1.5">
-                    {downloadBusy === "cert" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldAlert className="w-3.5 h-3.5" />}
-                    Download Certificate
-                  </Button>
-                )}
-                <Button size="sm" variant="ghost" onClick={() => handleDownload("original")} disabled={downloadBusy !== null} className="gap-1.5 text-muted-foreground">
-                  {downloadBusy === "original" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                  Download Original
-                </Button>
-                {!request.signedBlobUrl && (
-                  <span className="text-xs text-muted-foreground self-center ml-1">
-                    Signed PDF &amp; Certificate available once all parties complete
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
+          </a>
+          {/* Download row */}
+          <div className="flex flex-wrap gap-2 p-3 border-t border-border bg-muted/30">
+            {request.signedBlobUrl && (
+              <Button size="sm" variant="outline" onClick={() => handleDownload("signed")} disabled={downloadBusy !== null} className="gap-1.5">
+                {downloadBusy === "signed" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                Download Signed PDF
+              </Button>
+            )}
+            {request.certificate?.blobUrl && (
+              <Button size="sm" variant="outline" onClick={() => handleDownload("cert")} disabled={downloadBusy !== null} className="gap-1.5">
+                {downloadBusy === "cert" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldAlert className="w-3.5 h-3.5" />}
+                Download Certificate
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" onClick={() => handleDownload("original")} disabled={downloadBusy !== null} className="gap-1.5 text-muted-foreground">
+              {downloadBusy === "original" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+              Download Original
+            </Button>
+            {!request.signedBlobUrl && (
+              <span className="text-xs text-muted-foreground self-center ml-1">
+                Signed PDF &amp; Certificate available once all parties complete
+              </span>
+            )}
+          </div>
         </div>
       )}
 

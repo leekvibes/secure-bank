@@ -6,6 +6,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { headers } from "next/headers";
 import { SecureFormClient } from "@/components/secure-form-client";
 import { ensureLegacyLogoAsset, toAssetRenderEntry } from "@/lib/asset-library";
+import { PublicBrandedHeader } from "@/components/public-branded-header";
 
 interface Props {
   params: { token: string };
@@ -95,25 +96,34 @@ export default async function SecurePage({ params }: Props) {
   }
 
   return (
-    <SecureFormClient
-      token={params.token}
-      linkType={link.linkType}
-      linkOptions={linkOptions}
-      agent={{
+    <>
+      <PublicBrandedHeader agent={{
         displayName: link.agent.displayName,
         agencyName: link.agent.agencyName,
         company: link.agent.company,
-        industry: link.agent.industry,
-        destinationLabel: link.agent.destinationLabel,
-        licenseNumber: link.agent.licenseNumber,
-        verificationStatus: link.agent.verificationStatus,
-        phone: link.agent.phone,
+        logoUrl: link.agent.logoUrl,
         photoUrl: link.agent.photoUrl,
-      }}
-      logoUrls={logoUrls}
-      clientName={link.clientName}
-      expiresAt={link.expiresAt.toISOString()}
-    />
+      }} />
+      <SecureFormClient
+        token={params.token}
+        linkType={link.linkType}
+        linkOptions={linkOptions}
+        agent={{
+          displayName: link.agent.displayName,
+          agencyName: link.agent.agencyName,
+          company: link.agent.company,
+          industry: link.agent.industry,
+          destinationLabel: link.agent.destinationLabel,
+          licenseNumber: link.agent.licenseNumber,
+          verificationStatus: link.agent.verificationStatus,
+          phone: link.agent.phone,
+          photoUrl: link.agent.photoUrl,
+        }}
+        logoUrls={logoUrls}
+        clientName={link.clientName}
+        expiresAt={link.expiresAt.toISOString()}
+      />
+    </>
   );
 }
 

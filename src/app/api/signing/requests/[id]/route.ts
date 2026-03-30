@@ -55,7 +55,7 @@ export async function GET(
   }
 }
 
-// DELETE /api/signing/requests/[id] — permanently delete a request
+// DELETE /api/signing/requests/[id] — soft delete (or hard delete if already soft-deleted)
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: { id: string } }
@@ -66,30 +66,60 @@ export async function DELETE(
   try {
     const request = await db.docSignRequest.findUnique({
       where: { id: params.id },
-      select: { id: true, agentId: true, status: true, expiresAt: true },
+      select: { id: true, agentId: true, status: true, expiresAt: true, deletedAt: true },
     });
 
     if (!request) return apiError(404, "NOT_FOUND", "Signing request not found.");
     if (request.agentId !== session.user.id) return apiError(403, "FORBIDDEN", "Access denied.");
 
-    // Compute effective status (check expiry)
-    const now = new Date();
-    const effectiveStatus =
-      (request.status === "SENT" || request.status === "OPENED") && request.expiresAt < now
-        ? "EXPIRED"
-        : request.status;
+    // If already soft-deleted → hard delete permanently
+    if (request.deletedAt) {
+      await db.docSignRequest.delete({ where: { id: params.id } });
+      return apiSuccess({ deleted: true });
+    }
 
-    if (effectiveStatus === "COMPLETED") {
+    // Completed records cannot be deleted
+    if (request.status === "COMPLETED") {
       return apiError(409, "CONFLICT", "Completed documents cannot be deleted.");
     }
-    if (effectiveStatus === "SENT" || effectiveStatus === "OPENED") {
-      return apiError(409, "CONFLICT", "Void the request before deleting it.");
-    }
 
-    await db.docSignRequest.delete({ where: { id: params.id } });
-    return apiSuccess({ deleted: true });
+    // Soft delete: set deletedAt = now
+    const now = new Date();
+    await db.docSignRequest.update({
+      where: { id: params.id },
+      data: { deletedAt: now },
+    });
+    return apiSuccess({ deletedAt: now.toISOString() });
   } catch (err) {
     console.error("[signing/requests/delete]", err);
     return apiError(500, "SERVER_ERROR", "Failed to delete signing request.");
   }
+}
+
+// PATCH /api/signing/requests/[id] — restore a soft-deleted request
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return apiError(401, "UNAUTHORIZED", "Sign in required.");
+
+  const body = await req.json().catch(() => ({}));
+  if (body.action !== "restore") return apiError(400, "BAD_REQUEST", "Unknown action.");
+
+  const request = await db.docSignRequest.findUnique({
+    where: { id: params.id },
+    select: { id: true, agentId: true, deletedAt: true },
+  });
+
+  if (!request) return apiError(404, "NOT_FOUND", "Signing request not found.");
+  if (request.agentId !== session.user.id) return apiError(403, "FORBIDDEN", "Access denied.");
+  if (!request.deletedAt) return apiError(409, "CONFLICT", "Request is not deleted.");
+
+  await db.docSignRequest.update({
+    where: { id: params.id },
+    data: { deletedAt: null },
+  });
+
+  return apiSuccess({ restored: true });
 }

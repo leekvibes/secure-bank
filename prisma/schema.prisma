@@ -427,6 +427,7 @@ model DocSignRequest {
   ccEmails        String?   // JSON array of email strings
   voidedAt        DateTime?
   voidReason      String?
+  deletedAt       DateTime?   // soft delete — set instead of hard deleting
   expiresAt     DateTime
   completedAt   DateTime?
   createdAt     DateTime @default(now())

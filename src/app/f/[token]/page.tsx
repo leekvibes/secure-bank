@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { DynamicFormClient } from "@/components/dynamic-form-client";
 import type { FormFieldType } from "@/lib/schemas";
 import { ensureLegacyLogoAsset, toAssetRenderEntry } from "@/lib/asset-library";
+import { PublicBrandedHeader } from "@/components/public-branded-header";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -83,14 +84,23 @@ export default async function FormPage({ params }: Props) {
   const logoUrls = renderedAssets.map((a) => a.url as string);
 
   return (
-    <DynamicFormClient
-      token={params.token}
-      form={{ title: link.form.title, description: link.form.description }}
-      fields={fields}
-      agent={link.form.agent}
-      logoUrls={logoUrls}
-      link={{ clientName: link.clientName, expiresAt: link.expiresAt.toISOString() }}
-    />
+    <>
+      <PublicBrandedHeader agent={{
+        displayName: link.form.agent.displayName,
+        agencyName: link.form.agent.agencyName,
+        company: link.form.agent.company,
+        logoUrl: link.form.agent.logoUrl,
+        photoUrl: link.form.agent.photoUrl,
+      }} />
+      <DynamicFormClient
+        token={params.token}
+        form={{ title: link.form.title, description: link.form.description }}
+        fields={fields}
+        agent={link.form.agent}
+        logoUrls={logoUrls}
+        link={{ clientName: link.clientName, expiresAt: link.expiresAt.toISOString() }}
+      />
+    </>
   );
 }
 

@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
+    const includeDeleted = searchParams.get("includeDeleted") === "true";
 
     const requests = await db.docSignRequest.findMany({
       where: {
@@ -72,6 +73,8 @@ export async function GET(req: NextRequest) {
           { status: "DRAFT", originalFilePath: "" },
         ],
         ...(status ? { status } : {}),
+        // Soft delete filter: unless includeDeleted, only return non-deleted records
+        ...(!includeDeleted ? { deletedAt: null } : {}),
       },
       select: {
         id: true,
@@ -83,6 +86,7 @@ export async function GET(req: NextRequest) {
         expiresAt: true,
         completedAt: true,
         voidedAt: true,
+        deletedAt: true,
         createdAt: true,
         recipients: {
           select: {
@@ -130,7 +134,7 @@ export async function GET(req: NextRequest) {
         r.status === "DRAFT" ||
         ((r.status === "SENT" || r.status === "OPENED") && completedCount === 0);
 
-      return { ...r, displayStatus, completedRecipients: completedCount, isEditable };
+      return { ...r, displayStatus, completedRecipients: completedCount, isEditable, deletedAt: r.deletedAt ?? null };
     });
 
     return apiSuccess({ requests: augmented });
