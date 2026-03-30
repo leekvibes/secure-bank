@@ -178,7 +178,7 @@ export default function SigningRequestDetailPage() {
   const canRemind = status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED";
   const canVoid = status !== "COMPLETED" && status !== "VOIDED" && status !== "EXPIRED";
   const isEditable = request?.isEditable ?? status === "DRAFT";
-  const canDelete = status === "DRAFT" || status === "VOIDED" || status === "EXPIRED";
+  const canDelete = !!status; // any status can be deleted (API enforces soft-delete)
 
   async function reload() {
     if (!id) return;
@@ -351,7 +351,7 @@ export default function SigningRequestDetailPage() {
             {request.originalName || "No file name"} · {request.signingMode === "SEQUENTIAL" ? "Sequential" : "Parallel"} flow
           </p>
         </div>
-        <div className="rounded-xl border border-border bg-card p-3 w-full max-w-[360px] space-y-2">
+        <div className="rounded-xl border border-border bg-gradient-to-br from-slate-50 via-white to-blue-50/40 p-3 w-full max-w-[360px] space-y-2 shadow-sm">
           <div className="flex items-center justify-between">
             {statusPill ? <Badge className={statusPill.className}>{statusPill.label}</Badge> : <span />}
             <p className="text-[11px] text-muted-foreground">Created {new Date(request.createdAt).toLocaleDateString()}</p>
@@ -407,13 +407,13 @@ export default function SigningRequestDetailPage() {
       {actionError ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</div> : null}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <OverviewKpi label="Recipients" value={request.recipients.length} />
-        <OverviewKpi label="Signed" value={`${completedRecipients}/${request.recipients.length}`} />
-        <OverviewKpi label="Fields" value={request.signingFields.length} />
-        <OverviewKpi label="Expires" value={new Date(request.expiresAt).toLocaleDateString()} />
+        <OverviewKpi label="Recipients" value={request.recipients.length} tone="blue" />
+        <OverviewKpi label="Signed" value={`${completedRecipients}/${request.recipients.length}`} tone="emerald" />
+        <OverviewKpi label="Fields" value={request.signingFields.length} tone="violet" />
+        <OverviewKpi label="Expires" value={new Date(request.expiresAt).toLocaleDateString()} tone="amber" />
       </div>
 
-      <div className="rounded-2xl border border-border bg-card p-2">
+      <div className="rounded-2xl border border-border bg-gradient-to-br from-slate-50/90 via-white to-blue-50/30 p-2">
         <div className="flex flex-wrap gap-2">
           {tabs.map((tab) => (
             <button
@@ -421,7 +421,7 @@ export default function SigningRequestDetailPage() {
               type="button"
               onClick={() => setActiveTab(tab.id)}
               className={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
-                activeTab === tab.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                activeTab === tab.id ? "bg-primary/12 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"
               }`}
             >
               {tab.label}
@@ -432,7 +432,7 @@ export default function SigningRequestDetailPage() {
 
       {activeTab === "OVERVIEW" && (
         <div className="grid lg:grid-cols-[1.1fr_1fr] gap-5">
-          <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
+          <section className="rounded-2xl border border-blue-200/60 bg-gradient-to-br from-blue-50/60 to-white p-5 space-y-3">
             <h2 className="text-sm font-semibold text-foreground">Recipient Progress</h2>
             <div className="space-y-2">
               {fieldCountsByRecipient.map(({ recipient, count }) => {
@@ -451,7 +451,7 @@ export default function SigningRequestDetailPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
+          <section className="rounded-2xl border border-violet-200/60 bg-gradient-to-br from-violet-50/50 to-white p-5 space-y-3">
             <h2 className="text-sm font-semibold text-foreground">Quick Links</h2>
             {(status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED") ? (
               <div className="space-y-2">
@@ -479,7 +479,7 @@ export default function SigningRequestDetailPage() {
       )}
 
       {activeTab === "RECIPIENTS" && (
-        <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
+        <section className="rounded-2xl border border-blue-200/60 bg-gradient-to-br from-blue-50/50 to-white p-5 space-y-3">
           <h2 className="text-sm font-semibold text-foreground">Recipients</h2>
           {resendSuccess ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{resendSuccess}</div> : null}
           {resendError ? <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{resendError}</div> : null}
@@ -537,7 +537,7 @@ export default function SigningRequestDetailPage() {
       )}
 
       {activeTab === "FIELDS" && (
-        <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
+        <section className="rounded-2xl border border-violet-200/60 bg-gradient-to-br from-violet-50/45 to-white p-5 space-y-3">
           <h2 className="text-sm font-semibold text-foreground">Field Layout</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -572,7 +572,7 @@ export default function SigningRequestDetailPage() {
       )}
 
       {activeTab === "TIMELINE" && (
-        <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
+        <section className="rounded-2xl border border-indigo-200/60 bg-gradient-to-br from-indigo-50/50 to-white p-5 space-y-3">
           <h2 className="text-sm font-semibold text-foreground">Audit Timeline</h2>
           {request.auditLogs.length === 0 ? (
             <p className="text-sm text-muted-foreground">No activity yet.</p>
@@ -603,7 +603,7 @@ export default function SigningRequestDetailPage() {
       )}
 
       {activeTab === "FILES" && (
-        <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+        <section className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50/70 to-white p-5 space-y-4">
           <h2 className="text-sm font-semibold text-foreground">Files & Downloads</h2>
           {request.blobUrl ? (
             <a href={`/dashboard/signing/${id}/preview`} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-border p-4 hover:bg-muted/40 transition-colors flex items-center justify-between">
@@ -641,9 +641,25 @@ export default function SigningRequestDetailPage() {
   );
 }
 
-function OverviewKpi({ label, value }: { label: string; value: number | string }) {
+function OverviewKpi({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number | string;
+  tone: "blue" | "emerald" | "violet" | "amber";
+}) {
+  const toneClass =
+    tone === "blue"
+      ? "border-blue-200 bg-blue-50/70"
+      : tone === "emerald"
+        ? "border-emerald-200 bg-emerald-50/70"
+        : tone === "violet"
+          ? "border-violet-200 bg-violet-50/70"
+          : "border-amber-200 bg-amber-50/70";
   return (
-    <div className="rounded-xl border border-border bg-card p-3">
+    <div className={`rounded-xl border p-3 ${toneClass}`}>
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="text-lg font-semibold text-foreground mt-1">{value}</p>
     </div>

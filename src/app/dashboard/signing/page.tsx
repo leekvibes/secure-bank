@@ -78,6 +78,15 @@ function statusIcon(status: SigningStatus) {
   return <FileSignature className="w-4 h-4 text-slate-600" />;
 }
 
+function statusCardTone(status: SigningStatus) {
+  if (status === "COMPLETED") return "from-emerald-50 to-white border-emerald-200/70";
+  if (status === "PARTIALLY_SIGNED") return "from-amber-50 to-white border-amber-200/70";
+  if (status === "SENT" || status === "OPENED") return "from-blue-50 to-white border-blue-200/70";
+  if (status === "VOIDED") return "from-orange-50 to-white border-orange-200/70";
+  if (status === "EXPIRED") return "from-rose-50 to-white border-rose-200/70";
+  return "from-slate-50 to-white border-slate-200/70";
+}
+
 function matchesStatus(request: SigningRequestListItem, filter: StatusFilter) {
   if (filter === "ALL") return true;
   const status = resolveDisplayStatus(request);
@@ -193,7 +202,7 @@ export default function AgreementsPage() {
         <MetricCard label="Completed" value={metrics.completed} tone="emerald" />
       </div>
 
-      <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
+      <div className="rounded-2xl border border-border bg-gradient-to-br from-slate-50/90 via-white to-blue-50/40 p-4 space-y-4">
         <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
           <div className="relative flex-1">
             <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
@@ -229,7 +238,7 @@ export default function AgreementsPage() {
               onClick={() => setStatusFilter(filter.key)}
               className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                 statusFilter === filter.key
-                  ? "border-primary bg-primary/10 text-primary"
+                  ? "border-primary/40 bg-primary/12 text-primary shadow-sm"
                   : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
               }`}
             >
@@ -262,7 +271,7 @@ export default function AgreementsPage() {
             const completionPercent = request.recipients.length > 0 ? Math.round((completed / request.recipients.length) * 100) : 0;
 
             return (
-              <article key={request.id} className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-4 hover:border-primary/30 transition-colors">
+              <article key={request.id} className={`rounded-2xl border bg-gradient-to-br ${statusCardTone(status)} p-4 flex flex-col gap-4 hover:border-primary/30 transition-colors shadow-sm`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate">
@@ -283,8 +292,8 @@ export default function AgreementsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-primary rounded-full" style={{ width: `${completionPercent}%` }} />
+                  <div className="h-1.5 rounded-full bg-slate-200/70 overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-primary to-blue-500 rounded-full" style={{ width: `${completionPercent}%` }} />
                   </div>
                   <p className="text-[11px] text-muted-foreground">
                     {completed}/{request.recipients.length} signed · {request.signingMode === "SEQUENTIAL" ? "Sequential" : "Parallel"} flow
