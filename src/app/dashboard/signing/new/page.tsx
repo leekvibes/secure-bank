@@ -293,6 +293,7 @@ export default function NewSigningRequestPage() {
   const [placedFields, setPlacedFields] = useState<PlacedField[]>([]);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [activePage, setActivePage] = useState(1);
+  const [placementViewMode, setPlacementViewMode] = useState<"CLICK" | "SCROLL">("CLICK");
 
   const pageRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const placementScrollRef = useRef<HTMLDivElement | null>(null);
@@ -454,12 +455,46 @@ export default function NewSigningRequestPage() {
 
   useEffect(() => {
     if (step !== 3) return;
+    if (placementViewMode !== "CLICK") return;
     const container = placementScrollRef.current;
     const node = pageRefs.current[activePage];
     if (!container || !node) return;
     const top = Math.max(0, node.offsetTop - 12);
     container.scrollTo({ top, behavior: "smooth" });
-  }, [activePage, step]);
+  }, [activePage, step, placementViewMode]);
+
+  useEffect(() => {
+    if (step !== 3) return;
+    if (placementViewMode !== "SCROLL") return;
+    const container = placementScrollRef.current;
+    if (!container) return;
+
+    const ratios: Record<number, number> = {};
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const rawPage = (entry.target as HTMLElement).dataset.pageNum;
+          const page = Number(rawPage ?? 0);
+          if (!page) continue;
+          ratios[page] = entry.isIntersecting ? entry.intersectionRatio : 0;
+        }
+        const top = Object.entries(ratios)
+          .map(([page, ratio]) => ({ page: Number(page), ratio }))
+          .filter((row) => row.ratio > 0.35)
+          .sort((a, b) => b.ratio - a.ratio)[0];
+        if (top?.page) setActivePage(top.page);
+      },
+      { root: container, threshold: [0.35, 0.5, 0.7, 0.9] }
+    );
+
+    for (const [page, node] of Object.entries(pageRefs.current)) {
+      if (!node) continue;
+      node.dataset.pageNum = page;
+      observer.observe(node);
+    }
+
+    return () => observer.disconnect();
+  }, [step, placementViewMode, displayPages]);
 
   useEffect(() => {
     if (displayPages.length === 0) return;
@@ -1452,33 +1487,68 @@ export default function NewSigningRequestPage() {
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground">Field Placement</h2>
               <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={activePageIndex <= 0}
-                  onClick={() => {
-                    if (activePageIndex <= 0) return;
-                    setActivePage(displayPages[activePageIndex - 1].page);
-                  }}
-                >
-                  Prev Page
-                </Button>
-                <span className="text-xs text-muted-foreground">
-                  Page {activePageIndex >= 0 ? activePageIndex + 1 : 1} / {displayPages.length || 1}
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={activePageIndex < 0 || activePageIndex >= displayPages.length - 1}
-                  onClick={() => {
-                    if (activePageIndex < 0 || activePageIndex >= displayPages.length - 1) return;
-                    setActivePage(displayPages[activePageIndex + 1].page);
-                  }}
-                >
-                  Next Page
-                </Button>
+                <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setPlacementViewMode("CLICK")}
+                    className={cn(
+                      "px-2.5 py-1 text-xs rounded-sm transition-colors",
+                      placementViewMode === "CLICK"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Click-through
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPlacementViewMode("SCROLL")}
+                    className={cn(
+                      "px-2.5 py-1 text-xs rounded-sm transition-colors",
+                      placementViewMode === "SCROLL"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Scroll
+                  </button>
+                </div>
+                {placementViewMode === "CLICK" && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={activePageIndex <= 0}
+                      onClick={() => {
+                        if (activePageIndex <= 0) return;
+                        setActivePage(displayPages[activePageIndex - 1].page);
+                      }}
+                    >
+                      Prev Page
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      Page {activePageIndex >= 0 ? activePageIndex + 1 : 1} / {displayPages.length || 1}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={activePageIndex < 0 || activePageIndex >= displayPages.length - 1}
+                      onClick={() => {
+                        if (activePageIndex < 0 || activePageIndex >= displayPages.length - 1) return;
+                        setActivePage(displayPages[activePageIndex + 1].page);
+                      }}
+                    >
+                      Next Page
+                    </Button>
+                  </>
+                )}
+                {placementViewMode === "SCROLL" && (
+                  <span className="text-xs text-muted-foreground">
+                    Scroll pages and click anywhere to place fields.
+                  </span>
+                )}
               </div>
             </div>
 
@@ -1502,7 +1572,7 @@ export default function NewSigningRequestPage() {
               </div>
             )}
 
-            {activePageData && (
+            {placementViewMode === "CLICK" && activePageData && (
               <div
                 key={activePageData.page}
                 className={cn(
@@ -1589,6 +1659,95 @@ export default function NewSigningRequestPage() {
                 </div>
               </div>
             )}
+
+            {placementViewMode === "SCROLL" &&
+              displayPages.map((pageData, idx) => (
+                <div
+                  key={pageData.page}
+                  className={cn(
+                    "rounded-xl border overflow-hidden bg-card",
+                    activePage === pageData.page ? "border-primary/40 shadow-sm" : "border-border"
+                  )}
+                >
+                  <div className="px-3 py-2 border-b border-border text-xs text-muted-foreground">
+                    Page {idx + 1}
+                  </div>
+                  <div
+                    ref={(node) => {
+                      pageRefs.current[pageData.page] = node;
+                    }}
+                    className="relative w-full select-none"
+                    style={{ aspectRatio: `${pageData.widthPts} / ${pageData.heightPts}` }}
+                    onClick={(event) => {
+                      setActivePage(pageData.page);
+                      placeFieldOnPage(pageData.page, event);
+                    }}
+                  >
+                    {pageData.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={pageData.imageUrl} alt={`Page ${pageData.page}`} className="absolute inset-0 w-full h-full object-contain bg-white" />
+                    ) : documentBlobUrl ? (
+                      <iframe
+                        src={`${documentBlobUrl}#page=${pageData.page}&toolbar=0&navpanes=0&scrollbar=0`}
+                        className="absolute inset-0 w-full h-full border-none bg-white"
+                        style={{ pointerEvents: "none" }}
+                        title={`Page ${pageData.page}`}
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-white" />
+                    )}
+
+                    <div className="absolute inset-0">
+                      {placedFields
+                        .filter((field) => field.page === pageData.page)
+                        .map((field) => {
+                          const recipient = savedRecipients.find((item) => item.id === field.recipientId);
+                          const colorIdx = recipientColorIndexById.get(field.recipientId) ?? 0;
+                          const colors = RECIPIENT_STYLES[colorIdx];
+                          return (
+                            <div
+                              key={field.id}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setSelectedFieldId(field.id);
+                              }}
+                              onMouseDown={(event) => beginDrag(event, field, "move")}
+                              className={cn(
+                                "absolute rounded-md border-2 cursor-move flex items-center justify-between px-2 text-[10px] font-medium overflow-hidden",
+                                colors.border,
+                                colors.bg,
+                                colors.text,
+                                selectedFieldId === field.id ? "ring-2 ring-primary/40" : ""
+                              )}
+                              style={{
+                                left: `${field.x * 100}%`,
+                                top: `${field.y * 100}%`,
+                                width: `${field.width * 100}%`,
+                                height: `${field.height * 100}%`,
+                                minWidth: "50px",
+                                minHeight: "22px",
+                              }}
+                            >
+                              <span className="truncate">
+                                {FIELD_TYPES.find((item) => item.type === field.type)?.label ?? field.type}
+                              </span>
+                              <span className="truncate opacity-80 ml-1">
+                                {recipient?.name ?? "Recipient"}
+                              </span>
+                              <button
+                                type="button"
+                                onMouseDown={(event) => beginDrag(event, field, "resize")}
+                                onClick={(event) => event.stopPropagation()}
+                                className="absolute right-0 bottom-0 w-2.5 h-2.5 bg-foreground/40 cursor-se-resize"
+                                aria-label="Resize field"
+                              />
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </div>
+              ))}
           </div>
         </div>
       )}
