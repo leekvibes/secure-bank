@@ -319,6 +319,11 @@ export default function NewSigningRequestPage() {
     [pages]
   );
   const displayPages = detailPages.length > 0 ? detailPages : step3Pages;
+  const activePageIndex = useMemo(
+    () => displayPages.findIndex((page) => page.page === activePage),
+    [displayPages, activePage]
+  );
+  const activePageData = activePageIndex >= 0 ? displayPages[activePageIndex] : displayPages[0] ?? null;
   const recipientListForReview = savedRecipients.length > 0
     ? savedRecipients
     : recipients
@@ -455,6 +460,12 @@ export default function NewSigningRequestPage() {
     const top = Math.max(0, node.offsetTop - 12);
     container.scrollTo({ top, behavior: "smooth" });
   }, [activePage, step]);
+
+  useEffect(() => {
+    if (displayPages.length === 0) return;
+    if (displayPages.some((page) => page.page === activePage)) return;
+    setActivePage(displayPages[0].page);
+  }, [displayPages, activePage]);
 
   // Render PDF pages as images when entering step 3 (replaces unreliable iframes)
   useEffect(() => {
@@ -1445,57 +1456,83 @@ export default function NewSigningRequestPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={activePage <= 1}
-                  onClick={() => setActivePage((prev) => Math.max(1, prev - 1))}
+                  disabled={activePageIndex <= 0}
+                  onClick={() => {
+                    if (activePageIndex <= 0) return;
+                    setActivePage(displayPages[activePageIndex - 1].page);
+                  }}
                 >
                   Prev Page
                 </Button>
                 <span className="text-xs text-muted-foreground">
-                  Page {activePage} / {displayPages.length || 1}
+                  Page {activePageIndex >= 0 ? activePageIndex + 1 : 1} / {displayPages.length || 1}
                 </span>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={activePage >= displayPages.length}
-                  onClick={() => setActivePage((prev) => Math.min(displayPages.length, prev + 1))}
+                  disabled={activePageIndex < 0 || activePageIndex >= displayPages.length - 1}
+                  onClick={() => {
+                    if (activePageIndex < 0 || activePageIndex >= displayPages.length - 1) return;
+                    setActivePage(displayPages[activePageIndex + 1].page);
+                  }}
                 >
                   Next Page
                 </Button>
               </div>
             </div>
 
-            {displayPages.map((pageData) => (
+            {displayPages.length > 1 && (
+              <div className="flex flex-wrap gap-2">
+                {displayPages.map((pageData, idx) => (
+                  <button
+                    key={`jump-${pageData.page}`}
+                    type="button"
+                    onClick={() => setActivePage(pageData.page)}
+                    className={cn(
+                      "px-2.5 py-1.5 rounded-md border text-xs transition-colors",
+                      pageData.page === activePage
+                        ? "border-primary/50 bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                    )}
+                  >
+                    Page {idx + 1}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {activePageData && (
               <div
-                key={pageData.page}
+                key={activePageData.page}
                 className={cn(
                   "rounded-xl border overflow-hidden bg-card",
-                  activePage === pageData.page ? "border-primary/40 shadow-sm" : "border-border"
+                  "border-primary/40 shadow-sm"
                 )}
               >
                 <div className="px-3 py-2 border-b border-border text-xs text-muted-foreground">
-                  Page {pageData.page}
+                  Page {activePageIndex >= 0 ? activePageIndex + 1 : 1}
                 </div>
                 <div
                   ref={(node) => {
-                    pageRefs.current[pageData.page] = node;
+                    pageRefs.current[activePageData.page] = node;
                   }}
                   className="relative w-full select-none"
-                  style={{ aspectRatio: `${pageData.widthPts} / ${pageData.heightPts}` }}
+                  style={{ aspectRatio: `${activePageData.widthPts} / ${activePageData.heightPts}` }}
                   onClick={(event) => {
-                    setActivePage(pageData.page);
-                    placeFieldOnPage(pageData.page, event);
+                    setActivePage(activePageData.page);
+                    placeFieldOnPage(activePageData.page, event);
                   }}
                 >
-                  {pageData.imageUrl ? (
+                  {activePageData.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={pageData.imageUrl} alt={`Page ${pageData.page}`} className="absolute inset-0 w-full h-full object-contain bg-white" />
+                    <img src={activePageData.imageUrl} alt={`Page ${activePageData.page}`} className="absolute inset-0 w-full h-full object-contain bg-white" />
                   ) : documentBlobUrl ? (
                     <iframe
-                      src={`${documentBlobUrl}#page=${pageData.page}&toolbar=0&navpanes=0&scrollbar=0`}
+                      src={`${documentBlobUrl}#page=${activePageData.page}&toolbar=0&navpanes=0&scrollbar=0`}
                       className="absolute inset-0 w-full h-full border-none bg-white"
                       style={{ pointerEvents: "none" }}
-                      title={`Page ${pageData.page}`}
+                      title={`Page ${activePageData.page}`}
                     />
                   ) : (
                     <div className="absolute inset-0 bg-white" />
@@ -1503,7 +1540,7 @@ export default function NewSigningRequestPage() {
 
                   <div className="absolute inset-0">
                     {placedFields
-                      .filter((field) => field.page === pageData.page)
+                      .filter((field) => field.page === activePageData.page)
                       .map((field) => {
                         const recipient = savedRecipients.find((item) => item.id === field.recipientId);
                         const colorIdx = recipientColorIndexById.get(field.recipientId) ?? 0;
@@ -1551,7 +1588,7 @@ export default function NewSigningRequestPage() {
                   </div>
                 </div>
               </div>
-            ))}
+            )}
           </div>
         </div>
       )}

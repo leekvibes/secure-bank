@@ -39,7 +39,7 @@ import {
 
 type RequestStatus = "DRAFT" | "SENT" | "OPENED" | "PARTIALLY_SIGNED" | "COMPLETED" | "VOIDED" | "EXPIRED";
 type RecipientStatus = "PENDING" | "OPENED" | "COMPLETED" | "DECLINED";
-type DetailTab = "OVERVIEW" | "RECIPIENTS" | "FIELDS" | "TIMELINE" | "READING" | "PUBLIC_LINKS";
+type DetailTab = "OVERVIEW" | "RECIPIENTS" | "FIELDS" | "TIMELINE" | "ANALYTICS" | "PUBLIC_LINKS";
 
 interface Recipient {
   id: string;
@@ -586,7 +586,7 @@ export default function SigningRequestDetailPage() {
     { id: "RECIPIENTS", label: "Recipients" },
     { id: "FIELDS", label: "Fields" },
     { id: "TIMELINE", label: "Timeline" },
-    { id: "READING", label: "Reading" },
+    { id: "ANALYTICS", label: "Analytics" },
     { id: "PUBLIC_LINKS", label: "Public Links" },
   ];
 
@@ -1281,13 +1281,13 @@ export default function SigningRequestDetailPage() {
         </section>
       )}
 
-      {/* ── READING ANALYTICS ── */}
-      {activeTab === "READING" && (
+      {/* ── ANALYTICS ── */}
+      {activeTab === "ANALYTICS" && (
         <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Per-Page View Analytics</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Signing Analytics</h2>
 
           {!request.readingAnalytics || request.readingAnalytics.recipients.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No reading analytics captured yet.</p>
+            <p className="text-sm text-muted-foreground">No page-view analytics captured yet. This appears after recipients open and review document pages.</p>
           ) : (
             <>
               <div className="grid md:grid-cols-4 gap-3">
@@ -1307,6 +1307,42 @@ export default function SigningRequestDetailPage() {
                   <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Recipients</p>
                   <p className="text-sm font-semibold text-foreground mt-0.5">{request.readingAnalytics.summary.recipientCount}</p>
                 </div>
+              </div>
+
+              <div className="rounded-xl border border-border overflow-x-auto">
+                <table className="w-full min-w-[720px] text-sm">
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid hsl(var(--border))" }}>
+                      <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Recipient</th>
+                      <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Read %</th>
+                      <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Time</th>
+                      <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Unread Pages</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {request.readingAnalytics.recipients.map((recipient) => (
+                      <tr key={`summary-${recipient.recipientId}`} style={{ borderBottom: "1px solid hsl(var(--border) / 0.6)" }}>
+                        <td className="py-2.5 px-3">
+                          <p className="font-medium text-foreground">{recipient.recipientName}</p>
+                          <p className="text-xs text-muted-foreground">{recipient.recipientEmail}</p>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span className="inline-flex items-center rounded-md border border-border px-2 py-0.5 text-xs font-medium">
+                            {recipient.readCompletenessPct}%
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{fmtDuration(recipient.totalDwellMs)}</td>
+                        <td className="py-2.5 px-3">
+                          {recipient.unreadPages.length > 0 ? (
+                            <span className="text-xs text-amber-700">{recipient.unreadPages.join(", ")}</span>
+                          ) : (
+                            <span className="text-xs text-emerald-700">None</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
 
               <div className="space-y-3">
@@ -1343,6 +1379,7 @@ export default function SigningRequestDetailPage() {
                           P{p.page}
                           <span className="text-[10px] opacity-80">{fmtDuration(p.totalDwellMs)}</span>
                           <span className="text-[10px] opacity-80">{Math.round(p.maxScrollPct)}%</span>
+                          <span className="text-[10px] opacity-80">({p.viewCount} views)</span>
                         </span>
                       ))}
                     </div>
