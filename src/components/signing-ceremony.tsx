@@ -3,6 +3,11 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import SignaturePad from "signature_pad";
 import { CONSENT_TEXT_V1 } from "@/lib/signing/consent-text";
+import {
+  DECLINE_REASON_LABELS,
+  DECLINE_REASON_OPTIONS,
+  type DeclineReasonCode,
+} from "@/lib/signing/decline-reasons";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -833,7 +838,9 @@ export function SigningCeremony({
   const [pageImages, setPageImages] = useState<string[]>([]);
   const [pdfRendering, setPdfRendering] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [declineReasonCode, setDeclineReasonCode] = useState<DeclineReasonCode>("NO_REASON_GIVEN");
   const [declineReason, setDeclineReason] = useState("");
+  const [declineError, setDeclineError] = useState<string | null>(null);
   // "signed" | "declined" | null — tracks how the user exited the signing flow
   const [completionType, setCompletionType] = useState<"signed" | "declined" | null>(null);
   const [completionData, setCompletionData] = useState<{
@@ -1074,13 +1081,27 @@ export function SigningCeremony({
   }, [data, token, fieldValues]);
 
   const submitDecline = async () => {
+    setDeclineError(null);
+    const trimmedReason = declineReason.trim();
+    if (declineReasonCode === "OTHER" && trimmedReason.length === 0) {
+      setDeclineError("Please provide a reason when selecting Other.");
+      return;
+    }
     setSubmitting(true);
     try {
-      await fetch(`/api/sign/${token}/decline`, {
+      const res = await fetch(`/api/sign/${token}/decline`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: declineReason }),
+        body: JSON.stringify({
+          reasonCode: declineReasonCode,
+          reasonText: trimmedReason || undefined,
+        }),
       });
+      const json = await res.json().catch(() => ({})) as { error?: { message?: string } };
+      if (!res.ok) {
+        setDeclineError(json?.error?.message ?? "Unable to decline right now. Please try again.");
+        return;
+      }
       setCompletionData({});
       setCompletionType("declined");
       setScreen("complete");
@@ -1647,13 +1668,44 @@ export function SigningCeremony({
               marginBottom: "6px",
             }}
           >
-            Reason (optional)
+            Why are you declining?
           </label>
+          <select
+            value={declineReasonCode}
+            onChange={(e) => {
+              setDeclineReasonCode(e.target.value as DeclineReasonCode);
+              setDeclineError(null);
+              if (e.target.value !== "OTHER") setDeclineReason("");
+            }}
+            style={{
+              width: "100%",
+              border: "1px solid var(--border)",
+              borderRadius: "8px",
+              padding: "10px 12px",
+              fontSize: "14px",
+              background: "var(--background)",
+              color: "var(--foreground)",
+              outline: "none",
+              boxSizing: "border-box",
+              marginBottom: "10px",
+            }}
+          >
+            {DECLINE_REASON_OPTIONS.map((opt) => (
+              <option key={opt.code} value={opt.code}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
           <textarea
             rows={3}
+            maxLength={500}
             value={declineReason}
             onChange={(e) => setDeclineReason(e.target.value)}
-            placeholder="Let the sender know why you're declining…"
+            placeholder={
+              declineReasonCode === "OTHER"
+                ? "Please add a short reason…"
+                : `Optional details for "${DECLINE_REASON_LABELS[declineReasonCode]}"`
+            }
             style={{
               width: "100%",
               border: "1px solid var(--border)",
@@ -1665,9 +1717,30 @@ export function SigningCeremony({
               resize: "none",
               outline: "none",
               boxSizing: "border-box",
-              marginBottom: "20px",
+              marginBottom: "6px",
             }}
           />
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "14px" }}>
+            <p style={{ fontSize: "11px", color: "var(--muted-foreground)" }}>
+              {declineReasonCode === "OTHER" ? "Details are required for Other." : "Details are optional."}
+            </p>
+            <p style={{ fontSize: "11px", color: "var(--muted-foreground)" }}>{declineReason.length}/500</p>
+          </div>
+          {declineError && (
+            <div
+              style={{
+                marginBottom: "14px",
+                fontSize: "12px",
+                borderRadius: "8px",
+                border: "1px solid #fecaca",
+                background: "#fef2f2",
+                color: "#b91c1c",
+                padding: "8px 10px",
+              }}
+            >
+              {declineError}
+            </div>
+          )}
           <div style={{ display: "flex", gap: "10px" }}>
             <button
               onClick={() => setScreen("consent")}

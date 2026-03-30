@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/api-response";
+import { isDeclineReasonCode } from "@/lib/signing/decline-reasons";
 
 // GET /api/signing/requests/[id] — full detail for agent dashboard
 export async function GET(
@@ -48,7 +49,38 @@ export async function GET(
       request.status === "DRAFT" ||
       ((request.status === "SENT" || request.status === "OPENED") && completedCount === 0);
 
-    return apiSuccess({ request: { ...request, displayStatus, completedRecipients: completedCount, isEditable } });
+    const declineMetaByRecipient = new Map<string, { reasonCode: string | null; reasonText: string | null }>();
+    for (const log of request.auditLogs) {
+      if (log.event !== "DECLINED" || !log.recipientId || !log.metadata) continue;
+      try {
+        const parsed = JSON.parse(log.metadata) as { reasonCode?: string; reasonText?: string; reason?: string };
+        const rawCode = parsed.reasonCode;
+        const reasonCode = rawCode && isDeclineReasonCode(rawCode) ? rawCode : null;
+        const reasonText = (parsed.reasonText ?? parsed.reason ?? "").trim() || null;
+        declineMetaByRecipient.set(log.recipientId, { reasonCode, reasonText });
+      } catch {
+        // Ignore malformed metadata; UI falls back to recipient.declineReason.
+      }
+    }
+
+    const recipients = request.recipients.map((recipient) => {
+      const declineMeta = declineMetaByRecipient.get(recipient.id);
+      return {
+        ...recipient,
+        declineReasonCode: declineMeta?.reasonCode ?? (recipient.declineReason ? "OTHER" : null),
+        declineReasonText: declineMeta?.reasonText ?? recipient.declineReason ?? null,
+      };
+    });
+
+    return apiSuccess({
+      request: {
+        ...request,
+        recipients,
+        displayStatus,
+        completedRecipients: completedCount,
+        isEditable,
+      },
+    });
   } catch (err) {
     console.error("[signing/requests/get]", err);
     return apiError(500, "SERVER_ERROR", "Failed to load signing request.");

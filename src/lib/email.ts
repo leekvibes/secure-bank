@@ -5,6 +5,7 @@
  */
 
 import { Resend } from "resend";
+import { DECLINE_REASON_LABELS, type DeclineReasonCode } from "@/lib/signing/decline-reasons";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -878,10 +879,12 @@ export async function sendDocSignDeclinedEmail(args: {
   agentName: string;
   recipientName: string;
   title: string | null;
+  declineReasonCode: DeclineReasonCode;
   declineReason: string | null;
   viewUrl: string;
 }): Promise<void> {
-  const { agentEmail, agentName, recipientName, title, declineReason, viewUrl } = args;
+  const { agentEmail, agentName, recipientName, title, declineReasonCode, declineReason, viewUrl } = args;
+  const reasonLabel = DECLINE_REASON_LABELS[declineReasonCode];
   await send({
     to: agentEmail,
     from: FROM_NOTIFICATIONS,
@@ -891,7 +894,8 @@ export async function sendDocSignDeclinedEmail(args: {
       body:
         p(`Hi ${agentName},`) +
         p(`<strong>${recipientName}</strong> declined to sign ${title ? `"<strong>${title}</strong>"` : "your document"}.`) +
-        (declineReason ? p(`Reason: <em>"${declineReason}"</em>`) : "") +
+        p(`Reason category: <strong>${reasonLabel}</strong>`) +
+        (declineReason ? p(`Reason details: <em>"${declineReason}"</em>`) : "") +
         p("The document has been voided. You can create a new signing request from your dashboard."),
       ctaLabel: "View Request",
       ctaUrl: viewUrl,

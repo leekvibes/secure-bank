@@ -36,14 +36,15 @@ export async function POST(
       where: { id: params.id },
       include: {
         recipients: { orderBy: { order: "asc" } },
+        signingFields: { select: { id: true } },
         agent: { select: { displayName: true } },
       },
     });
 
     if (!request) return apiError(404, "NOT_FOUND", "Signing request not found.");
     if (request.agentId !== session.user.id) return apiError(403, "FORBIDDEN", "Access denied.");
-    if (request.status === "VOIDED" || request.status === "COMPLETED") {
-      return apiError(409, "CONFLICT", "Cannot resend on a voided or completed request.");
+    if (request.status === "VOIDED" || request.status === "COMPLETED" || request.status === "EXPIRED") {
+      return apiError(409, "CONFLICT", "Cannot send on a voided, completed, or expired request.");
     }
 
     const recipient = request.recipients.find((r) => r.id === recipientId);
@@ -54,15 +55,51 @@ export async function POST(
     if (recipient.status === "DECLINED") {
       return apiError(409, "DECLINED", "This recipient declined. Void and create a new request.");
     }
+    if (request.status !== "DRAFT" && request.status !== "SENT" && request.status !== "OPENED") {
+      return apiError(409, "CONFLICT", "Request is not in a sendable state.");
+    }
+    if (request.status === "DRAFT") {
+      if (!request.blobUrl) return apiError(400, "NO_DOCUMENT", "Upload a document before sending.");
+      if (request.recipients.length === 0) return apiError(400, "NO_RECIPIENTS", "Add at least one recipient before sending.");
+      if (request.signingFields.length === 0) return apiError(400, "NO_FIELDS", "Place at least one signing field before sending.");
+      if (request.signingMode === "SEQUENTIAL" && recipient.order !== 0) {
+        return apiError(409, "SEQUENTIAL_BLOCKED", "Send the first signer in sequence before later recipients.");
+      }
+    }
 
     // Update email if a different address was provided
     let sendToEmail = recipient.email;
+    let emailUpdated = false;
     if (email && email.toLowerCase() !== recipient.email.toLowerCase()) {
       await db.docSignRecipient.update({
         where: { id: recipientId },
         data: { email: email.toLowerCase().trim() },
       });
       sendToEmail = email.toLowerCase().trim();
+      emailUpdated = true;
+    }
+
+    if (request.status === "DRAFT") {
+      await db.$transaction([
+        db.docSignRequest.update({
+          where: { id: request.id },
+          data: { status: "SENT" },
+        }),
+        db.docSignAuditLog.create({
+          data: {
+            requestId: request.id,
+            event: "SENT",
+            recipientId,
+            metadata: JSON.stringify({
+              trigger: "recipient_send",
+              recipientId,
+              signingMode: request.signingMode,
+              recipientCount: request.recipients.length,
+              fieldCount: request.signingFields.length,
+            }),
+          },
+        }),
+      ]);
     }
 
     const baseUrl = process.env.NEXTAUTH_URL ?? "https://mysecurelink.co";
@@ -84,7 +121,8 @@ export async function POST(
         recipientId,
         metadata: JSON.stringify({
           sentTo: sendToEmail,
-          emailUpdated: email && email.toLowerCase() !== recipient.email.toLowerCase(),
+          emailUpdated,
+          sentFromStatus: request.status,
           emailSent: result.success,
           emailError: result.error ?? null,
         }),

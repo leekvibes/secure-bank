@@ -209,6 +209,7 @@ export default function SigningRequestDetailPage() {
   const [activeTab, setActiveTab] = useState<DetailTab>("OVERVIEW");
 
   const [voidBusy, setVoidBusy] = useState(false);
+  const [sendBusy, setSendBusy] = useState(false);
   const [remindBusy, setRemindBusy] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState<null | "signed" | "cert" | "original">(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -219,6 +220,7 @@ export default function SigningRequestDetailPage() {
   const [resendEmail, setResendEmail] = useState<string>("");
   const [resendError, setResendError] = useState<string | null>(null);
   const [resendSuccess, setResendSuccess] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [extendBusy, setExtendBusy] = useState(false);
   const [showExtendMenu, setShowExtendMenu] = useState(false);
   const [reassignTarget, setReassignTarget] = useState<Recipient | null>(null);
@@ -264,6 +266,7 @@ export default function SigningRequestDetailPage() {
   const status = useMemo(() => (request ? resolveDisplayStatus(request) : null), [request]);
   const dot = status ? statusDot(status) : null;
   const completedRecipients = request?.recipients.filter((r) => r.status === "COMPLETED").length ?? 0;
+  const canSendDraft = status === "DRAFT";
   const canRemind = status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED";
   const canVoid = status !== "COMPLETED" && status !== "VOIDED" && status !== "EXPIRED";
   const isEditable = request?.isEditable ?? status === "DRAFT";
@@ -325,15 +328,40 @@ export default function SigningRequestDetailPage() {
     setTimeout(() => setCopiedPublicToken(null), 2000);
   }
 
+  async function handleSendNow() {
+    if (!id) return;
+    setSendBusy(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}/send`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to send request.");
+      await reload();
+      setActionSuccess("Agreement sent. Recipients have been notified.");
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to send request.");
+    } finally {
+      setSendBusy(false);
+    }
+  }
+
   async function handleRemind() {
     if (!id) return;
     setRemindBusy(true);
     setActionError(null);
+    setActionSuccess(null);
     try {
       const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}/remind`, { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to send reminders.");
       await reload();
+      const remindedCount = Number((data as { reminded?: number }).reminded ?? 0);
+      setActionSuccess(
+        remindedCount > 0
+          ? `Resent to ${remindedCount} pending recipient${remindedCount === 1 ? "" : "s"}.`
+          : "No pending recipients to resend."
+      );
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Failed to send reminders.");
     } finally {
@@ -369,6 +397,7 @@ export default function SigningRequestDetailPage() {
     setResendingId(recipientId);
     setResendError(null);
     setResendSuccess(null);
+    setActionSuccess(null);
     try {
       const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}/resend-recipient`, {
         method: "POST",
@@ -560,10 +589,17 @@ export default function SigningRequestDetailPage() {
               </Link>
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={handleRemind} disabled={!canRemind || remindBusy} className="h-9 gap-1.5">
-            {remindBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BellRing className="w-3.5 h-3.5" />}
-            Remind
-          </Button>
+          {canSendDraft ? (
+            <Button variant="default" size="sm" onClick={() => void handleSendNow()} disabled={sendBusy} className="h-9 gap-1.5">
+              {sendBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              Send Now
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" onClick={handleRemind} disabled={!canRemind || remindBusy} className="h-9 gap-1.5">
+              {remindBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BellRing className="w-3.5 h-3.5" />}
+              Resend Pending
+            </Button>
+          )}
           {canSaveTemplate && (
             <Button variant="outline" size="sm" onClick={() => void handleSaveTemplate()} disabled={saveTemplateBusy} className="h-9 gap-1.5">
               {saveTemplateBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LayoutTemplate className="w-3.5 h-3.5" />}
@@ -623,6 +659,9 @@ export default function SigningRequestDetailPage() {
 
       {actionError ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</div>
+      ) : null}
+      {actionSuccess ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{actionSuccess}</div>
       ) : null}
 
       {/* Floating metrics */}
@@ -822,6 +861,9 @@ export default function SigningRequestDetailPage() {
               const rdot = recipientDot(recipient.status);
               const canResend = recipient.status === "PENDING" || recipient.status === "OPENED";
               const canReassign = (status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED") && (recipient.status === "PENDING" || recipient.status === "OPENED");
+              const canSendThisRecipient =
+                canResend &&
+                (status !== "DRAFT" || request.signingMode !== "SEQUENTIAL" || recipient.order === 0);
               const isShowingForm = resendFormId === recipient.id;
               const declineLabel = declineReasonLabel(recipient.declineReasonCode);
               const declineText = recipient.declineReasonText ?? recipient.declineReason ?? null;
@@ -880,11 +922,11 @@ export default function SigningRequestDetailPage() {
                       {recipient.completedAt && (
                         <p className="text-[11px] text-muted-foreground">{new Date(recipient.completedAt).toLocaleString()}</p>
                       )}
-                      {canResend && !isShowingForm && (
+                      {canSendThisRecipient && !isShowingForm && (
                         <div className="flex items-center gap-2 justify-end">
                           <button type="button" onClick={() => openResendForm(recipient)} className="text-[11px] text-primary hover:underline inline-flex items-center gap-1">
                             <Mail className="w-3 h-3" />
-                            Resend
+                            {status === "DRAFT" ? "Send" : "Resend"}
                           </button>
                           {canReassign && (
                             <button type="button" onClick={() => setReassignTarget(recipient)} className="text-[11px] text-muted-foreground hover:text-foreground underline">
@@ -892,6 +934,9 @@ export default function SigningRequestDetailPage() {
                             </button>
                           )}
                         </div>
+                      )}
+                      {canResend && !canSendThisRecipient && status === "DRAFT" && request.signingMode === "SEQUENTIAL" && (
+                        <p className="text-[11px] text-muted-foreground">Will send after signer {recipient.order} completes.</p>
                       )}
                     </div>
                   </div>
