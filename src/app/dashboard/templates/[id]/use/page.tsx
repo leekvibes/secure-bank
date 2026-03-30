@@ -49,6 +49,44 @@ function defaultValueForType(type: VariableDef["type"]): string {
   return "";
 }
 
+function prettifyToken(token: string) {
+  return token
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function renderInterpolatedText(text: string, values: Record<string, string>) {
+  const nodes: Array<string | JSX.Element> = [];
+  const regex = /\{\{([a-zA-Z0-9_]+)\}\}/g;
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  let idx = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    const [raw, key] = match;
+    const start = match.index;
+    if (start > cursor) nodes.push(text.slice(cursor, start));
+
+    const resolved = (values[key] ?? "").trim();
+    const display = resolved || prettifyToken(key);
+    nodes.push(
+      <span
+        key={`${key}-${idx++}`}
+        className={
+          resolved
+            ? "rounded bg-emerald-100 px-1 py-0.5 text-emerald-900"
+            : "rounded bg-violet-100 px-1 py-0.5 text-violet-900"
+        }
+      >
+        {display}
+      </span>,
+    );
+    cursor = start + raw.length;
+  }
+  if (cursor < text.length) nodes.push(text.slice(cursor));
+  return nodes;
+}
+
 function normalizeKey(key: string) {
   return key.toLowerCase().replace(/[^a-z0-9]/g, "_");
 }
@@ -530,7 +568,7 @@ export default function UseDocumentTemplatePage() {
               }
               return (
                 <p key={`paragraph-${index}`} className="text-sm leading-6 text-slate-800 whitespace-pre-wrap">
-                  {text}
+                  {renderInterpolatedText(sourceText, values)}
                 </p>
               );
             })}
