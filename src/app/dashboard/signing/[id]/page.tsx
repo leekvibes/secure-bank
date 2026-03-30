@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 
 type RequestStatus = "DRAFT" | "SENT" | "OPENED" | "PARTIALLY_SIGNED" | "COMPLETED" | "VOIDED" | "EXPIRED";
 type RecipientStatus = "PENDING" | "OPENED" | "COMPLETED" | "DECLINED";
-type DetailTab = "OVERVIEW" | "RECIPIENTS" | "FIELDS" | "TIMELINE" | "FILES";
+type DetailTab = "OVERVIEW" | "RECIPIENTS" | "FIELDS" | "TIMELINE";
 
 interface Recipient {
   id: string;
@@ -333,7 +333,6 @@ export default function SigningRequestDetailPage() {
     { id: "RECIPIENTS", label: "Recipients" },
     { id: "FIELDS", label: "Fields" },
     { id: "TIMELINE", label: "Timeline" },
-    { id: "FILES", label: "Files" },
   ];
 
   return (
@@ -431,7 +430,8 @@ export default function SigningRequestDetailPage() {
       </div>
 
       {activeTab === "OVERVIEW" && (
-        <div className="grid lg:grid-cols-[1.1fr_1fr] gap-5">
+        <div className="space-y-5">
+          <div className="grid lg:grid-cols-[1.1fr_1fr] gap-5">
           <section className="rounded-2xl border border-blue-200/60 bg-gradient-to-br from-blue-50/60 to-white p-5 space-y-3">
             <h2 className="text-sm font-semibold text-foreground">Recipient Progress</h2>
             <div className="space-y-2">
@@ -474,6 +474,50 @@ export default function SigningRequestDetailPage() {
             ) : (
               <p className="text-sm text-muted-foreground">Links are shown while request is active.</p>
             )}
+          </section>
+          </div>
+
+          <section className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50/70 to-white p-5 space-y-4">
+            <h2 className="text-sm font-semibold text-foreground">Files & Downloads</h2>
+            {request.blobUrl ? (
+              <a
+                href={`/dashboard/signing/${id}/preview`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-xl border border-border p-4 hover:bg-muted/40 transition-colors flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-foreground">Open Live Document Preview</span>
+                </div>
+                <ArrowLeft className="w-4 h-4 rotate-180 text-muted-foreground" />
+              </a>
+            ) : (
+              <p className="text-sm text-muted-foreground">No document preview available.</p>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => handleDownload("signed")} disabled={downloadBusy !== null} className="gap-2">
+                {downloadBusy === "signed" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                {request.signedBlobUrl ? "Download Signed PDF" : "Download PDF"}
+              </Button>
+              <Button variant="outline" onClick={() => handleDownload("cert")} disabled={downloadBusy !== null || !request.certificate?.blobUrl} className="gap-2">
+                {downloadBusy === "cert" ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />}
+                Download Certificate
+              </Button>
+              <Button variant="outline" onClick={() => handleDownload("original")} disabled={downloadBusy !== null} className="gap-2">
+                {downloadBusy === "original" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                Download Original
+              </Button>
+              {status === "COMPLETED" && (
+                <Button variant="outline" asChild className="gap-2">
+                  <a href={`/envelope/${id}`} target="_blank" rel="noopener noreferrer">
+                    <ShieldAlert className="w-4 h-4" />
+                    Verify Envelope
+                  </a>
+                </Button>
+              )}
+            </div>
           </section>
         </div>
       )}
@@ -599,46 +643,6 @@ export default function SigningRequestDetailPage() {
               ))}
             </div>
           )}
-        </section>
-      )}
-
-      {activeTab === "FILES" && (
-        <section className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50/70 to-white p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-foreground">Files & Downloads</h2>
-          {request.blobUrl ? (
-            <a href={`/dashboard/signing/${id}/preview`} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-border p-4 hover:bg-muted/40 transition-colors flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-foreground">Open Live Document Preview</span>
-              </div>
-              <ArrowLeft className="w-4 h-4 rotate-180 text-muted-foreground" />
-            </a>
-          ) : (
-            <p className="text-sm text-muted-foreground">No document preview available.</p>
-          )}
-
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => handleDownload("signed")} disabled={downloadBusy !== null} className="gap-2">
-              {downloadBusy === "signed" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              {request.signedBlobUrl ? "Download Signed PDF" : "Download PDF"}
-            </Button>
-            <Button variant="outline" onClick={() => handleDownload("cert")} disabled={downloadBusy !== null || !request.certificate?.blobUrl} className="gap-2">
-              {downloadBusy === "cert" ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />}
-              Download Certificate
-            </Button>
-            <Button variant="outline" onClick={() => handleDownload("original")} disabled={downloadBusy !== null} className="gap-2">
-              {downloadBusy === "original" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              Download Original
-            </Button>
-            {status === "COMPLETED" && (
-              <Button variant="outline" asChild className="gap-2">
-                <a href={`/envelope/${id}`} target="_blank" rel="noopener noreferrer">
-                  <ShieldAlert className="w-4 h-4" />
-                  Verify Envelope
-                </a>
-              </Button>
-            )}
-          </div>
         </section>
       )}
 

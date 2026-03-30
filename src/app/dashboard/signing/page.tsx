@@ -1,27 +1,33 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  AlertCircle,
+  AlertTriangle,
   ArrowRight,
   Ban,
   CheckCircle2,
+  ChevronDown,
   Clock3,
   FileSignature,
   Filter,
   Loader2,
   Plus,
+  RotateCcw,
   Search,
   Send,
-  AlertTriangle,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
 type SigningStatus = "DRAFT" | "SENT" | "OPENED" | "PARTIALLY_SIGNED" | "COMPLETED" | "VOIDED" | "EXPIRED";
-type StatusFilter = "ALL" | "DRAFT" | "SENT" | "PARTIALLY_SIGNED" | "COMPLETED" | "VOIDED" | "EXPIRED";
 type SortMode = "NEWEST" | "OLDEST" | "ATTENTION";
+type MainTab = "ALL" | "COMPLETED" | "SENT" | "ACTION_REQUIRED";
+type MoreTab = "DRAFTS" | "DELETED" | "EXPIRING_SOON" | "DECLINED";
+type AnyTab = MainTab | MoreTab;
 
 interface SigningRecipient {
   id: string;
@@ -87,10 +93,49 @@ function statusCardTone(status: SigningStatus) {
   return "from-slate-50 to-white border-slate-200/70";
 }
 
-function matchesStatus(request: SigningRequestListItem, filter: StatusFilter) {
-  if (filter === "ALL") return true;
-  const status = resolveDisplayStatus(request);
-  return status === filter || (filter === "SENT" && status === "OPENED");
+function daysUntilPermanentDelete(deletedAt: string): number {
+  const retentionDays = 90;
+  const permanentDeleteAt = new Date(new Date(deletedAt).getTime() + retentionDays * 24 * 60 * 60 * 1000);
+  return Math.max(0, Math.ceil((permanentDeleteAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+}
+
+function filterRequests(requests: SigningRequestListItem[], tab: AnyTab): SigningRequestListItem[] {
+  switch (tab) {
+    case "ALL":
+      return requests.filter((r) => !r.deletedAt);
+    case "COMPLETED":
+      return requests.filter((r) => !r.deletedAt && resolveDisplayStatus(r) === "COMPLETED");
+    case "SENT":
+      return requests.filter((r) => {
+        if (r.deletedAt) return false;
+        const s = resolveDisplayStatus(r);
+        return s === "SENT" || s === "OPENED";
+      });
+    case "ACTION_REQUIRED":
+      return requests.filter((r) => {
+        if (r.deletedAt) return false;
+        const s = resolveDisplayStatus(r);
+        if (s === "PARTIALLY_SIGNED" || s === "EXPIRED") return true;
+        return r.recipients.some((rec) => rec.status === "DECLINED");
+      });
+    case "DRAFTS":
+      return requests.filter((r) => !r.deletedAt && r.status === "DRAFT");
+    case "DELETED":
+      return requests.filter((r) => !!r.deletedAt);
+    case "EXPIRING_SOON": {
+      const sevenDays = Date.now() + 7 * 24 * 60 * 60 * 1000;
+      return requests.filter((r) => {
+        if (r.deletedAt) return false;
+        const s = resolveDisplayStatus(r);
+        if (s === "COMPLETED" || s === "VOIDED" || s === "EXPIRED") return false;
+        return new Date(r.expiresAt).getTime() < sevenDays;
+      });
+    }
+    case "DECLINED":
+      return requests.filter((r) => !r.deletedAt && r.recipients.some((rec) => rec.status === "DECLINED"));
+    default:
+      return requests.filter((r) => !r.deletedAt);
+  }
 }
 
 function inSearch(request: SigningRequestListItem, search: string) {
@@ -98,9 +143,7 @@ function inSearch(request: SigningRequestListItem, search: string) {
   const q = search.toLowerCase();
   const title = request.title?.toLowerCase() ?? "";
   const file = request.originalName?.toLowerCase() ?? "";
-  const recipientHit = request.recipients.some((recipient) =>
-    `${recipient.name} ${recipient.email}`.toLowerCase().includes(q),
-  );
+  const recipientHit = request.recipients.some((recipient) => `${recipient.name} ${recipient.email}`.toLowerCase().includes(q));
   return title.includes(q) || file.includes(q) || recipientHit;
 }
 
@@ -108,15 +151,24 @@ export default function AgreementsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requests, setRequests] = useState<SigningRequestListItem[]>([]);
+
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [sortMode, setSortMode] = useState<SortMode>("NEWEST");
+  const [activeTab, setActiveTab] = useState<AnyTab>("ALL");
+  const [showMoreOpen, setShowMoreOpen] = useState(false);
+
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [restoreBusy, setRestoreBusy] = useState<string | null>(null);
+
+  const moreRef = useRef<HTMLDivElement>(null);
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/signing/requests?includeDeleted=false", { cache: "no-store" });
+      const res = await fetch("/api/signing/requests?includeDeleted=true", { cache: "no-store" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to load agreements.");
       setRequests(Array.isArray(data.requests) ? data.requests : []);
@@ -129,6 +181,16 @@ export default function AgreementsPage() {
 
   useEffect(() => {
     void load();
+  }, []);
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setShowMoreOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
   }, []);
 
   const metrics = useMemo(() => {
@@ -144,12 +206,38 @@ export default function AgreementsPage() {
     };
   }, [requests]);
 
-  const filtered = useMemo(() => {
-    const base = requests
-      .filter((request) => !request.deletedAt)
-      .filter((request) => matchesStatus(request, statusFilter))
-      .filter((request) => inSearch(request, search));
+  const MAIN_TABS: Array<{ id: MainTab; label: string }> = [
+    { id: "ALL", label: "All" },
+    { id: "COMPLETED", label: "Completed" },
+    { id: "SENT", label: "Sent" },
+    { id: "ACTION_REQUIRED", label: "Action Required" },
+  ];
+  const MORE_TABS: Array<{ id: MoreTab; label: string }> = [
+    { id: "DRAFTS", label: "Drafts" },
+    { id: "DELETED", label: "Deleted" },
+    { id: "EXPIRING_SOON", label: "Expiring Soon" },
+    { id: "DECLINED", label: "Declined" },
+  ];
 
+  const tabCounts = useMemo(() => {
+    const counts: Record<AnyTab, number> = {
+      ALL: 0,
+      COMPLETED: 0,
+      SENT: 0,
+      ACTION_REQUIRED: 0,
+      DRAFTS: 0,
+      DELETED: 0,
+      EXPIRING_SOON: 0,
+      DECLINED: 0,
+    };
+    (["ALL", "COMPLETED", "SENT", "ACTION_REQUIRED", "DRAFTS", "DELETED", "EXPIRING_SOON", "DECLINED"] as AnyTab[]).forEach((tab) => {
+      counts[tab] = filterRequests(requests, tab).length;
+    });
+    return counts;
+  }, [requests]);
+
+  const displayed = useMemo(() => {
+    const base = filterRequests(requests, activeTab).filter((request) => inSearch(request, search));
     const sorted = [...base];
     if (sortMode === "NEWEST") {
       sorted.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
@@ -168,17 +256,74 @@ export default function AgreementsPage() {
       sorted.sort((a, b) => weight(a) - weight(b) || +new Date(b.createdAt) - +new Date(a.createdAt));
     }
     return sorted;
-  }, [requests, statusFilter, search, sortMode]);
+  }, [requests, activeTab, search, sortMode]);
 
-  const filters: Array<{ key: StatusFilter; label: string }> = [
-    { key: "ALL", label: "All" },
-    { key: "DRAFT", label: "Draft" },
-    { key: "SENT", label: "Sent" },
-    { key: "PARTIALLY_SIGNED", label: "Partially Signed" },
-    { key: "COMPLETED", label: "Completed" },
-    { key: "VOIDED", label: "Voided" },
-    { key: "EXPIRED", label: "Expired" },
-  ];
+  const isMoreActive = MORE_TABS.some((tab) => tab.id === activeTab);
+
+  async function handleDelete(requestId: string) {
+    setDeleteBusy(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/signing/requests/${encodeURIComponent(requestId)}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to delete.");
+      if (data.deletedAt) {
+        setRequests((prev) => prev.map((r) => (r.id === requestId ? { ...r, deletedAt: data.deletedAt } : r)));
+      } else {
+        setRequests((prev) => prev.filter((r) => r.id !== requestId));
+      }
+      setConfirmDeleteId(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete.");
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
+  async function handleRestore(requestId: string) {
+    setRestoreBusy(requestId);
+    try {
+      const res = await fetch(`/api/signing/requests/${encodeURIComponent(requestId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error?.message ?? "Failed to restore.");
+      setRequests((prev) => prev.map((r) => (r.id === requestId ? { ...r, deletedAt: null } : r)));
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to restore.");
+    } finally {
+      setRestoreBusy(null);
+    }
+  }
+
+  async function handlePermanentDelete(requestId: string) {
+    setDeleteBusy(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/signing/requests/${encodeURIComponent(requestId)}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error?.message ?? "Failed to permanently delete.");
+      setRequests((prev) => prev.filter((r) => r.id !== requestId));
+      setConfirmDeleteId(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to permanently delete.");
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
+  const emptyLabel: Record<AnyTab, string> = {
+    ALL: "No agreements yet",
+    COMPLETED: "No completed agreements",
+    SENT: "No sent agreements",
+    ACTION_REQUIRED: "Nothing requires action",
+    DRAFTS: "No drafts",
+    DELETED: "Deleted inbox is empty",
+    EXPIRING_SOON: "No agreements expiring soon",
+    DECLINED: "No declined agreements",
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -230,54 +375,118 @@ export default function AgreementsPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {filters.map((filter) => (
+        <div className="flex items-end border-b border-border -mb-px">
+          <div className="flex items-end gap-1 overflow-x-auto pb-0 flex-1 min-w-0">
+            {MAIN_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setShowMoreOpen(false);
+                }}
+                className={`px-3 py-2 text-sm whitespace-nowrap border-b-2 transition-colors ${
+                  activeTab === tab.id
+                    ? "border-primary text-primary font-medium"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {tab.label}
+                {tabCounts[tab.id] > 0 && (
+                  <span className="ml-1.5 text-[11px] rounded-full bg-muted px-1.5 py-0.5 text-muted-foreground">
+                    {tabCounts[tab.id]}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative flex-shrink-0 pb-0" ref={moreRef}>
             <button
-              key={filter.key}
               type="button"
-              onClick={() => setStatusFilter(filter.key)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                statusFilter === filter.key
-                  ? "border-primary/40 bg-primary/12 text-primary shadow-sm"
-                  : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+              onClick={() => setShowMoreOpen((v) => !v)}
+              className={`px-3 py-2 text-sm whitespace-nowrap border-b-2 flex items-center gap-1 transition-colors ${
+                isMoreActive
+                  ? "border-primary text-primary font-medium"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
-              {filter.label}
+              {isMoreActive ? MORE_TABS.find((t) => t.id === activeTab)?.label : "More"}
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMoreOpen ? "rotate-180" : ""}`} />
             </button>
-          ))}
+            {showMoreOpen && (
+              <div className="absolute top-full left-0 mt-1 z-50 bg-card border border-border rounded-xl shadow-lg py-1 min-w-[170px]">
+                {MORE_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setShowMoreOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between hover:bg-muted/60 transition-colors ${
+                      activeTab === tab.id ? "text-primary font-medium" : "text-foreground"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      {tab.id === "DELETED" && <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />}
+                      {tab.id === "EXPIRING_SOON" && <AlertCircle className="w-3.5 h-3.5 text-amber-500" />}
+                      {tab.id === "DECLINED" && <Ban className="w-3.5 h-3.5 text-red-500" />}
+                      {tab.id === "DRAFTS" && <Clock3 className="w-3.5 h-3.5 text-muted-foreground" />}
+                      {tab.label}
+                    </span>
+                    {tabCounts[tab.id] > 0 && (
+                      <span className="text-[11px] rounded-full bg-muted px-1.5 py-0.5 text-muted-foreground">{tabCounts[tab.id]}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+      {deleteError ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{deleteError}</div> : null}
+
+      {activeTab === "DELETED" ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <strong>Deleted Inbox</strong> — Items are kept for 90 days before permanent deletion.
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="h-44 flex items-center justify-center">
           <Loader2 className="w-5 h-5 animate-spin text-primary" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : displayed.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center bg-card">
           <FileSignature className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
-          <p className="text-sm font-medium text-foreground">No agreements match this view</p>
+          <p className="text-sm font-medium text-foreground">{emptyLabel[activeTab]}</p>
           <p className="text-xs text-muted-foreground mt-1">Try clearing filters or create a new agreement.</p>
         </div>
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((request) => {
+          {displayed.map((request) => {
             const status = resolveDisplayStatus(request);
             const badge = statusBadge(status);
             const completed = typeof request.completedRecipients === "number"
               ? request.completedRecipients
               : request.recipients.filter((recipient) => recipient.status === "COMPLETED").length;
             const completionPercent = request.recipients.length > 0 ? Math.round((completed / request.recipients.length) * 100) : 0;
+            const isDeleted = !!request.deletedAt;
+            const isConfirmingDelete = confirmDeleteId === request.id;
+            const daysLeft = isDeleted && request.deletedAt ? daysUntilPermanentDelete(request.deletedAt) : null;
 
             return (
-              <article key={request.id} className={`rounded-2xl border bg-gradient-to-br ${statusCardTone(status)} p-4 flex flex-col gap-4 hover:border-primary/30 transition-colors shadow-sm`}>
+              <article key={request.id} className={`rounded-2xl border bg-gradient-to-br ${statusCardTone(status)} p-4 flex flex-col gap-4 hover:border-primary/30 transition-colors shadow-sm ${isDeleted ? "opacity-80" : ""}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">
-                      {request.title?.trim() || request.originalName || "Untitled agreement"}
-                    </p>
+                    <p className="text-sm font-semibold text-foreground truncate">{request.title?.trim() || request.originalName || "Untitled agreement"}</p>
                     <p className="text-xs text-muted-foreground truncate mt-1">{request.originalName || "No uploaded file name"}</p>
+                    {isDeleted && daysLeft !== null ? (
+                      <p className="text-[11px] text-red-600 mt-1">Permanent deletion in {daysLeft} day{daysLeft === 1 ? "" : "s"}</p>
+                    ) : null}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {statusIcon(status)}
@@ -305,13 +514,81 @@ export default function AgreementsPage() {
                   <span>Expires: {new Date(request.expiresAt).toLocaleDateString()}</span>
                 </div>
 
-                <div className="pt-1 flex items-center justify-end">
-                  <Button asChild size="sm" className="gap-1.5 h-8 px-3">
-                    <Link href={`/dashboard/signing/${request.id}`}>
-                      View Details
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </Button>
+                <div className="pt-1 flex items-center justify-between gap-2">
+                  {isDeleted ? (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                        disabled={restoreBusy === request.id}
+                        onClick={() => void handleRestore(request.id)}
+                      >
+                        {restoreBusy === request.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                        Restore
+                      </Button>
+
+                      {!isConfirmingDelete ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => {
+                            setDeleteError(null);
+                            setConfirmDeleteId(request.id);
+                          }}
+                        >
+                          Delete Forever
+                        </Button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="h-8"
+                            disabled={deleteBusy}
+                            onClick={() => void handlePermanentDelete(request.id)}
+                          >
+                            {deleteBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Confirm"}
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-8" onClick={() => setConfirmDeleteId(null)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      {!isConfirmingDelete ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => {
+                            setDeleteError(null);
+                            setConfirmDeleteId(request.id);
+                          }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Button variant="destructive" size="sm" className="h-8" disabled={deleteBusy} onClick={() => void handleDelete(request.id)}>
+                            {deleteBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Confirm delete"}
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-8" onClick={() => setConfirmDeleteId(null)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                      <Button asChild size="sm" className="gap-1.5 h-8 px-3">
+                        <Link href={`/dashboard/signing/${request.id}`}>
+                          View Details
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </Button>
+                    </>
+                  )}
                 </div>
               </article>
             );
