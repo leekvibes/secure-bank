@@ -12,6 +12,7 @@ const variableDefSchema = z.object({
   type: z.enum(["text", "multiline", "address", "date_text", "currency_usd", "email", "phone", "number"]),
   required: z.boolean(),
   editable: z.boolean().default(true),
+  section: z.enum(["SETUP", "PARTY_A", "PARTY_B", "TERMS"]).optional(),
   maxLength: z.number().int().positive().max(5000).optional(),
 });
 

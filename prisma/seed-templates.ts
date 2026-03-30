@@ -28,45 +28,75 @@ function dd(options: string[]): string {
   return JSON.stringify(options);
 }
 
-function docSchema(title: string, body: string[]): string {
+type DocVar = {
+  key: string;
+  label: string;
+  type: "text" | "multiline" | "address" | "date_text" | "currency_usd" | "email" | "phone" | "number";
+  required: boolean;
+  editable: boolean;
+  section?: "SETUP" | "PARTY_A" | "PARTY_B" | "TERMS";
+  maxLength?: number;
+};
+
+type DocClause = { id: string; label: string; required?: boolean; defaultEnabled?: boolean };
+
+function baseDocumentVariables(): DocVar[] {
+  return [
+    { key: "effective_date_day", label: "Effective Date - Day of Month", type: "text", required: true, editable: true, section: "SETUP" },
+    { key: "effective_date_month", label: "Effective Date - Month", type: "text", required: true, editable: true, section: "SETUP" },
+    { key: "effective_date_year", label: "Effective Date - Year", type: "text", required: true, editable: true, section: "SETUP" },
+    { key: "effective_date", label: "Effective Date (Full)", type: "date_text", required: false, editable: true, section: "SETUP" },
+    { key: "party_a_name", label: "Party A Legal Name", type: "text", required: true, editable: true, section: "PARTY_A" },
+    { key: "party_a_entity_type", label: "Party A Entity Type", type: "text", required: false, editable: true, section: "PARTY_A" },
+    { key: "party_a_address", label: "Party A Address", type: "address", required: true, editable: true, section: "PARTY_A" },
+    { key: "party_a_title", label: "Party A Title", type: "text", required: false, editable: true, section: "PARTY_A" },
+    { key: "party_a_email", label: "Party A Email", type: "email", required: false, editable: true, section: "PARTY_A" },
+    { key: "party_a_phone", label: "Party A Phone", type: "phone", required: false, editable: true, section: "PARTY_A" },
+    { key: "party_b_name", label: "Party B Legal Name", type: "text", required: true, editable: true, section: "PARTY_B" },
+    { key: "party_b_entity_type", label: "Party B Entity Type", type: "text", required: false, editable: true, section: "PARTY_B" },
+    { key: "party_b_address", label: "Party B Address", type: "address", required: true, editable: true, section: "PARTY_B" },
+    { key: "party_b_title", label: "Party B Title", type: "text", required: false, editable: true, section: "PARTY_B" },
+    { key: "party_b_email", label: "Party B Email", type: "email", required: false, editable: true, section: "PARTY_B" },
+    { key: "party_b_phone", label: "Party B Phone", type: "phone", required: false, editable: true, section: "PARTY_B" },
+    { key: "consideration", label: "Consideration / Amount", type: "currency_usd", required: false, editable: true, section: "TERMS" },
+    { key: "term_start_date", label: "Term Start Date", type: "date_text", required: false, editable: true, section: "TERMS" },
+    { key: "term_end_date", label: "Term End Date", type: "date_text", required: false, editable: true, section: "TERMS" },
+    { key: "contract_duration_years", label: "Contract Duration (Years)", type: "number", required: false, editable: true, section: "TERMS" },
+    { key: "governing_law_state", label: "Governing Law (State)", type: "text", required: true, editable: true, section: "TERMS" },
+    { key: "governing_law_city", label: "Governing Law (City)", type: "text", required: false, editable: true, section: "TERMS" },
+    { key: "governing_law_county", label: "Governing Law (County)", type: "text", required: false, editable: true, section: "TERMS" },
+    { key: "custom_terms", label: "Additional Terms", type: "multiline", required: false, editable: true, section: "TERMS", maxLength: 3000 },
+  ];
+}
+
+const baseDocumentClauses: DocClause[] = [
+  { id: "confidentiality", label: "Confidentiality", required: false, defaultEnabled: false },
+  { id: "indemnity", label: "Indemnification", required: false, defaultEnabled: false },
+  { id: "termination", label: "Termination Rights", required: false, defaultEnabled: true },
+  { id: "governing_law", label: "Governing Law", required: true, defaultEnabled: true },
+  { id: "additional_terms", label: "Additional Terms", required: false, defaultEnabled: true },
+];
+
+function docSchema(
+  title: string,
+  body: string[],
+  opts?: {
+    extraVariables?: DocVar[];
+    clauses?: DocClause[];
+    clauseBlocks?: Array<{ id: string; text: string }>;
+  },
+): string {
+  const variables = [...baseDocumentVariables(), ...(opts?.extraVariables ?? [])];
+  const clauses = opts?.clauses ?? baseDocumentClauses;
+  const clauseBlocks = opts?.clauseBlocks ?? [];
+
   return JSON.stringify({
     title,
     locale: "en-US",
     versionLabel: "v1",
     roles: ["PARTY_A", "PARTY_B"],
-    variables: [
-      { key: "effective_date_day", label: "Effective Date - Day of Month", type: "text", required: true, editable: true },
-      { key: "effective_date_month", label: "Effective Date - Month", type: "text", required: true, editable: true },
-      { key: "effective_date_year", label: "Effective Date - Year", type: "text", required: true, editable: true },
-      { key: "effective_date", label: "Effective Date (Full)", type: "date_text", required: false, editable: true },
-      { key: "party_a_name", label: "Party A Legal Name", type: "text", required: true, editable: true },
-      { key: "party_a_entity_type", label: "Party A Entity Type", type: "text", required: false, editable: true },
-      { key: "party_a_address", label: "Party A Address", type: "address", required: true, editable: true },
-      { key: "party_a_title", label: "Party A Title", type: "text", required: false, editable: true },
-      { key: "party_a_email", label: "Party A Email", type: "email", required: false, editable: true },
-      { key: "party_a_phone", label: "Party A Phone", type: "phone", required: false, editable: true },
-      { key: "party_b_name", label: "Party B Legal Name", type: "text", required: true, editable: true },
-      { key: "party_b_entity_type", label: "Party B Entity Type", type: "text", required: false, editable: true },
-      { key: "party_b_address", label: "Party B Address", type: "address", required: true, editable: true },
-      { key: "party_b_title", label: "Party B Title", type: "text", required: false, editable: true },
-      { key: "party_b_email", label: "Party B Email", type: "email", required: false, editable: true },
-      { key: "party_b_phone", label: "Party B Phone", type: "phone", required: false, editable: true },
-      { key: "consideration", label: "Consideration / Amount", type: "currency_usd", required: false, editable: true },
-      { key: "term_start_date", label: "Term Start Date", type: "date_text", required: false, editable: true },
-      { key: "term_end_date", label: "Term End Date", type: "date_text", required: false, editable: true },
-      { key: "contract_duration_years", label: "Contract Duration (Years)", type: "number", required: false, editable: true },
-      { key: "governing_law_state", label: "Governing Law (State)", type: "text", required: true, editable: true },
-      { key: "governing_law_city", label: "Governing Law (City)", type: "text", required: false, editable: true },
-      { key: "governing_law_county", label: "Governing Law (County)", type: "text", required: false, editable: true },
-      { key: "custom_terms", label: "Additional Terms", type: "multiline", required: false, editable: true, maxLength: 3000 },
-    ],
-    clauses: [
-      { id: "confidentiality", label: "Confidentiality", required: false, defaultEnabled: false },
-      { id: "indemnity", label: "Indemnification", required: false, defaultEnabled: false },
-      { id: "termination", label: "Termination Rights", required: false, defaultEnabled: true },
-      { id: "governing_law", label: "Governing Law", required: true, defaultEnabled: true },
-      { id: "additional_terms", label: "Additional Terms", required: false, defaultEnabled: true },
-    ],
+    variables,
+    clauses,
     blocks: [
       { id: "h1", kind: "heading", text: title },
       {
@@ -134,6 +164,13 @@ function docSchema(title: string, body: string[]): string {
         editable: true,
         text: "Additional Terms. {{custom_terms}}",
       },
+      ...clauseBlocks.map((item) => ({
+        id: item.id,
+        kind: "paragraph",
+        clauseId: item.id,
+        editable: true,
+        text: item.text,
+      })),
       { kind: "spacer", size: 18 },
       { id: "signature_heading", kind: "paragraph", text: "IN WITNESS WHEREOF, the parties have executed this agreement.", editable: true },
       { id: "party_a_sign", kind: "paragraph", text: "PARTY A\nSignature: ______________________\nName: {{party_a_name}}\nTitle: {{party_a_title}}\nEmail: {{party_a_email}}\nPhone: {{party_a_phone}}\nDate: ______________________" },
@@ -151,6 +188,18 @@ function docSigningDefaults(): string {
     { type: "SIGNATURE", role: "PARTY_B", page: 1, x: 0.32, y: 0.91, width: 0.22, height: 0.05, required: true },
     { type: "DATE_SIGNED", role: "PARTY_B", page: 1, x: 0.56, y: 0.91, width: 0.16, height: 0.04, required: true },
   ]);
+}
+
+function docDefaultValues(extra?: Record<string, string>): string {
+  return JSON.stringify({
+    effective_date_day: "30",
+    effective_date_month: "March",
+    effective_date_year: "2026",
+    governing_law_state: "California",
+    governing_law_city: "Los Angeles",
+    governing_law_county: "Los Angeles",
+    ...extra,
+  });
 }
 
 // ── template definitions ──────────────────────────────────────────────────────
@@ -651,8 +700,23 @@ const TEMPLATES: Array<{
       "6. Return or Destruction. Upon written request or termination of discussions, receiving party shall promptly return or securely destroy all Confidential Information, subject to legally required retention.",
       "7. Injunctive Relief. The parties acknowledge that unauthorized disclosure may cause irreparable harm and that equitable relief may be appropriate in addition to other remedies.",
       "8. Entire Agreement. This Agreement contains the full understanding regarding confidentiality obligations between {{party_a_name}} and {{party_b_name}} as of {{effective_date}}.",
-    ]),
-    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    ], {
+      extraVariables: [
+        { key: "confidential_information_purpose", label: "Confidential Information Purpose", type: "multiline", required: true, editable: true, section: "TERMS", maxLength: 1200 },
+      ],
+      clauses: [
+        { id: "confidentiality", label: "Confidentiality", required: true, defaultEnabled: true },
+        { id: "non_solicitation", label: "Non-Solicitation", required: false, defaultEnabled: false },
+        { id: "non_circumvention", label: "Non-Circumvention", required: false, defaultEnabled: false },
+        { id: "governing_law", label: "Governing Law", required: true, defaultEnabled: true },
+        { id: "additional_terms", label: "Additional Terms", required: false, defaultEnabled: true },
+      ],
+      clauseBlocks: [
+        { id: "non_solicitation", text: "Non-Solicitation. During the term and for a reasonable period thereafter, each party agrees not to directly solicit key employees or contractors of the other party using Confidential Information obtained under this Agreement." },
+        { id: "non_circumvention", text: "Non-Circumvention. Neither party shall use Confidential Information to bypass the other party in business opportunities first introduced through the relationship governed by this Agreement." },
+      ],
+    }),
+    docDefaultValuesJson: docDefaultValues(),
     docSigningDefaultsJson: docSigningDefaults(),
     docVersion: 1,
     docStatus: "PUBLISHED",
@@ -676,8 +740,24 @@ const TEMPLATES: Array<{
       "6. At-Will Statement. Unless otherwise required by law, employment is at-will and may be ended by either party at any time, with or without cause or notice.",
       "7. Confidentiality and IP. Employee agrees to protect confidential information and assign work product rights consistent with applicable agreements and law.",
       "8. Acceptance. By signing, {{party_b_name}} accepts the terms of this Offer Letter effective {{effective_date}}.",
-    ]),
-    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    ], {
+      extraVariables: [
+        { key: "position_title", label: "Position Title", type: "text", required: true, editable: true, section: "SETUP" },
+        { key: "manager_name", label: "Hiring Manager Name", type: "text", required: false, editable: true, section: "SETUP" },
+        { key: "work_location", label: "Work Location", type: "text", required: false, editable: true, section: "TERMS" },
+      ],
+      clauses: [
+        { id: "background_check", label: "Background Check Contingency", required: false, defaultEnabled: true },
+        { id: "confidentiality", label: "Confidentiality", required: true, defaultEnabled: true },
+        { id: "termination", label: "At-Will/Termination", required: true, defaultEnabled: true },
+        { id: "governing_law", label: "Governing Law", required: true, defaultEnabled: true },
+        { id: "additional_terms", label: "Additional Terms", required: false, defaultEnabled: true },
+      ],
+      clauseBlocks: [
+        { id: "background_check", text: "Background Check Contingency. This offer remains contingent on completion of legally permitted screening and verification checks required by employer policy." },
+      ],
+    }),
+    docDefaultValuesJson: docDefaultValues(),
     docSigningDefaultsJson: docSigningDefaults(),
     docVersion: 1,
     docStatus: "PUBLISHED",
@@ -701,8 +781,21 @@ const TEMPLATES: Array<{
       "6. Disputes. Any billing dispute must be submitted in writing within a commercially reasonable period after receipt of this invoice.",
       "7. Late Payment. Late balances may incur fees or interest to the extent allowed by applicable law and governing contract terms.",
       "8. Confirmation. By signing, {{party_b_name}} confirms receipt and acceptance of the invoiced goods/services.",
-    ]),
-    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    ], {
+      extraVariables: [
+        { key: "invoice_number", label: "Invoice Number", type: "text", required: true, editable: true, section: "SETUP" },
+        { key: "payment_terms_days", label: "Payment Terms (Days)", type: "number", required: false, editable: true, section: "TERMS" },
+      ],
+      clauses: [
+        { id: "late_fee", label: "Late Fee", required: false, defaultEnabled: true },
+        { id: "governing_law", label: "Governing Law", required: true, defaultEnabled: true },
+        { id: "additional_terms", label: "Additional Terms", required: false, defaultEnabled: true },
+      ],
+      clauseBlocks: [
+        { id: "late_fee", text: "Late Fee. Amounts outstanding after due date may accrue late charges and/or interest to the maximum extent permitted by applicable law and agreement terms." },
+      ],
+    }),
+    docDefaultValuesJson: docDefaultValues(),
     docSigningDefaultsJson: docSigningDefaults(),
     docVersion: 1,
     docStatus: "PUBLISHED",
@@ -726,8 +819,22 @@ const TEMPLATES: Array<{
       "6. Invoicing and Payment. Supplier may invoice only accepted goods/services and payment will follow agreed payment terms.",
       "7. Changes and Cancellations. Changes to scope, pricing, or timing must be documented and approved in writing by authorized representatives.",
       "8. Supplier Acknowledgment. By signing, {{party_b_name}} accepts this Purchase Order and agrees to its terms as of {{effective_date}}.",
-    ]),
-    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    ], {
+      extraVariables: [
+        { key: "po_number", label: "PO Number", type: "text", required: true, editable: true, section: "SETUP" },
+        { key: "delivery_location", label: "Delivery Location", type: "address", required: false, editable: true, section: "TERMS" },
+      ],
+      clauses: [
+        { id: "inspection_rights", label: "Inspection Rights", required: false, defaultEnabled: true },
+        { id: "termination", label: "Termination Rights", required: false, defaultEnabled: true },
+        { id: "governing_law", label: "Governing Law", required: true, defaultEnabled: true },
+        { id: "additional_terms", label: "Additional Terms", required: false, defaultEnabled: true },
+      ],
+      clauseBlocks: [
+        { id: "inspection_rights", text: "Inspection Rights. Buyer retains the right to inspect and reject non-conforming goods/services within a commercially reasonable period after delivery." },
+      ],
+    }),
+    docDefaultValuesJson: docDefaultValues(),
     docSigningDefaultsJson: docSigningDefaults(),
     docVersion: 1,
     docStatus: "PUBLISHED",
@@ -751,8 +858,21 @@ const TEMPLATES: Array<{
       "6. Delivery and Possession. Transfer of possession is expected on {{term_start_date}} at the agreed location or by mutually accepted delivery method.",
       "7. Risk of Loss and Taxes. Risk of loss passes to Buyer upon transfer of possession unless the parties agree otherwise in writing.",
       "8. Governing Law and Execution. This Bill of Sale is governed by the laws of {{governing_law_state}} and signed by both parties.",
-    ]),
-    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    ], {
+      extraVariables: [
+        { key: "property_description", label: "Property Description", type: "multiline", required: true, editable: true, section: "TERMS", maxLength: 1200 },
+        { key: "delivery_address", label: "Delivery Address", type: "address", required: false, editable: true, section: "TERMS" },
+      ],
+      clauses: [
+        { id: "as_is_sale", label: "As-Is Sale", required: false, defaultEnabled: true },
+        { id: "governing_law", label: "Governing Law", required: true, defaultEnabled: true },
+        { id: "additional_terms", label: "Additional Terms", required: false, defaultEnabled: true },
+      ],
+      clauseBlocks: [
+        { id: "as_is_sale", text: "As-Is Sale. Except as expressly provided, buyer acknowledges the property is transferred on an \"as-is, where-is\" basis without additional warranties." },
+      ],
+    }),
+    docDefaultValuesJson: docDefaultValues(),
     docSigningDefaultsJson: docSigningDefaults(),
     docVersion: 1,
     docStatus: "PUBLISHED",
@@ -776,8 +896,22 @@ const TEMPLATES: Array<{
       "6. Maintenance and Repairs. Parties are responsible for maintenance and repairs according to local law, lease terms, and property condition obligations.",
       "7. Default and Remedies. Failure to pay rent or material breach may trigger notices, cure periods, and legal remedies available to landlord.",
       "8. Renewal, Move-Out, and Law. Move-out requirements, renewal terms, and legal enforcement are governed by {{governing_law_state}} law.",
-    ]),
-    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    ], {
+      extraVariables: [
+        { key: "leased_premises_address", label: "Leased Premises Address", type: "address", required: true, editable: true, section: "TERMS" },
+        { key: "security_deposit_amount", label: "Security Deposit Amount", type: "currency_usd", required: false, editable: true, section: "TERMS" },
+      ],
+      clauses: [
+        { id: "pets_policy", label: "Pets Policy", required: false, defaultEnabled: false },
+        { id: "termination", label: "Termination Rights", required: false, defaultEnabled: true },
+        { id: "governing_law", label: "Governing Law", required: true, defaultEnabled: true },
+        { id: "additional_terms", label: "Additional Terms", required: false, defaultEnabled: true },
+      ],
+      clauseBlocks: [
+        { id: "pets_policy", text: "Pets Policy. Tenant may keep pets only as expressly permitted by landlord in writing, subject to applicable fees and compliance with building/community rules." },
+      ],
+    }),
+    docDefaultValuesJson: docDefaultValues(),
     docSigningDefaultsJson: docSigningDefaults(),
     docVersion: 1,
     docStatus: "PUBLISHED",
@@ -801,8 +935,23 @@ const TEMPLATES: Array<{
       "6. Defaults. Nonpayment, insolvency, false representations, or covenant breaches may constitute default and permit acceleration or other remedies.",
       "7. Security and Enforcement. Any collateral rights, guarantees, or security interests are enforceable according to this Agreement and applicable law.",
       "8. Governing Law and Notices. This Agreement is governed by {{governing_law_state}} law and notices shall be sent to the addresses listed by each party.",
-    ]),
-    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    ], {
+      extraVariables: [
+        { key: "interest_rate_annual", label: "Annual Interest Rate (%)", type: "number", required: false, editable: true, section: "TERMS" },
+        { key: "collateral_description", label: "Collateral Description", type: "multiline", required: false, editable: true, section: "TERMS", maxLength: 1200 },
+      ],
+      clauses: [
+        { id: "collateral", label: "Collateral", required: false, defaultEnabled: true },
+        { id: "late_fee", label: "Late Fee", required: false, defaultEnabled: true },
+        { id: "governing_law", label: "Governing Law", required: true, defaultEnabled: true },
+        { id: "additional_terms", label: "Additional Terms", required: false, defaultEnabled: true },
+      ],
+      clauseBlocks: [
+        { id: "collateral", text: "Collateral. To secure repayment obligations, borrower grants lender a security interest in the following collateral: {{collateral_description}}." },
+        { id: "late_fee", text: "Late Fee. If any payment is not made when due, lender may charge a reasonable late fee as permitted by law and this agreement." },
+      ],
+    }),
+    docDefaultValuesJson: docDefaultValues(),
     docSigningDefaultsJson: docSigningDefaults(),
     docVersion: 1,
     docStatus: "PUBLISHED",
@@ -826,8 +975,20 @@ const TEMPLATES: Array<{
       "6. Medical Treatment Authorization. In an emergency, participant authorizes reasonable medical treatment at participant cost unless prohibited by law.",
       "7. Severability. If any provision is held invalid, remaining provisions remain in effect to the maximum extent permitted by law.",
       "8. Governing Law. This waiver is interpreted under the laws of {{governing_law_state}} and remains binding on participant and permitted successors.",
-    ]),
-    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    ], {
+      extraVariables: [
+        { key: "activity_description", label: "Activity Description", type: "multiline", required: true, editable: true, section: "SETUP", maxLength: 900 },
+      ],
+      clauses: [
+        { id: "medical_authorization", label: "Medical Authorization", required: false, defaultEnabled: true },
+        { id: "indemnity", label: "Indemnification", required: false, defaultEnabled: true },
+        { id: "governing_law", label: "Governing Law", required: true, defaultEnabled: true },
+      ],
+      clauseBlocks: [
+        { id: "medical_authorization", text: "Medical Authorization. Participant authorizes emergency medical treatment if deemed necessary by qualified responders, with associated costs remaining participant responsibility where legally permitted." },
+      ],
+    }),
+    docDefaultValuesJson: docDefaultValues(),
     docSigningDefaultsJson: docSigningDefaults(),
     docVersion: 1,
     docStatus: "PUBLISHED",
@@ -851,8 +1012,21 @@ const TEMPLATES: Array<{
       "6. Intellectual Property and Use Rights. Ownership and license rights for work product are governed by this Agreement and applicable law.",
       "7. Confidentiality and Non-Disclosure. Each party shall protect confidential information exchanged in connection with this engagement.",
       "8. Termination and Effect of Termination. Either party may terminate for material breach after notice and cure opportunity, with final payment obligations surviving.",
-    ]),
-    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    ], {
+      extraVariables: [
+        { key: "service_scope_summary", label: "Service Scope Summary", type: "multiline", required: true, editable: true, section: "TERMS", maxLength: 1500 },
+      ],
+      clauses: [
+        { id: "sla", label: "Service Levels", required: false, defaultEnabled: true },
+        { id: "termination", label: "Termination Rights", required: false, defaultEnabled: true },
+        { id: "governing_law", label: "Governing Law", required: true, defaultEnabled: true },
+        { id: "additional_terms", label: "Additional Terms", required: false, defaultEnabled: true },
+      ],
+      clauseBlocks: [
+        { id: "sla", text: "Service Levels. Provider will use commercially reasonable efforts to meet delivery timelines, response commitments, and quality standards defined in the service scope." },
+      ],
+    }),
+    docDefaultValuesJson: docDefaultValues(),
     docSigningDefaultsJson: docSigningDefaults(),
     docVersion: 1,
     docStatus: "PUBLISHED",
@@ -876,8 +1050,22 @@ const TEMPLATES: Array<{
       "6. Confidentiality and Work Product. Contractor must protect confidential information and assign work product rights as required by this Agreement.",
       "7. Compliance and Non-Solicitation. Contractor will comply with applicable laws and any agreed restrictions related to solicitation or competitive conduct.",
       "8. Termination and Governing Law. This Agreement may be terminated as provided herein and is governed by the laws of {{governing_law_state}}.",
-    ]),
-    docDefaultValuesJson: JSON.stringify({ effective_date: "March 29, 2026" }),
+    ], {
+      extraVariables: [
+        { key: "deliverables_description", label: "Deliverables Description", type: "multiline", required: true, editable: true, section: "TERMS", maxLength: 1500 },
+      ],
+      clauses: [
+        { id: "ip_assignment", label: "IP Assignment", required: false, defaultEnabled: true },
+        { id: "non_compete", label: "Non-Compete", required: false, defaultEnabled: false },
+        { id: "confidentiality", label: "Confidentiality", required: true, defaultEnabled: true },
+        { id: "governing_law", label: "Governing Law", required: true, defaultEnabled: true },
+      ],
+      clauseBlocks: [
+        { id: "ip_assignment", text: "IP Assignment. Contractor assigns to company all right, title, and interest in deliverables and work product created specifically under this engagement, subject to any agreed pre-existing materials carve-outs." },
+        { id: "non_compete", text: "Non-Compete. For the period and scope permitted by applicable law, contractor agrees not to engage in direct competitive services that materially conflict with this engagement." },
+      ],
+    }),
+    docDefaultValuesJson: docDefaultValues(),
     docSigningDefaultsJson: docSigningDefaults(),
     docVersion: 1,
     docStatus: "PUBLISHED",

@@ -14,6 +14,7 @@ export interface DocumentVariableDef {
   type: DocumentVariableType;
   required: boolean;
   editable: boolean;
+  section?: "SETUP" | "PARTY_A" | "PARTY_B" | "TERMS";
   maxLength?: number;
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, FileSignature, Loader2 } from "lucide-react";
@@ -23,6 +23,7 @@ type VariableDef = {
   type: "text" | "multiline" | "address" | "date_text" | "currency_usd" | "email" | "phone" | "number";
   required: boolean;
   editable: boolean;
+  section?: "SETUP" | "PARTY_A" | "PARTY_B" | "TERMS";
   maxLength?: number;
 };
 type ClauseDef = { id: string; label: string; required?: boolean; defaultEnabled?: boolean };
@@ -55,7 +56,11 @@ function prettifyToken(token: string) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function renderInterpolatedText(text: string, values: Record<string, string>) {
+function renderInterpolatedText(
+  text: string,
+  values: Record<string, string>,
+  onTokenClick?: (token: string) => void,
+) {
   const nodes: Array<string | JSX.Element> = [];
   const regex = /\{\{([a-zA-Z0-9_]+)\}\}/g;
   let cursor = 0;
@@ -72,10 +77,19 @@ function renderInterpolatedText(text: string, values: Record<string, string>) {
     nodes.push(
       <span
         key={`${key}-${idx++}`}
+        role="button"
+        tabIndex={0}
+        onClick={() => onTokenClick?.(key)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onTokenClick?.(key);
+          }
+        }}
         className={
           resolved
-            ? "rounded bg-emerald-100 px-1 py-0.5 text-emerald-900"
-            : "rounded bg-violet-100 px-1 py-0.5 text-violet-900"
+            ? "cursor-pointer rounded bg-emerald-100 px-1 py-0.5 text-emerald-900 hover:bg-emerald-200"
+            : "cursor-pointer rounded bg-violet-100 px-1 py-0.5 text-violet-900 hover:bg-violet-200"
         }
       >
         {display}
@@ -129,6 +143,7 @@ export default function UseDocumentTemplatePage() {
   const [blockOverrides, setBlockOverrides] = useState<Record<string, string>>({});
   const [enabledClauses, setEnabledClauses] = useState<string[]>([]);
   const [step, setStep] = useState<WizardStep>("SETUP");
+  const inputRefs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {
     if (!isDocumentTemplatesEnabledClient()) {
@@ -201,12 +216,26 @@ export default function UseDocumentTemplatePage() {
 
   const groupedVariables = useMemo(() => {
     if (!schema) return { setup: [], partyA: [], partyB: [], terms: [] } as Record<string, VariableDef[]>;
-    const partyA = schema.variables.filter((v) => isPartyAKey(v.key));
-    const partyB = schema.variables.filter((v) => isPartyBKey(v.key));
-    const terms = schema.variables.filter((v) => !isPartyAKey(v.key) && !isPartyBKey(v.key) && isTermsKey(v.key));
-    const setup = schema.variables.filter((v) => !isPartyAKey(v.key) && !isPartyBKey(v.key) && !isTermsKey(v.key));
+    const bySection = (section: "SETUP" | "PARTY_A" | "PARTY_B" | "TERMS") =>
+      schema.variables.filter((v) => v.section === section);
+    const partyA = bySection("PARTY_A").length > 0 ? bySection("PARTY_A") : schema.variables.filter((v) => isPartyAKey(v.key));
+    const partyB = bySection("PARTY_B").length > 0 ? bySection("PARTY_B") : schema.variables.filter((v) => isPartyBKey(v.key));
+    const terms =
+      bySection("TERMS").length > 0
+        ? bySection("TERMS")
+        : schema.variables.filter((v) => !isPartyAKey(v.key) && !isPartyBKey(v.key) && isTermsKey(v.key));
+    const setup =
+      bySection("SETUP").length > 0
+        ? bySection("SETUP")
+        : schema.variables.filter((v) => !isPartyAKey(v.key) && !isPartyBKey(v.key) && !isTermsKey(v.key));
     return { setup, partyA, partyB, terms };
   }, [schema]);
+
+  const variableByKey = useMemo(() => {
+    const map = new Map<string, VariableDef>();
+    for (const variable of schema?.variables ?? []) map.set(variable.key, variable);
+    return map;
+  }, [schema?.variables]);
 
   const stepOrder = useMemo(() => {
     const steps: WizardStep[] = ["SETUP"];
@@ -255,6 +284,28 @@ export default function UseDocumentTemplatePage() {
     setError(null);
     const prev = stepOrder[currentStepIndex - 1];
     if (prev) setStep(prev);
+  }
+
+  function inferStepForVariable(variable: VariableDef): WizardStep {
+    if (variable.section) return variable.section;
+    if (groupedVariables.partyA.some((v) => v.key === variable.key)) return "PARTY_A";
+    if (groupedVariables.partyB.some((v) => v.key === variable.key)) return "PARTY_B";
+    if (groupedVariables.terms.some((v) => v.key === variable.key)) return "TERMS";
+    return "SETUP";
+  }
+
+  function handleTokenClick(token: string) {
+    const variable = variableByKey.get(token);
+    if (!variable) return;
+    const targetStep = inferStepForVariable(variable);
+    setStep(targetStep);
+    setTimeout(() => {
+      const node = inputRefs.current[token];
+      if (node) {
+        node.scrollIntoView({ behavior: "smooth", block: "center" });
+        node.focus?.();
+      }
+    }, 30);
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -403,6 +454,9 @@ export default function UseDocumentTemplatePage() {
                   variable={variable}
                   value={values[variable.key] ?? ""}
                   onChange={(nextValue) => setValues((prev) => ({ ...prev, [variable.key]: nextValue }))}
+                  registerInputRef={(key, node) => {
+                    inputRefs.current[key] = node;
+                  }}
                 />
               ))}
             </div>
@@ -416,6 +470,9 @@ export default function UseDocumentTemplatePage() {
                   variable={variable}
                   value={values[variable.key] ?? ""}
                   onChange={(nextValue) => setValues((prev) => ({ ...prev, [variable.key]: nextValue }))}
+                  registerInputRef={(key, node) => {
+                    inputRefs.current[key] = node;
+                  }}
                 />
               ))}
             </div>
@@ -429,6 +486,9 @@ export default function UseDocumentTemplatePage() {
                   variable={variable}
                   value={values[variable.key] ?? ""}
                   onChange={(nextValue) => setValues((prev) => ({ ...prev, [variable.key]: nextValue }))}
+                  registerInputRef={(key, node) => {
+                    inputRefs.current[key] = node;
+                  }}
                 />
               ))}
             </div>
@@ -442,6 +502,9 @@ export default function UseDocumentTemplatePage() {
                   variable={variable}
                   value={values[variable.key] ?? ""}
                   onChange={(nextValue) => setValues((prev) => ({ ...prev, [variable.key]: nextValue }))}
+                  registerInputRef={(key, node) => {
+                    inputRefs.current[key] = node;
+                  }}
                 />
               ))}
               {(schema.clauses ?? []).length > 0 ? (
@@ -547,10 +610,28 @@ export default function UseDocumentTemplatePage() {
         </div>
 
         <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold text-foreground">Document Preview</h2>
-          <p className="text-xs text-muted-foreground mt-1 mb-4">
-            Version {template.docVersion} preview before signature field placement.
-          </p>
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Document Preview</h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                Version {template.docVersion} preview before signature field placement.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              {(["SETUP", "PARTY_A", "PARTY_B", "TERMS"] as WizardStep[])
+                .filter((item) => stepOrder.includes(item))
+                .map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setStep(item)}
+                    className={`rounded border px-2 py-1 ${step === item ? "border-primary text-primary" : "border-border hover:bg-muted"}`}
+                  >
+                    {item === "SETUP" ? "Setup" : item === "PARTY_A" ? "Party A" : item === "PARTY_B" ? "Party B" : "Terms"}
+                  </button>
+                ))}
+            </div>
+          </div>
           <div className="rounded-lg border border-border bg-white p-6 space-y-3 min-h-[560px]">
             {visibleBlocks.map((block, index) => {
               if (block.kind === "spacer") {
@@ -568,7 +649,7 @@ export default function UseDocumentTemplatePage() {
               }
               return (
                 <p key={`paragraph-${index}`} className="text-sm leading-6 text-slate-800 whitespace-pre-wrap">
-                  {renderInterpolatedText(sourceText, values)}
+                  {renderInterpolatedText(sourceText, values, handleTokenClick)}
                 </p>
               );
             })}
@@ -583,10 +664,12 @@ function VariableInput({
   variable,
   value,
   onChange,
+  registerInputRef,
 }: {
   variable: VariableDef;
   value: string;
   onChange: (value: string) => void;
+  registerInputRef: (key: string, node: HTMLElement | null) => void;
 }) {
   return (
     <div>
@@ -597,6 +680,7 @@ function VariableInput({
       {variable.type === "multiline" || variable.type === "address" ? (
         <textarea
           id={variable.key}
+          ref={(node) => registerInputRef(variable.key, node)}
           value={value}
           required={variable.required}
           maxLength={variable.maxLength}
@@ -606,6 +690,7 @@ function VariableInput({
       ) : (
         <Input
           id={variable.key}
+          ref={(node) => registerInputRef(variable.key, node)}
           type={variable.type === "email" ? "email" : variable.type === "number" ? "number" : "text"}
           value={value}
           required={variable.required}
