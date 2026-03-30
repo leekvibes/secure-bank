@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import { apiError } from "@/lib/api-response";
+import { createHash } from "node:crypto";
 
 // GET /api/signing/requests/[id]/download
 //
@@ -30,6 +31,7 @@ export async function GET(
       originalName: true,
       blobUrl: true,
       signedBlobUrl: true,
+      signedDocumentHash: true,
       status: true,
       certificate: { select: { blobUrl: true } },
     },
@@ -72,11 +74,46 @@ export async function GET(
   }
 
   const disposition = type === "cert" ? "attachment" : "inline";
-  return new Response(upstream.body, {
+
+  // For the certificate download, no hash verification needed
+  if (type === "cert") {
+    return new Response(upstream.body, {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `${disposition}; filename="${fileName}"`,
+        "Cache-Control": "private, no-store",
+        "X-Document-Verified": "skip",
+      },
+    });
+  }
+
+  // For all other types, read the bytes so we can hash and stream from memory
+  const bytes = new Uint8Array(await upstream.arrayBuffer());
+  const computedHash = createHash("sha256").update(bytes).digest("hex");
+
+  // For signed PDFs: verify integrity against the stored hash
+  if (type === "signed" && request.signedDocumentHash) {
+    if (computedHash !== request.signedDocumentHash) {
+      return apiError(
+        409,
+        "HASH_MISMATCH",
+        "Document integrity check failed. The signed PDF may have been tampered with."
+      );
+    }
+  }
+
+  const verified =
+    type === "signed" && request.signedDocumentHash
+      ? computedHash === request.signedDocumentHash
+      : true; // legacy or original — no stored hash, treat as verified
+
+  return new Response(bytes, {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `${disposition}; filename="${fileName}"`,
       "Cache-Control": "private, no-store",
+      "X-Document-Verified": verified ? "true" : "false",
+      "X-Document-Hash": computedHash,
     },
   });
 }

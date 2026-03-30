@@ -6,6 +6,7 @@ import { generateToken } from "@/lib/tokens";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { checkDocSignLimit, getPlan } from "@/lib/plans";
 import { addHours } from "date-fns";
+import { CONSENT_TEXT_V1, CURRENT_CONSENT_VERSION } from "@/lib/signing/consent-text";
 
 // POST /api/signing/requests — create a new DRAFT signing request
 export async function POST(req: NextRequest) {
@@ -43,6 +44,8 @@ export async function POST(req: NextRequest) {
         status: "DRAFT",
         expiresAt: addHours(new Date(), expiresInHours),
         agentId: session.user.id,
+        consentText: CONSENT_TEXT_V1,
+        consentVersion: CURRENT_CONSENT_VERSION,
       },
       select: { id: true, token: true },
     });

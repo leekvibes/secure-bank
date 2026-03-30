@@ -7,6 +7,7 @@
 
 import { PDFDocument, rgb, StandardFonts, PDFImage } from "pdf-lib";
 import { put } from "@vercel/blob";
+import { createHash } from "node:crypto";
 import { pctToPdfPts } from "./pdf-pipeline";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -74,13 +75,14 @@ async function loadImageFromBase64(
 
 /**
  * Embed all collected field values into the original PDF.
- * Returns the Vercel Blob URL of the assembled, signed PDF.
+ * Returns the Vercel Blob URL and SHA-256 hash of the assembled, signed PDF.
  */
 export async function assemblePdf(
   originalBlobUrl: string,
   fields: FieldValue[],
-  pages: PageDim[]
-): Promise<string> {
+  pages: PageDim[],
+  documentHash?: string
+): Promise<{ url: string; hash: string }> {
   // Fetch the original PDF bytes
   const res = await fetch(originalBlobUrl);
   if (!res.ok) throw new Error(`Failed to fetch original PDF: ${res.status}`);
@@ -200,13 +202,51 @@ export async function assemblePdf(
     }
   }
 
-  const signedBytes = await pdfDoc.save();
+  // ── Security banner on every page ─────────────────────────────────────────
+  const bannerFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const bannerHeight = 14;
+  const bannerBg = rgb(15 / 255, 23 / 255, 41 / 255);
+  const bannerText = rgb(1, 1, 1);
+
+  for (const pdfPage of pdfPages) {
+    const { width: pageW } = pdfPage.getSize();
+    pdfPage.drawRectangle({
+      x: 0,
+      y: 0,
+      width: pageW,
+      height: bannerHeight,
+      color: bannerBg,
+    });
+    pdfPage.drawText("SIGNED DOCUMENT — DO NOT MODIFY — SecureLink", {
+      x: 6,
+      y: 3.5,
+      font: bannerFont,
+      size: 7,
+      color: bannerText,
+    });
+  }
+
+  // ── Metadata ───────────────────────────────────────────────────────────────
+  pdfDoc.setCreator("SecureLink e-Signing Platform");
+  pdfDoc.setProducer("SecureLink PDF Assembly v1");
+  if (documentHash) {
+    try {
+      pdfDoc.setKeywords([`sha256:${documentHash}`]);
+    } catch {
+      pdfDoc.setSubject(`sha256:${documentHash}`);
+    }
+  }
+
+  // ── Save, hash, upload ─────────────────────────────────────────────────────
+  const finalBytes = await pdfDoc.save();
+  const signedHash = createHash("sha256").update(finalBytes).digest("hex");
+
   const blob = await put(
     `signing/signed_${Date.now()}.pdf`,
-    Buffer.from(signedBytes),
+    Buffer.from(finalBytes),
     { access: "public", contentType: "application/pdf" }
   );
-  return blob.url;
+  return { url: blob.url, hash: signedHash };
 }
 
 // ── Certificate of Completion PDF ─────────────────────────────────────────────

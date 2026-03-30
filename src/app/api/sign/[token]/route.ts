@@ -117,6 +117,7 @@ async function handleNewFlow(
       documentHash: request.documentHash,
       expiresAt: request.expiresAt.toISOString(),
       signingMode: request.signingMode,
+      authLevel: request.authLevel,
     },
     agent: {
       displayName: request.agent.displayName,

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import SignaturePad from "signature_pad";
+import { CONSENT_TEXT_V1 } from "@/lib/signing/consent-text";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,6 +29,7 @@ interface DocData {
     documentHash: string | null;
     expiresAt: string;
     signingMode: string;
+    authLevel: string | null;
   };
   agent: { displayName: string; agencyName: string | null; company?: string | null; logoUrl?: string | null; photoUrl?: string | null };
   pages: { page: number; widthPts: number; heightPts: number }[];
@@ -1161,20 +1163,34 @@ export function SigningCeremony({
               </div>
             </div>
 
-            <div style={{ fontSize: "13px", color: "var(--muted-foreground)", lineHeight: 1.65, marginBottom: "20px" }}>
+            <div style={{ fontSize: "13px", color: "var(--muted-foreground)", lineHeight: 1.65, marginBottom: "16px" }}>
               <p style={{ marginBottom: "10px" }}>
                 By clicking <strong style={{ color: "var(--foreground)" }}>Agree & Continue</strong>, you agree to sign{" "}
                 <strong style={{ color: "var(--foreground)" }}>{data.request.title ?? "this document"}</strong> electronically.
               </p>
-              <p style={{ marginBottom: "10px" }}>
-                Your electronic signature has the same legal effect as a handwritten signature under the{" "}
-                <strong style={{ color: "var(--foreground)" }}>ESIGN Act</strong> and the{" "}
-                <strong style={{ color: "var(--foreground)" }}>UETA</strong>.
-              </p>
-              <p>
-                Your IP address, browser information, and the exact time of signing will be captured as part of the audit trail.
-              </p>
             </div>
+
+            <div
+              style={{
+                maxHeight: "200px",
+                overflowY: "auto",
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+                padding: "12px",
+                fontSize: "12px",
+                lineHeight: 1.6,
+                color: "var(--muted-foreground)",
+                whiteSpace: "pre-wrap",
+                marginBottom: "8px",
+              }}
+            >
+              {CONSENT_TEXT_V1}
+            </div>
+
+            <p style={{ fontSize: "11px", color: "var(--muted-foreground)", marginBottom: "18px", textAlign: "right" }}>
+              Consent disclosure v1 · SecureLink
+            </p>
 
             <div
               style={{

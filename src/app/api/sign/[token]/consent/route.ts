@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/api-response";
+import { CONSENT_TEXT_V1 } from "@/lib/signing/consent-text";
 
 // POST /api/sign/[token]/consent
 // Records that the recipient has given electronic consent under ESIGN Act.
@@ -11,7 +12,15 @@ export async function POST(
   const recipient = await db.docSignRecipient.findUnique({
     where: { token: params.token },
     include: {
-      request: { select: { id: true, status: true, expiresAt: true } },
+      request: {
+        select: {
+          id: true,
+          status: true,
+          expiresAt: true,
+          consentText: true,
+          consentVersion: true,
+        },
+      },
     },
   });
 
@@ -31,6 +40,16 @@ export async function POST(
     null;
   const ua = req.headers.get("user-agent") ?? null;
 
+  // Backfill consentText/consentVersion for legacy records that predate snapshotting
+  if (!recipient.request.consentText) {
+    await db.docSignRequest.update({
+      where: { id: recipient.requestId },
+      data: { consentText: CONSENT_TEXT_V1, consentVersion: "v1" },
+    });
+  }
+
+  const consentVersion = recipient.request.consentVersion ?? "v1";
+
   // Record consent (idempotent — only set once)
   if (!recipient.consentAt) {
     await db.docSignRecipient.update({
@@ -45,7 +64,7 @@ export async function POST(
         ipAddress: ip,
         userAgent: ua,
         recipientId: recipient.id,
-        metadata: JSON.stringify({ esign: true }),
+        metadata: JSON.stringify({ esign: true, consentVersion }),
       },
     });
   }

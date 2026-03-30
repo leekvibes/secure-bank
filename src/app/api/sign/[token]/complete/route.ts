@@ -171,9 +171,11 @@ export async function POST(
       }));
 
       // Assemble signed PDF
-      const signedBlobUrl = request.blobUrl
-        ? await assemblePdf(request.blobUrl, fieldValues, pageDims)
+      const assemblyResult = request.blobUrl
+        ? await assemblePdf(request.blobUrl, fieldValues, pageDims, request.documentHash ?? undefined)
         : null;
+      const signedBlobUrl = assemblyResult?.url ?? null;
+      const signedDocumentHash = assemblyResult?.hash ?? null;
 
       // Build audit events for certificate
       const auditEvents = await db.docSignAuditLog.findMany({
@@ -215,6 +217,7 @@ export async function POST(
             status: "COMPLETED",
             completedAt,
             ...(signedBlobUrl ? { signedBlobUrl } : {}),
+            signedDocumentHash,
           },
         }),
         db.docSignAuditLog.create({

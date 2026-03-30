@@ -428,6 +428,11 @@ model DocSignRequest {
   voidedAt        DateTime?
   voidReason      String?
   deletedAt       DateTime?   // soft delete — set instead of hard deleting
+  // Compliance fields
+  consentText        String?    // exact consent text shown to signers (snapshotted at creation)
+  consentVersion     String?    // e.g. "v1" — bumped when text changes
+  authLevel          String?    @default("LINK_ONLY")  // LINK_ONLY | EMAIL_OTP | SMS_OTP
+  signedDocumentHash String?    // SHA-256 of assembled signed PDF (for tamper detection on download)
   expiresAt     DateTime
   completedAt   DateTime?
   createdAt     DateTime @default(now())
@@ -459,6 +464,12 @@ model DocSignRecipient {
   declineReason String?
   ipAddress     String?
   userAgent     String?
+  phone                String?    // optional — required for SMS OTP auth level
+  emailOtpVerifiedAt   DateTime?
+  smsOtpVerifiedAt     DateTime?
+  otpHash              String?    // bcrypt hash of pending OTP code
+  otpExpiresAt         DateTime?
+  otpAttempts          Int        @default(0)
   createdAt     DateTime  @default(now())
 
   request DocSignRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
