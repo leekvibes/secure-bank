@@ -7,12 +7,15 @@ import { useSession } from "next-auth/react";
 import {
   ArrowLeft,
   CheckCircle2,
+  Copy,
   FileText,
+  Globe,
   Loader2,
   Plus,
   Send,
   Trash2,
   UploadCloud,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -277,6 +280,9 @@ export default function NewSigningRequestPage() {
   const [detailPages, setDetailPages] = useState<DetailPage[]>([]);
 
   const [recipients, setRecipients] = useState<RecipientDraft[]>([makeRecipient()]);
+  const [isPublicMode, setIsPublicMode] = useState(false);
+  const [createdPublicLinkUrl, setCreatedPublicLinkUrl] = useState<string | null>(null);
+  const [copiedPublicLink, setCopiedPublicLink] = useState(false);
   const [savedRecipients, setSavedRecipients] = useState<RecipientServer[]>([]);
   const [signingMode, setSigningMode] = useState<SigningMode>("PARALLEL");
   const [authLevel, setAuthLevel] = useState<AuthLevel>("LINK_ONLY");
@@ -574,14 +580,16 @@ export default function NewSigningRequestPage() {
 
   async function saveRecipientsAndLoadDetail() {
     if (!requestId) throw new Error("Please upload a document first.");
-    const cleaned = recipients
-      .map((recipient, idx) => ({
-        name: recipient.name.trim(),
-        email: recipient.email.trim(),
-        phone: recipient.phone.trim() || null,
-        order: idx,
-      }))
-      .filter((recipient) => recipient.name && recipient.email);
+    const cleaned = isPublicMode
+      ? [{ name: "Public Signer", email: "public@placeholder.internal", phone: null, order: 0 }]
+      : recipients
+          .map((recipient, idx) => ({
+            name: recipient.name.trim(),
+            email: recipient.email.trim(),
+            phone: recipient.phone.trim() || null,
+            order: idx,
+          }))
+          .filter((recipient) => recipient.name && recipient.email);
     if (cleaned.length === 0) throw new Error("Add at least one recipient.");
 
     const saveRes = await fetch(`/api/signing/requests/${encodeURIComponent(requestId)}/recipients`, {
@@ -726,6 +734,28 @@ export default function NewSigningRequestPage() {
       if (!res.ok) {
         throw new Error(data?.error?.message ?? data?.error ?? "Failed to send request.");
       }
+
+      // If public mode, auto-create a public signing link using the placeholder recipient
+      if (isPublicMode) {
+        const plRes = await fetch(`/api/signing/requests/${encodeURIComponent(requestId)}/public-links`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ requireName: true, requireEmail: false }),
+        });
+        const plData = await plRes.json().catch(() => ({}));
+        if (plRes.ok) {
+          const token = (plData as { link?: { token?: string } }).link?.token;
+          if (token) {
+            setCreatedPublicLinkUrl(`${window.location.origin}/sign/public/${token}`);
+            setSendBusy(false);
+            return; // stay on page to show the link
+          }
+        }
+        // fallback: go to dashboard even if link creation fails
+        window.location.href = "/dashboard/signing";
+        return;
+      }
+
       if (data?.emailWarning) {
         setError(`Request sent. Warning: ${data.emailWarning}`);
         setSendBusy(false);
@@ -824,6 +854,7 @@ export default function NewSigningRequestPage() {
   }
 
   function canContinueFromStep2() {
+    if (isPublicMode) return true;
     const filled = recipients.filter((recipient) => recipient.name.trim() || recipient.email.trim());
     if (filled.length === 0) return false;
     return filled.every((recipient) => recipient.name.trim() && recipient.email.trim());
@@ -1012,6 +1043,57 @@ export default function NewSigningRequestPage() {
 
       {step === 2 && (
         <div className="space-y-5">
+          {/* Signer type toggle */}
+          <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+            <h2 className="text-sm font-semibold text-foreground">Signer type</h2>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setIsPublicMode(false)}
+                className={cn(
+                  "rounded-lg border p-3 text-left transition-colors",
+                  !isPublicMode ? "border-primary/40 bg-primary/5" : "border-border hover:bg-muted/40"
+                )}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Users className="w-4 h-4 text-muted-foreground" />
+                  <p className="text-sm font-medium text-foreground">Named Recipients</p>
+                </div>
+                <p className="text-xs text-muted-foreground">Send to specific people by email</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsPublicMode(true)}
+                className={cn(
+                  "rounded-lg border p-3 text-left transition-colors",
+                  isPublicMode ? "border-primary/40 bg-primary/5" : "border-border hover:bg-muted/40"
+                )}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Globe className="w-4 h-4 text-muted-foreground" />
+                  <p className="text-sm font-medium text-foreground">Public Link</p>
+                </div>
+                <p className="text-xs text-muted-foreground">Anyone with the link can sign</p>
+              </button>
+            </div>
+          </div>
+
+          {isPublicMode ? (
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Globe className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Public signing link</p>
+                  <p className="text-xs text-muted-foreground">After sending, a shareable link will be generated. Anyone who opens it can sign — no email required.</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground border border-border rounded-lg px-3 py-2 bg-muted/40">
+                In the next step, place fields for the <span className="font-medium text-foreground">Public Signer</span> slot — these will be cloned for each person who uses the link.
+              </p>
+            </div>
+          ) : (
           <div className="rounded-xl border border-border bg-card p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground">Recipients</h2>
@@ -1102,8 +1184,10 @@ export default function NewSigningRequestPage() {
               ))}
             </div>
           </div>
+          )} {/* end isPublicMode ternary */}
 
           <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            {!isPublicMode && (<>
             <div>
               <Label>Signing mode</Label>
               <div className="grid grid-cols-2 gap-2 mt-1.5">
@@ -1172,6 +1256,7 @@ export default function NewSigningRequestPage() {
                 </p>
               )}
             </div>
+            </>)} {/* end !isPublicMode */}
 
             <div className="grid md:grid-cols-2 gap-4">
               <div>
@@ -1511,13 +1596,55 @@ export default function NewSigningRequestPage() {
               disabled={sendBusy || recipientsMissingFields.length > 0 || recipientListForReview.length === 0}
               className="gap-2"
             >
-              {sendBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              Send for Signature
+              {sendBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : isPublicMode ? <Globe className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+              {isPublicMode ? "Create Public Link" : "Send for Signature"}
             </Button>
           </div>
         </div>
       )}
 
+      {/* Public link success */}
+      {createdPublicLinkUrl && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <Globe className="w-5 h-5 text-emerald-600" />
+            <p className="text-sm font-semibold text-emerald-800">Public signing link created!</p>
+          </div>
+          <p className="text-xs text-emerald-700">Share this link — anyone who opens it can sign the document.</p>
+          <div className="flex items-center gap-2">
+            <input
+              readOnly
+              value={createdPublicLinkUrl}
+              className="flex-1 h-9 rounded-md border border-emerald-300 bg-white px-3 text-sm font-mono text-foreground"
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-9 gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+              onClick={async () => {
+                await navigator.clipboard.writeText(createdPublicLinkUrl).catch(() => {});
+                setCopiedPublicLink(true);
+                setTimeout(() => setCopiedPublicLink(false), 2000);
+              }}
+            >
+              <Copy className="w-3.5 h-3.5" />
+              {copiedPublicLink ? "Copied!" : "Copy"}
+            </Button>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+            onClick={() => { window.location.href = "/dashboard/signing"; }}
+          >
+            Go to Agreements
+          </Button>
+        </div>
+      )}
+
+      {!createdPublicLinkUrl && (
       <div className="flex items-center justify-between gap-3">
         <Button type="button" variant="outline" onClick={goBack} disabled={step === 1 || busy || saveBusy || sendBusy}>
           Back
@@ -1537,6 +1664,7 @@ export default function NewSigningRequestPage() {
           {step === 3 ? "Save & Continue" : step === 4 ? "Done" : "Continue"}
         </Button>
       </div>
+      )}
     </div>
   );
 }

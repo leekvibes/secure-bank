@@ -31,10 +31,14 @@ import {
 import { SigningOrderFlow } from "@/components/signing/signing-order-flow";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  DECLINE_REASON_LABELS,
+  isDeclineReasonCode,
+} from "@/lib/signing/decline-reasons";
 
 type RequestStatus = "DRAFT" | "SENT" | "OPENED" | "PARTIALLY_SIGNED" | "COMPLETED" | "VOIDED" | "EXPIRED";
 type RecipientStatus = "PENDING" | "OPENED" | "COMPLETED" | "DECLINED";
-type DetailTab = "OVERVIEW" | "RECIPIENTS" | "FIELDS" | "TIMELINE";
+type DetailTab = "OVERVIEW" | "RECIPIENTS" | "FIELDS" | "TIMELINE" | "PUBLIC_LINKS";
 
 interface Recipient {
   id: string;
@@ -47,6 +51,10 @@ interface Recipient {
   isAgent?: boolean;
   isPublicSlot?: boolean;
   phone?: string | null;
+  declinedAt?: string | null;
+  declineReason?: string | null;
+  declineReasonCode?: string | null;
+  declineReasonText?: string | null;
 }
 
 interface AuditLog {
@@ -173,6 +181,20 @@ function timelineEventColor(event: string): string {
   if (event === "SENT" || event === "REMINDER_SENT" || event === "EXPIRY_REMINDER_SENT") return "#2563eb";
   if (event === "RECIPIENT_SIGNED") return "#7c3aed";
   return "#94a3b8";
+}
+
+function parseAuditMetadata(metadata: string | null): Record<string, unknown> | null {
+  if (!metadata) return null;
+  try {
+    return JSON.parse(metadata) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function declineReasonLabel(code: string | null | undefined): string | null {
+  if (!code || !isDeclineReasonCode(code)) return null;
+  return DECLINE_REASON_LABELS[code];
 }
 
 export default function SigningRequestDetailPage() {
@@ -493,6 +515,7 @@ export default function SigningRequestDetailPage() {
     { id: "RECIPIENTS", label: "Recipients" },
     { id: "FIELDS", label: "Fields" },
     { id: "TIMELINE", label: "Timeline" },
+    { id: "PUBLIC_LINKS", label: "PL" },
   ];
 
   return (
@@ -665,6 +688,8 @@ export default function SigningRequestDetailPage() {
               <div className="space-y-2">
                 {fieldCountsByRecipient.map(({ recipient, count }) => {
                   const rdot = recipientDot(recipient.status);
+                  const declineLabel = declineReasonLabel(recipient.declineReasonCode);
+                  const declineText = recipient.declineReasonText ?? recipient.declineReason ?? null;
                   return (
                     <div key={recipient.id} className="flex items-center justify-between gap-3 py-2 border-b border-border last:border-0">
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -680,8 +705,14 @@ export default function SigningRequestDetailPage() {
                         </span>
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-foreground truncate">{recipient.name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{recipient.email}</p>
-                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{recipient.email}</p>
+                        {recipient.status === "DECLINED" && (
+                          <p className="text-[11px] text-rose-700 mt-0.5 truncate">
+                            {declineLabel ? `Reason: ${declineLabel}` : "Reason provided"}
+                            {declineText ? ` · ${declineText}` : ""}
+                          </p>
+                        )}
+                      </div>
                       </div>
                       <div className="text-right shrink-0">
                         <span className="inline-flex items-center gap-1">
@@ -722,122 +753,6 @@ export default function SigningRequestDetailPage() {
               )}
             </section>
           </div>
-
-          {/* Public Links */}
-          <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Public Signing Links</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Anyone with the link can sign — no email required.</p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1.5 text-xs"
-                onClick={() => setShowCreatePublicLink(true)}
-                disabled={status === "VOIDED" || status === "COMPLETED" || status === "EXPIRED"}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Create Link
-              </Button>
-            </div>
-
-            {publicLinksLoading ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-              </div>
-            ) : publicLinks.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border p-5 text-center">
-                <Globe className="w-7 h-7 text-muted-foreground/40 mx-auto mb-2" />
-                <p className="text-xs font-medium text-muted-foreground">No public links yet</p>
-                <p className="text-xs text-muted-foreground/70 mt-0.5">Great for open houses, walk-in clients, or when you don&apos;t know the signer&apos;s email.</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {publicLinks.map((link) => {
-                  const url = typeof window !== "undefined" ? `${window.location.origin}/sign/public/${link.token}` : `/sign/public/${link.token}`;
-                  const isCopied = copiedPublicToken === link.token;
-                  const isConfirming = confirmDeleteLinkId === link.id;
-                  const usageLabel = link.maxUses != null
-                    ? `${link.usedCount} / ${link.maxUses} uses`
-                    : `${link.usedCount} use${link.usedCount !== 1 ? "s" : ""}`;
-
-                  return (
-                    <div key={link.id} className={`rounded-xl border border-border p-3 space-y-2 ${!link.isActive ? "opacity-60" : ""}`}>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-sm font-medium text-foreground">{link.label ?? "Untitled link"}</p>
-                            <span
-                              style={{
-                                fontSize: "10px", fontWeight: 600, letterSpacing: "0.05em",
-                                color: link.isActive ? "#16a34a" : "#94a3b8",
-                                background: link.isActive ? "#f0fdf4" : "#f1f5f9",
-                                border: `1px solid ${link.isActive ? "#bbf7d0" : "#e2e8f0"}`,
-                                borderRadius: 999, padding: "1px 8px",
-                              }}
-                            >
-                              {link.isActive ? "Active" : "Inactive"}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5 font-mono truncate">{url}</p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">{usageLabel}</p>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => void copyPublicLink(link.token)}>
-                            <Copy className="w-3 h-3" />
-                            {isCopied ? "Copied!" : "Copy"}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs"
-                            disabled={togglingLinkId === link.id}
-                            onClick={() => void togglePublicLink(link.id, !link.isActive)}
-                          >
-                            {togglingLinkId === link.id ? <Loader2 className="w-3 h-3 animate-spin" /> : link.isActive ? "Pause" : "Resume"}
-                          </Button>
-                          {!isConfirming ? (
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDeleteLinkId(link.id)}>
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          ) : (
-                            <div className="flex items-center gap-1">
-                              <Button variant="destructive" size="sm" className="h-7 text-xs" disabled={deletingLinkId === link.id} onClick={() => void deletePublicLink(link.id)}>
-                                {deletingLinkId === link.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Delete"}
-                              </Button>
-                              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setConfirmDeleteLinkId(null)}>Cancel</Button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      {link.usages.length > 0 && (
-                        <div className="border-t border-border pt-2 space-y-1">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Signers</p>
-                          {link.usages.slice(0, 5).map((u) => {
-                            const rdot = u.recipient.status === "COMPLETED" ? "#16a34a" : u.recipient.status === "DECLINED" ? "#e11d48" : "#94a3b8";
-                            return (
-                              <div key={u.id} className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: rdot, flexShrink: 0, display: "inline-block" }} />
-                                  <p className="text-xs text-foreground truncate">{u.recipient.name || "Guest"}</p>
-                                  {u.recipient.email && <p className="text-[11px] text-muted-foreground truncate">{u.recipient.email}</p>}
-                                </div>
-                                <p className="text-[11px] text-muted-foreground shrink-0">{new Date(u.createdAt).toLocaleDateString()}</p>
-                              </div>
-                            );
-                          })}
-                          {link.usages.length > 5 && (
-                            <p className="text-[11px] text-muted-foreground">+{link.usages.length - 5} more</p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
 
           {/* Files & downloads */}
           <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
@@ -908,6 +823,8 @@ export default function SigningRequestDetailPage() {
               const canResend = recipient.status === "PENDING" || recipient.status === "OPENED";
               const canReassign = (status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED") && (recipient.status === "PENDING" || recipient.status === "OPENED");
               const isShowingForm = resendFormId === recipient.id;
+              const declineLabel = declineReasonLabel(recipient.declineReasonCode);
+              const declineText = recipient.declineReasonText ?? recipient.declineReason ?? null;
 
               return (
                 <div key={recipient.id} className="rounded-xl border border-border p-4 space-y-3">
@@ -943,6 +860,16 @@ export default function SigningRequestDetailPage() {
                         <p className="text-[11px] text-muted-foreground mt-0.5">
                           {request.signingMode === "SEQUENTIAL" ? `Signer ${recipient.order + 1}` : "Parallel"} · {count} field{count !== 1 ? "s" : ""}
                         </p>
+                        {recipient.status === "DECLINED" && (
+                          <div className="mt-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-1">
+                            <p className="text-[11px] font-medium text-rose-700">
+                              {declineLabel ?? "Decline reason"}
+                            </p>
+                            {declineText ? (
+                              <p className="text-[11px] text-rose-700/90 mt-0.5">{declineText}</p>
+                            ) : null}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="text-right shrink-0 space-y-1">
@@ -1002,18 +929,6 @@ export default function SigningRequestDetailPage() {
               onSuccess={async () => { setReassignTarget(null); await reload(); }}
             />
           )}
-
-          {showCreatePublicLink && (
-            <CreatePublicLinkModal
-              requestId={id}
-              recipients={request.recipients}
-              onClose={() => setShowCreatePublicLink(false)}
-              onCreated={(link) => {
-                setPublicLinks((prev) => [link as unknown as PublicLink, ...prev]);
-                setShowCreatePublicLink(false);
-              }}
-            />
-          )}
         </section>
       )}
 
@@ -1066,6 +981,14 @@ export default function SigningRequestDetailPage() {
               <div className="space-y-5">
                 {request.auditLogs.map((log) => {
                   const color = timelineEventColor(log.event);
+                  const meta = parseAuditMetadata(log.metadata);
+                  const metaReasonCodeRaw = typeof meta?.reasonCode === "string" ? meta.reasonCode : null;
+                  const metaReasonTextRaw = typeof meta?.reasonText === "string"
+                    ? meta.reasonText
+                    : typeof meta?.reason === "string"
+                    ? meta.reason
+                    : null;
+                  const metaReasonLabel = declineReasonLabel(metaReasonCodeRaw);
                   return (
                     <div key={log.id} className="relative flex items-start gap-4">
                       {/* Dot */}
@@ -1086,6 +1009,12 @@ export default function SigningRequestDetailPage() {
                       <div>
                         <p className="text-sm font-medium text-foreground leading-tight">{eventLabel(log.event)}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">{new Date(log.createdAt).toLocaleString()}</p>
+                        {log.event === "DECLINED" && (metaReasonLabel || metaReasonTextRaw) && (
+                          <p className="text-xs text-rose-700 mt-1">
+                            {metaReasonLabel ? `Reason: ${metaReasonLabel}` : "Reason captured"}
+                            {metaReasonTextRaw ? ` · ${metaReasonTextRaw}` : ""}
+                          </p>
+                        )}
                       </div>
                     </div>
                   );
@@ -1094,6 +1023,137 @@ export default function SigningRequestDetailPage() {
             </div>
           )}
         </section>
+      )}
+
+      {/* ── PUBLIC LINKS ── */}
+      {activeTab === "PUBLIC_LINKS" && (
+        <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Public Signing Links</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Anyone with the link can sign — no email required.</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => setShowCreatePublicLink(true)}
+              disabled={status === "VOIDED" || status === "COMPLETED" || status === "EXPIRED"}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Create Link
+            </Button>
+          </div>
+
+          {publicLinksLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : publicLinks.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border p-5 text-center">
+              <Globe className="w-7 h-7 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-xs font-medium text-muted-foreground">No public links yet</p>
+              <p className="text-xs text-muted-foreground/70 mt-0.5">Great for open houses, walk-in clients, or when you don&apos;t know the signer&apos;s email.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {publicLinks.map((link) => {
+                const url = typeof window !== "undefined" ? `${window.location.origin}/sign/public/${link.token}` : `/sign/public/${link.token}`;
+                const isCopied = copiedPublicToken === link.token;
+                const isConfirming = confirmDeleteLinkId === link.id;
+                const usageLabel = link.maxUses != null
+                  ? `${link.usedCount} / ${link.maxUses} uses`
+                  : `${link.usedCount} use${link.usedCount !== 1 ? "s" : ""}`;
+
+                return (
+                  <div key={link.id} className={`rounded-xl border border-border p-3 space-y-2 ${!link.isActive ? "opacity-60" : ""}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-medium text-foreground">{link.label ?? "Untitled link"}</p>
+                          <span
+                            style={{
+                              fontSize: "10px", fontWeight: 600, letterSpacing: "0.05em",
+                              color: link.isActive ? "#16a34a" : "#94a3b8",
+                              background: link.isActive ? "#f0fdf4" : "#f1f5f9",
+                              border: `1px solid ${link.isActive ? "#bbf7d0" : "#e2e8f0"}`,
+                              borderRadius: 999, padding: "1px 8px",
+                            }}
+                          >
+                            {link.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 font-mono truncate">{url}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{usageLabel}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => void copyPublicLink(link.token)}>
+                          <Copy className="w-3 h-3" />
+                          {isCopied ? "Copied!" : "Copy"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={togglingLinkId === link.id}
+                          onClick={() => void togglePublicLink(link.id, !link.isActive)}
+                        >
+                          {togglingLinkId === link.id ? <Loader2 className="w-3 h-3 animate-spin" /> : link.isActive ? "Pause" : "Resume"}
+                        </Button>
+                        {!isConfirming ? (
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDeleteLinkId(link.id)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <Button variant="destructive" size="sm" className="h-7 text-xs" disabled={deletingLinkId === link.id} onClick={() => void deletePublicLink(link.id)}>
+                              {deletingLinkId === link.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Delete"}
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setConfirmDeleteLinkId(null)}>Cancel</Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {link.usages.length > 0 && (
+                      <div className="border-t border-border pt-2 space-y-1">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Signers</p>
+                        {link.usages.slice(0, 5).map((u) => {
+                          const rdot = u.recipient.status === "COMPLETED" ? "#16a34a" : u.recipient.status === "DECLINED" ? "#e11d48" : "#94a3b8";
+                          return (
+                            <div key={u.id} className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span style={{ width: 6, height: 6, borderRadius: "50%", background: rdot, flexShrink: 0, display: "inline-block" }} />
+                                <p className="text-xs text-foreground truncate">{u.recipient.name || "Guest"}</p>
+                                {u.recipient.email && <p className="text-[11px] text-muted-foreground truncate">{u.recipient.email}</p>}
+                              </div>
+                              <p className="text-[11px] text-muted-foreground shrink-0">{new Date(u.createdAt).toLocaleDateString()}</p>
+                            </div>
+                          );
+                        })}
+                        {link.usages.length > 5 && (
+                          <p className="text-[11px] text-muted-foreground">+{link.usages.length - 5} more</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Modal rendered at top level so it's always present regardless of active tab */}
+      {showCreatePublicLink && (
+        <CreatePublicLinkModal
+          requestId={id}
+          recipients={request.recipients}
+          onClose={() => setShowCreatePublicLink(false)}
+          onCreated={(link) => {
+            setPublicLinks((prev) => [link as unknown as PublicLink, ...prev]);
+            setShowCreatePublicLink(false);
+          }}
+        />
       )}
     </div>
   );
