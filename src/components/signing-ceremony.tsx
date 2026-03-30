@@ -2180,7 +2180,8 @@ export function SigningCeremony({
 
                       {fieldsOnPage.map((field) => {
                         const val = fieldValues[field.id] ?? "";
-                        const done = isFieldDone(field, val);
+                        // For overlay display: CHECKBOX shows filled only when actually checked
+                        const done = field.type === "CHECKBOX" ? val === "true" : isFieldDone(field, val);
                         const isNext = nextIncompleteField?.id === field.id;
                         const colors = fieldColor(field.type);
                         const isImg = val.startsWith("data:image");

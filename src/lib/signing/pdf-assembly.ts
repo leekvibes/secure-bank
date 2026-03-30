@@ -57,7 +57,19 @@ function hex(r: number, g: number, b: number) {
 }
 
 function truncate(str: string, max: number): string {
-  return str.length > max ? str.slice(0, max - 1) + "…" : str;
+  return str.length > max ? str.slice(0, max - 1) + "..." : str;
+}
+
+/** Strip characters outside Windows-1252 (0x00–0xFF) to avoid pdf-lib encoding errors */
+function sanitizeText(str: string): string {
+  return str
+    .replace(/\u2014/g, "-")   // em dash
+    .replace(/\u2013/g, "-")   // en dash
+    .replace(/\u2018|\u2019/g, "'")  // curly single quotes
+    .replace(/\u201C|\u201D/g, '"')  // curly double quotes
+    .replace(/\u2026/g, "...")  // ellipsis
+    .replace(/\u2022/g, "*")    // bullet
+    .replace(/[^\x00-\xFF]/g, "?"); // any remaining non-Latin-1 char
 }
 
 async function loadImageFromBase64(
@@ -100,6 +112,7 @@ export async function assemblePdf(
   const pageDimMap = new Map(pages.map((p) => [p.page, p]));
 
   for (const field of fields) {
+    if (field.type === "ATTACHMENT") continue; // attachments stored as data URLs, not drawn in PDF
     if (!field.value?.trim() && field.type !== "CHECKBOX") continue;
     if (field.type === "CHECKBOX" && field.value !== "true") continue;
 
@@ -147,24 +160,27 @@ export async function assemblePdf(
         });
       }
     } else if (field.type === "CHECKBOX") {
-      // Draw a filled checkmark box
+      // Draw a filled checkmark box (use lines — ✓ is outside WinAnsiEncoding)
       pdfPage.drawRectangle({
         x: coords.x,
         y: coords.y,
         width: coords.width,
         height: coords.height,
-        color: hex(0, 0, 0),
-        opacity: 0.1,
-        borderColor: hex(60, 60, 60),
-        borderWidth: 1,
+        color: hex(220, 245, 220),
+        borderColor: hex(30, 120, 30),
+        borderWidth: 1.5,
       });
-      pdfPage.drawText("✓", {
-        x: coords.x + 2,
-        y: coords.y + coords.height * 0.1,
-        font: fontBold,
-        size: Math.min(14, coords.height * 0.75),
-        color: hex(30, 100, 30),
-      });
+      // Draw checkmark as two lines (V-shape)
+      const pad = Math.max(2, coords.width * 0.12);
+      const cx = coords.x + pad;
+      const cy = coords.y + coords.height * 0.42;
+      const midX = coords.x + coords.width * 0.42;
+      const midY = coords.y + coords.height * 0.18;
+      const endX = coords.x + coords.width - pad * 0.5;
+      const endY = coords.y + coords.height * 0.78;
+      const ckThickness = Math.max(1.2, coords.height * 0.1);
+      pdfPage.drawLine({ start: { x: cx, y: cy }, end: { x: midX, y: midY }, thickness: ckThickness, color: hex(30, 120, 30) });
+      pdfPage.drawLine({ start: { x: midX, y: midY }, end: { x: endX, y: endY }, thickness: ckThickness, color: hex(30, 120, 30) });
     } else {
       // Text-based fields (FULL_NAME, TITLE, COMPANY, TEXT, DATE_SIGNED, DROPDOWN, RADIO)
       const isNameOrSig =
@@ -182,7 +198,7 @@ export async function assemblePdf(
           : hex(30, 30, 30);
 
       pdfPage.drawText(
-        truncate(field.value.trim(), 80),
+        sanitizeText(truncate(field.value.trim(), 80)),
         {
           x: coords.x + 3,
           y: coords.y + coords.height * 0.15,
@@ -220,7 +236,7 @@ export async function assemblePdf(
       height: bannerHeight,
       color: bannerBg,
     });
-    pdfPage.drawText("SIGNED DOCUMENT — DO NOT MODIFY — SecureLink", {
+    pdfPage.drawText("SIGNED DOCUMENT - DO NOT MODIFY - SecureLink", {
       x: 6,
       y: 3.5,
       font: bannerFont,
@@ -293,12 +309,12 @@ export async function generateCertificate(
   y = H - 100;
 
   // ── Title
-  page.drawText(truncate(requestTitle ?? "Signing Request", 60), {
+  page.drawText(sanitizeText(truncate(requestTitle ?? "Signing Request", 60)), {
     x: 40, y, font: fontB, size: 16, color: grayDark,
   });
   y -= 20;
 
-  page.drawText(`Prepared by: ${agentName}`, {
+  page.drawText(sanitizeText(`Prepared by: ${agentName}`), {
     x: 40, y, font: fontR, size: 10, color: grayMid,
   });
   y -= 14;
@@ -319,11 +335,11 @@ export async function generateCertificate(
   y -= 16;
 
   for (const r of recipients) {
-    const statusIcon = r.completedAt ? "✓" : r.declinedAt ? "✗" : "○";
+    const statusIcon = r.completedAt ? "[SIGNED]" : r.declinedAt ? "[DECLINED]" : "[PENDING]";
     const statusColor = r.completedAt ? greenDark : r.declinedAt ? hex(185, 28, 28) : grayMid;
 
-    page.drawText(statusIcon, { x: 40, y, font: fontB, size: 11, color: statusColor });
-    page.drawText(`${r.name}  <${r.email}>`, {
+    page.drawText(statusIcon, { x: 40, y, font: fontB, size: 8, color: statusColor });
+    page.drawText(sanitizeText(`${r.name}  <${r.email}>`), {
       x: 58, y, font: fontB, size: 10, color: grayDark,
     });
     y -= 14;

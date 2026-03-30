@@ -206,7 +206,7 @@ export function SigningLiveViewer({
                 {pageFields.map((field) => {
                   const c = col(field.recipientIndex);
                   const val = field.value ?? "";
-                  const isDone = !!val;
+                  const isDone = field.type === "CHECKBOX" ? val === "true" : !!val;
                   const isImg = val.startsWith("data:image");
 
                   return (
