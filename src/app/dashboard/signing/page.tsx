@@ -522,75 +522,58 @@ export default function AgreementsPage() {
                     <p className="text-sm font-semibold text-foreground truncate">
                       {request.title?.trim() || request.originalName || "Untitled agreement"}
                     </p>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">{request.originalName || "No file name"}</p>
                     {isDeleted && daysLeft !== null ? (
-                      <p className="text-[11px] text-red-600 mt-1">Permanent deletion in {daysLeft} day{daysLeft === 1 ? "" : "s"}</p>
+                      <p className="text-[11px] text-red-600 mt-0.5">Permanent deletion in {daysLeft} day{daysLeft === 1 ? "" : "s"}</p>
                     ) : null}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
                     <span
-                      style={{
-                        width: 7,
-                        height: 7,
-                        borderRadius: "50%",
-                        background: dot.color,
-                        flexShrink: 0,
-                        display: "inline-block",
-                      }}
+                      style={{ width: 7, height: 7, borderRadius: "50%", background: dot.color, flexShrink: 0, display: "inline-block" }}
                     />
                     <span style={{ fontSize: "12px", fontWeight: 500, color: dot.color }}>{dot.label}</span>
                   </div>
                 </div>
 
-                {/* Recipient avatar chips */}
+                {/* Recipients */}
                 {request.recipients.length > 0 && (
-                  <div className="flex items-center gap-1">
-                    <div className="flex -space-x-1.5">
-                      {request.recipients.slice(0, 5).map((r) => (
+                  <div className="flex items-center gap-2">
+                    <div className="flex -space-x-1.5 shrink-0">
+                      {request.recipients.slice(0, 4).map((r) => (
                         <span
                           key={r.id}
-                          title={`${r.name} (${r.status})`}
+                          title={`${r.name} — ${r.status}`}
                           style={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: "50%",
+                            width: 26, height: 26, borderRadius: "50%",
                             background: recipientChipColor(r.status),
                             border: "2px solid hsl(var(--card))",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "9px",
-                            fontWeight: 700,
-                            color: "#fff",
-                            flexShrink: 0,
+                            display: "inline-flex", alignItems: "center", justifyContent: "center",
+                            fontSize: "9px", fontWeight: 700, color: "#fff", flexShrink: 0,
                           }}
                         >
                           {recipientInitials(r.name)}
                         </span>
                       ))}
-                      {request.recipients.length > 5 && (
+                      {request.recipients.length > 4 && (
                         <span
                           style={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: "50%",
+                            width: 26, height: 26, borderRadius: "50%",
                             background: "#94a3b8",
                             border: "2px solid hsl(var(--card))",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "9px",
-                            fontWeight: 700,
-                            color: "#fff",
+                            display: "inline-flex", alignItems: "center", justifyContent: "center",
+                            fontSize: "9px", fontWeight: 700, color: "#fff",
                           }}
                         >
-                          +{request.recipients.length - 5}
+                          +{request.recipients.length - 4}
                         </span>
                       )}
                     </div>
-                    <span className="text-[11px] text-muted-foreground ml-1">
-                      {completed}/{request.recipients.length} signed
-                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs text-foreground font-medium truncate">
+                        {request.recipients.slice(0, 2).map((r) => r.name).join(", ")}
+                        {request.recipients.length > 2 ? ` +${request.recipients.length - 2} more` : ""}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">{completed}/{request.recipients.length} signed</p>
+                    </div>
                   </div>
                 )}
 

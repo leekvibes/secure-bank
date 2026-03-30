@@ -12,12 +12,13 @@ import {
   Clock,
   Download,
   Edit2,
+  ExternalLink,
   FileText,
   LayoutTemplate,
   Loader2,
   Mail,
   Send,
-  ShieldAlert,
+  ShieldCheck,
   Trash2,
   UserCheck,
   XCircle,
@@ -25,7 +26,6 @@ import {
 import { SigningOrderFlow } from "@/components/signing/signing-order-flow";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 type RequestStatus = "DRAFT" | "SENT" | "OPENED" | "PARTIALLY_SIGNED" | "COMPLETED" | "VOIDED" | "EXPIRED";
 type RecipientStatus = "PENDING" | "OPENED" | "COMPLETED" | "DECLINED";
@@ -93,27 +93,33 @@ interface SigningRequestDetail {
 
 function resolveDisplayStatus(request: SigningRequestDetail): RequestStatus {
   if (request.displayStatus) return request.displayStatus;
-  const completedCount = request.recipients.filter((recipient) => recipient.status === "COMPLETED").length;
+  const completedCount = request.recipients.filter((r) => r.status === "COMPLETED").length;
   if ((request.status === "SENT" || request.status === "OPENED") && completedCount > 0 && completedCount < request.recipients.length) {
     return "PARTIALLY_SIGNED";
   }
   return request.status;
 }
 
-function requestBadge(status: RequestStatus) {
-  if (status === "DRAFT") return { label: "Draft", className: "bg-slate-200 text-slate-700" };
-  if (status === "PARTIALLY_SIGNED") return { label: "Partially Signed", className: "bg-amber-100 text-amber-800" };
-  if (status === "SENT" || status === "OPENED") return { label: "Sent", className: "bg-blue-100 text-blue-800" };
-  if (status === "COMPLETED") return { label: "Completed", className: "bg-emerald-100 text-emerald-800" };
-  if (status === "VOIDED") return { label: "Voided", className: "bg-orange-100 text-orange-800" };
-  return { label: "Expired", className: "bg-rose-100 text-rose-800" };
+function statusDot(status: RequestStatus): { color: string; label: string } {
+  if (status === "COMPLETED") return { color: "#16a34a", label: "Completed" };
+  if (status === "PARTIALLY_SIGNED") return { color: "#d97706", label: "Partially Signed" };
+  if (status === "SENT" || status === "OPENED") return { color: "#2563eb", label: "Sent" };
+  if (status === "VOIDED") return { color: "#ea580c", label: "Voided" };
+  if (status === "EXPIRED") return { color: "#e11d48", label: "Expired" };
+  return { color: "#94a3b8", label: "Draft" };
 }
 
-function recipientStatusBadge(status: RecipientStatus) {
-  if (status === "COMPLETED") return { label: "Signed", className: "bg-emerald-100 text-emerald-800" };
-  if (status === "OPENED") return { label: "Opened", className: "bg-blue-100 text-blue-800" };
-  if (status === "DECLINED") return { label: "Declined", className: "bg-rose-100 text-rose-800" };
-  return { label: "Waiting", className: "bg-slate-200 text-slate-700" };
+function recipientDot(status: RecipientStatus): { color: string; label: string } {
+  if (status === "COMPLETED") return { color: "#16a34a", label: "Signed" };
+  if (status === "OPENED") return { color: "#2563eb", label: "Opened" };
+  if (status === "DECLINED") return { color: "#e11d48", label: "Declined" };
+  return { color: "#94a3b8", label: "Waiting" };
+}
+
+function recipientInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
 }
 
 function eventLabel(event: string) {
@@ -133,6 +139,14 @@ function eventLabel(event: string) {
     EXPIRY_REMINDER_SENT: "Expiry reminder sent",
   };
   return map[event] ?? event;
+}
+
+function timelineEventColor(event: string): string {
+  if (event === "COMPLETED") return "#16a34a";
+  if (event === "DECLINED" || event === "VOIDED") return "#e11d48";
+  if (event === "SENT" || event === "REMINDER_SENT" || event === "EXPIRY_REMINDER_SENT") return "#2563eb";
+  if (event === "RECIPIENT_SIGNED") return "#7c3aed";
+  return "#94a3b8";
 }
 
 export default function SigningRequestDetailPage() {
@@ -158,6 +172,7 @@ export default function SigningRequestDetailPage() {
   const [resendError, setResendError] = useState<string | null>(null);
   const [resendSuccess, setResendSuccess] = useState<string | null>(null);
   const [extendBusy, setExtendBusy] = useState(false);
+  const [showExtendMenu, setShowExtendMenu] = useState(false);
   const [reassignTarget, setReassignTarget] = useState<Recipient | null>(null);
   const [saveTemplateBusy, setSaveTemplateBusy] = useState(false);
   const [saveTemplateSuccess, setSaveTemplateSuccess] = useState(false);
@@ -181,18 +196,16 @@ export default function SigningRequestDetailPage() {
       }
     }
     void load();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [id]);
 
   const status = useMemo(() => (request ? resolveDisplayStatus(request) : null), [request]);
-  const statusPill = status ? requestBadge(status) : null;
-  const completedRecipients = request?.recipients.filter((recipient) => recipient.status === "COMPLETED").length ?? 0;
+  const dot = status ? statusDot(status) : null;
+  const completedRecipients = request?.recipients.filter((r) => r.status === "COMPLETED").length ?? 0;
   const canRemind = status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED";
   const canVoid = status !== "COMPLETED" && status !== "VOIDED" && status !== "EXPIRED";
   const isEditable = request?.isEditable ?? status === "DRAFT";
-  const canDelete = !!status; // any status can be deleted (API enforces soft-delete)
+  const canDelete = !!status;
   const isExpiringSoon = request && (status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED") && new Date(request.expiresAt).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000 && new Date(request.expiresAt).getTime() > Date.now();
   const canSaveTemplate = status === "SENT" || status === "COMPLETED";
 
@@ -200,7 +213,7 @@ export default function SigningRequestDetailPage() {
     if (!id) return;
     const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}`, { cache: "no-store" });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to reload signing request.");
+    if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to reload.");
     setRequest((data?.request ?? data) as SigningRequestDetail);
   }
 
@@ -318,6 +331,7 @@ export default function SigningRequestDetailPage() {
   async function handleExtend(days: number) {
     if (!id) return;
     setExtendBusy(true);
+    setShowExtendMenu(false);
     setActionError(null);
     try {
       const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}/extend`, {
@@ -368,8 +382,8 @@ export default function SigningRequestDetailPage() {
       <div className="space-y-4">
         <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
           <Link href="/dashboard/signing">
-            <ArrowLeft className="w-4 h-4" />
-            Back to Signing
+            <ArrowLeft className="w-4 h-4 mr-1.5" />
+            Back
           </Link>
         </Button>
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -381,8 +395,12 @@ export default function SigningRequestDetailPage() {
 
   const fieldCountsByRecipient = request.recipients.map((recipient) => ({
     recipient,
-    count: request.signingFields.filter((field) => field.recipientId === recipient.id).length,
+    count: request.signingFields.filter((f) => f.recipientId === recipient.id).length,
   }));
+
+  const completionPercent = request.recipients.length > 0
+    ? Math.round((completedRecipients / request.recipients.length) * 100)
+    : 0;
 
   const tabs: Array<{ id: DetailTab; label: string }> = [
     { id: "OVERVIEW", label: "Overview" },
@@ -393,219 +411,266 @@ export default function SigningRequestDetailPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
-            <Link href="/dashboard/signing">
-              <ArrowLeft className="w-4 h-4" />
-              Back to Signing
-            </Link>
-          </Button>
-          <h1 className="ui-page-title mt-2">{request.title?.trim() || request.originalName || "Untitled request"}</h1>
+
+      {/* Back nav */}
+      <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground w-fit">
+        <Link href="/dashboard/signing">
+          <ArrowLeft className="w-4 h-4 mr-1.5" />
+          Agreements
+        </Link>
+      </Button>
+
+      {/* Page header */}
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="ui-page-title">{request.title?.trim() || request.originalName || "Untitled request"}</h1>
+            {dot && (
+              <span className="inline-flex items-center gap-1.5">
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: dot.color, display: "inline-block", flexShrink: 0 }} />
+                <span style={{ fontSize: "13px", fontWeight: 600, color: dot.color }}>{dot.label}</span>
+              </span>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground mt-1">
-            {request.originalName || "No file name"} · {request.signingMode === "SEQUENTIAL" ? "Sequential" : "Parallel"} flow
+            {request.originalName || "No file name"}
+            {" · "}
+            {request.signingMode === "SEQUENTIAL" ? "Sequential" : "Parallel"} flow
+            {" · "}
+            Created {new Date(request.createdAt).toLocaleDateString()}
           </p>
         </div>
-        <div className="rounded-xl border border-border bg-gradient-to-br from-slate-50 via-white to-blue-50/40 p-3 w-full max-w-[360px] space-y-2 shadow-sm">
-          <div className="flex items-center justify-between">
-            {statusPill ? <Badge className={statusPill.className}>{statusPill.label}</Badge> : <span />}
-            <p className="text-[11px] text-muted-foreground">Created {new Date(request.createdAt).toLocaleDateString()}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {isEditable && (
-              <Button variant="outline" size="sm" asChild className="h-8 gap-1.5">
-                <Link href={`/dashboard/signing/${id}/edit-fields`}>
-                  <Edit2 className="w-3.5 h-3.5" />
-                  Edit
-                </Link>
-              </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={handleRemind} disabled={!canRemind || remindBusy} className="h-8 gap-1.5">
-              {remindBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BellRing className="w-3.5 h-3.5" />}
-              Remind
+
+        {/* Action bar */}
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {isEditable && (
+            <Button variant="outline" size="sm" asChild className="h-9 gap-1.5">
+              <Link href={`/dashboard/signing/${id}/edit-fields`}>
+                <Edit2 className="w-3.5 h-3.5" />
+                Edit
+              </Link>
             </Button>
-            {canSaveTemplate && (
+          )}
+          <Button variant="outline" size="sm" onClick={handleRemind} disabled={!canRemind || remindBusy} className="h-9 gap-1.5">
+            {remindBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BellRing className="w-3.5 h-3.5" />}
+            Remind
+          </Button>
+          {canSaveTemplate && (
+            <Button variant="outline" size="sm" onClick={() => void handleSaveTemplate()} disabled={saveTemplateBusy} className="h-9 gap-1.5">
+              {saveTemplateBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LayoutTemplate className="w-3.5 h-3.5" />}
+              {saveTemplateSuccess ? "Saved!" : "Save Template"}
+            </Button>
+          )}
+          {isExpiringSoon && (
+            <div className="relative">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => void handleSaveTemplate()}
-                disabled={saveTemplateBusy}
-                className="h-8 gap-1.5"
+                className="h-9 gap-1.5 text-amber-700 border-amber-300 hover:bg-amber-50"
+                disabled={extendBusy}
+                onClick={() => setShowExtendMenu((v) => !v)}
               >
-                {saveTemplateBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LayoutTemplate className="w-3.5 h-3.5" />}
-                {saveTemplateSuccess ? "Saved!" : "Save as Template"}
+                {extendBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Calendar className="w-3.5 h-3.5" />}
+                Extend
               </Button>
-            )}
-            {isExpiringSoon && (
-              <div className="relative">
-                <details className="group">
-                  <summary className="list-none cursor-pointer">
-                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-amber-700 border-amber-300 hover:bg-amber-50" disabled={extendBusy} asChild>
-                      <span>
-                        {extendBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Calendar className="w-3.5 h-3.5" />}
-                        Extend Deadline
-                      </span>
-                    </Button>
-                  </summary>
-                  <div className="absolute top-full left-0 mt-1 z-50 bg-card border border-border rounded-xl shadow-lg py-1 w-44">
-                    {[3, 7, 14, 30].map((days) => (
-                      <button
-                        key={days}
-                        className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                        onClick={() => { void handleExtend(days); (document.querySelector("details") as HTMLDetailsElement | null)?.removeAttribute("open"); }}
-                      >
-                        + {days} days
-                      </button>
-                    ))}
-                  </div>
-                </details>
-              </div>
-            )}
-            <Button variant="outline" size="sm" onClick={() => void handleDownload("signed")} disabled={downloadBusy !== null} className="h-8 gap-1.5">
-              {downloadBusy === "signed" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-              PDF
-            </Button>
-            <Button variant="destructive" size="sm" onClick={handleVoid} disabled={!canVoid || voidBusy} className="h-8 gap-1.5">
-              {voidBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
-              Void
-            </Button>
-          </div>
-          {canDelete && (
-            <div className="pt-1">
-              {!confirmDelete ? (
-                <button
-                  type="button"
-                  className="text-xs text-muted-foreground hover:text-destructive inline-flex items-center gap-1"
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Delete request
-                </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleteBusy} className="h-7 text-xs">
-                    {deleteBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : "Confirm delete"}
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)} className="h-7 text-xs">
-                    Cancel
-                  </Button>
+              {showExtendMenu && (
+                <div className="absolute top-full right-0 mt-1 z-50 bg-card border border-border rounded-xl shadow-lg py-1 w-40">
+                  {[3, 7, 14, 30].map((days) => (
+                    <button
+                      key={days}
+                      className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                      onClick={() => void handleExtend(days)}
+                    >
+                      +{days} days
+                    </button>
+                  ))}
                 </div>
               )}
+            </div>
+          )}
+          <Button variant="outline" size="sm" onClick={() => void handleDownload("signed")} disabled={downloadBusy !== null} className="h-9 gap-1.5">
+            {downloadBusy === "signed" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleVoid} disabled={!canVoid || voidBusy} className="h-9 gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive/50">
+            {voidBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
+            Void
+          </Button>
+          {canDelete && !confirmDelete && (
+            <Button variant="ghost" size="sm" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDelete(true)}>
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
+          {confirmDelete && (
+            <div className="flex items-center gap-1.5">
+              <Button variant="destructive" size="sm" className="h-9 text-xs" onClick={() => void handleDelete()} disabled={deleteBusy}>
+                {deleteBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Confirm delete"}
+              </Button>
+              <Button variant="ghost" size="sm" className="h-9 text-xs" onClick={() => setConfirmDelete(false)}>Cancel</Button>
             </div>
           )}
         </div>
       </div>
 
-      {actionError ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</div> : null}
+      {actionError ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</div>
+      ) : null}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <OverviewKpi label="Recipients" value={request.recipients.length} tone="blue" />
-        <OverviewKpi label="Signed" value={`${completedRecipients}/${request.recipients.length}`} tone="emerald" />
-        <OverviewKpi label="Fields" value={request.signingFields.length} tone="violet" />
-        <OverviewKpi label="Expires" value={new Date(request.expiresAt).toLocaleDateString()} tone="amber" />
+      {/* Floating metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 border border-border rounded-2xl overflow-hidden">
+        {[
+          { label: "RECIPIENTS", value: request.recipients.length },
+          { label: "SIGNED", value: `${completedRecipients}/${request.recipients.length}` },
+          { label: "FIELDS", value: request.signingFields.length },
+          { label: "EXPIRES", value: new Date(request.expiresAt).toLocaleDateString() },
+        ].map((m, i) => (
+          <div
+            key={m.label}
+            className="px-5 py-4 flex flex-col gap-1"
+            style={{ borderLeft: i > 0 ? "1px solid hsl(var(--border))" : undefined }}
+          >
+            <span style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.1em", color: "hsl(var(--muted-foreground))", textTransform: "uppercase" }}>
+              {m.label}
+            </span>
+            <span style={{ fontSize: "22px", fontWeight: 800, lineHeight: 1, color: "hsl(var(--foreground))" }}>
+              {m.value}
+            </span>
+          </div>
+        ))}
       </div>
 
-      <div className="rounded-2xl border border-border bg-gradient-to-br from-slate-50/90 via-white to-blue-50/30 p-2">
-        <div className="flex flex-wrap gap-2">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
-                activeTab === tab.id ? "bg-primary/12 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+      {/* Progress bar */}
+      <div className="space-y-1.5">
+        <div className="h-[3px] rounded-full bg-border overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${completionPercent}%`, background: dot?.color ?? "#94a3b8" }}
+          />
         </div>
+        <p className="text-[11px] text-muted-foreground">{completionPercent}% complete — {completedRecipients} of {request.recipients.length} signed</p>
       </div>
 
-      {activeTab === "OVERVIEW" && (
-        <div className="space-y-5">
-          <div className="grid lg:grid-cols-[1.1fr_1fr] gap-5">
-          <section className="rounded-2xl border border-blue-200/60 bg-gradient-to-br from-blue-50/60 to-white p-5 space-y-3">
-            <h2 className="text-sm font-semibold text-foreground">Recipient Progress</h2>
-            <div className="space-y-2">
-              {fieldCountsByRecipient.map(({ recipient, count }) => {
-                const badge = recipientStatusBadge(recipient.status);
-                return (
-                  <div key={recipient.id} className="rounded-lg border border-border p-3 flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{recipient.name}</p>
-                      <p className="text-xs text-muted-foreground">{recipient.email}</p>
-                      <p className="text-[11px] text-muted-foreground mt-1">{count} field{count === 1 ? "" : "s"}</p>
-                    </div>
-                    <Badge className={badge.className}>{badge.label}</Badge>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+      {/* Pill tabs */}
+      <div className="bg-muted rounded-xl p-1 flex items-center gap-1 w-fit">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-1.5 text-sm rounded-lg transition-all whitespace-nowrap ${
+              activeTab === tab.id
+                ? "bg-card text-foreground font-medium shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-          <section className="rounded-2xl border border-violet-200/60 bg-gradient-to-br from-violet-50/50 to-white p-5 space-y-3">
-            <h2 className="text-sm font-semibold text-foreground">Quick Links</h2>
-            {(status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED") ? (
+      {/* ── OVERVIEW ── */}
+      {activeTab === "OVERVIEW" && (
+        <div className="space-y-4">
+          <div className="grid lg:grid-cols-2 gap-4">
+
+            {/* Recipient progress */}
+            <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Recipient Progress</h2>
               <div className="space-y-2">
-                {request.recipients.map((recipient) => {
-                  const signUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/sign/${recipient.token}`;
-                  const isCopied = copiedToken === recipient.token;
+                {fieldCountsByRecipient.map(({ recipient, count }) => {
+                  const rdot = recipientDot(recipient.status);
                   return (
-                    <div key={recipient.id} className="rounded-lg border border-border p-3 flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{recipient.name}</p>
-                        <p className="text-xs text-muted-foreground font-mono truncate">{signUrl}</p>
+                    <div key={recipient.id} className="flex items-center justify-between gap-3 py-2 border-b border-border last:border-0">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span
+                          style={{
+                            width: 32, height: 32, borderRadius: "50%",
+                            background: rdot.color, flexShrink: 0,
+                            display: "inline-flex", alignItems: "center", justifyContent: "center",
+                            fontSize: "11px", fontWeight: 700, color: "#fff",
+                          }}
+                        >
+                          {recipientInitials(recipient.name)}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{recipient.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{recipient.email}</p>
+                        </div>
                       </div>
-                      <Button variant="outline" size="sm" onClick={() => void copySigningLink(recipient.token)}>
-                        {isCopied ? "Copied" : "Copy"}
-                      </Button>
+                      <div className="text-right shrink-0">
+                        <span className="inline-flex items-center gap-1">
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: rdot.color, display: "inline-block" }} />
+                          <span style={{ fontSize: "12px", fontWeight: 500, color: rdot.color }}>{rdot.label}</span>
+                        </span>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{count} field{count !== 1 ? "s" : ""}</p>
+                      </div>
                     </div>
                   );
                 })}
               </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Links are shown while request is active.</p>
-            )}
-          </section>
+            </section>
+
+            {/* Quick links */}
+            <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Signing Links</h2>
+              {(status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED") ? (
+                <div className="space-y-2">
+                  {request.recipients.map((recipient) => {
+                    const signUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/sign/${recipient.token}`;
+                    const isCopied = copiedToken === recipient.token;
+                    return (
+                      <div key={recipient.id} className="flex items-center justify-between gap-3 py-2 border-b border-border last:border-0">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{recipient.name}</p>
+                          <p className="text-xs text-muted-foreground font-mono truncate">{signUrl}</p>
+                        </div>
+                        <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs" onClick={() => void copySigningLink(recipient.token)}>
+                          {isCopied ? "Copied!" : "Copy"}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Links are shown while the request is active.</p>
+              )}
+            </section>
           </div>
 
-          <section className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50/70 to-white p-5 space-y-4">
-            <h2 className="text-sm font-semibold text-foreground">Files & Downloads</h2>
-            {request.blobUrl ? (
+          {/* Files & downloads */}
+          <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Files & Downloads</h2>
+            {request.blobUrl && (
               <a
                 href={`/dashboard/signing/${id}/preview`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-xl border border-border p-4 hover:bg-muted/40 transition-colors flex items-center justify-between"
+                className="flex items-center justify-between gap-3 py-3 px-4 rounded-xl border border-border hover:bg-muted/40 transition-colors group"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <FileText className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm font-medium text-foreground">Open Live Document Preview</span>
+                  <span className="text-sm font-medium text-foreground">Open document preview</span>
                 </div>
-                <ArrowLeft className="w-4 h-4 rotate-180 text-muted-foreground" />
+                <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
               </a>
-            ) : (
-              <p className="text-sm text-muted-foreground">No document preview available.</p>
             )}
-
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => handleDownload("signed")} disabled={downloadBusy !== null} className="gap-2">
+              <Button onClick={() => void handleDownload("signed")} disabled={downloadBusy !== null} className="gap-2 h-9">
                 {downloadBusy === "signed" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                {request.signedBlobUrl ? "Download Signed PDF" : "Download PDF"}
+                {request.signedBlobUrl ? "Signed PDF" : "Download PDF"}
               </Button>
-              <Button variant="outline" onClick={() => handleDownload("cert")} disabled={downloadBusy !== null || !request.certificate?.blobUrl} className="gap-2">
-                {downloadBusy === "cert" ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />}
-                Download Certificate
+              <Button variant="outline" onClick={() => void handleDownload("cert")} disabled={downloadBusy !== null || !request.certificate?.blobUrl} className="gap-2 h-9">
+                {downloadBusy === "cert" ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                Certificate
               </Button>
-              <Button variant="outline" onClick={() => handleDownload("original")} disabled={downloadBusy !== null} className="gap-2">
+              <Button variant="outline" onClick={() => void handleDownload("original")} disabled={downloadBusy !== null} className="gap-2 h-9">
                 {downloadBusy === "original" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                Download Original
+                Original
               </Button>
               {status === "COMPLETED" && (
-                <Button variant="outline" asChild className="gap-2">
+                <Button variant="outline" asChild className="gap-2 h-9">
                   <a href={`/envelope/${id}`} target="_blank" rel="noopener noreferrer">
-                    <ShieldAlert className="w-4 h-4" />
+                    <ShieldCheck className="w-4 h-4" />
                     Verify Envelope
                   </a>
                 </Button>
@@ -615,9 +680,10 @@ export default function SigningRequestDetailPage() {
         </div>
       )}
 
+      {/* ── RECIPIENTS ── */}
       {activeTab === "RECIPIENTS" && (
-        <section className="rounded-2xl border border-blue-200/60 bg-gradient-to-br from-blue-50/50 to-white p-5 space-y-3">
-          <h2 className="text-sm font-semibold text-foreground">Recipients</h2>
+        <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Recipients</h2>
           {resendSuccess ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{resendSuccess}</div> : null}
           {resendError ? <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{resendError}</div> : null}
 
@@ -634,63 +700,87 @@ export default function SigningRequestDetailPage() {
             }))}
           />
 
-          <div className="space-y-2">
+          <div className="space-y-2 pt-2">
             {fieldCountsByRecipient.map(({ recipient, count }) => {
-              const badge = recipientStatusBadge(recipient.status);
+              const rdot = recipientDot(recipient.status);
               const canResend = recipient.status === "PENDING" || recipient.status === "OPENED";
               const canReassign = (status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED") && (recipient.status === "PENDING" || recipient.status === "OPENED");
               const isShowingForm = resendFormId === recipient.id;
+
               return (
-                <div key={recipient.id} className="rounded-lg border border-border p-3 space-y-2">
+                <div key={recipient.id} className="rounded-xl border border-border p-4 space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{recipient.name}</p>
-                      <p className="text-xs text-muted-foreground">{recipient.email}</p>
-                      <p className="text-[11px] text-muted-foreground mt-1">{request.signingMode === "SEQUENTIAL" ? `Signer ${recipient.order + 1}` : "Parallel"} · {count} field{count === 1 ? "" : "s"}</p>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span
+                        style={{
+                          width: 36, height: 36, borderRadius: "50%",
+                          background: rdot.color, flexShrink: 0,
+                          display: "inline-flex", alignItems: "center", justifyContent: "center",
+                          fontSize: "12px", fontWeight: 700, color: "#fff",
+                        }}
+                      >
+                        {recipientInitials(recipient.name)}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-foreground">{recipient.name}</p>
+                          {recipient.isAgent && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-violet-700 bg-violet-50 border border-violet-200 rounded-full px-1.5 py-0.5">
+                              <UserCheck className="w-3 h-3" />
+                              Agent
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{recipient.email}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {request.signingMode === "SEQUENTIAL" ? `Signer ${recipient.order + 1}` : "Parallel"} · {count} field{count !== 1 ? "s" : ""}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <Badge className={badge.className}>{badge.label}</Badge>
-                      {recipient.completedAt ? <p className="text-[11px] text-muted-foreground mt-1">{new Date(recipient.completedAt).toLocaleString()}</p> : null}
-                      {canResend && !isShowingForm ? (
-                        <div className="flex items-center gap-1 justify-end mt-1">
+                    <div className="text-right shrink-0 space-y-1">
+                      <span className="inline-flex items-center gap-1">
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: rdot.color, display: "inline-block" }} />
+                        <span style={{ fontSize: "12px", fontWeight: 500, color: rdot.color }}>{rdot.label}</span>
+                      </span>
+                      {recipient.completedAt && (
+                        <p className="text-[11px] text-muted-foreground">{new Date(recipient.completedAt).toLocaleString()}</p>
+                      )}
+                      {canResend && !isShowingForm && (
+                        <div className="flex items-center gap-2 justify-end">
                           <button type="button" onClick={() => openResendForm(recipient)} className="text-[11px] text-primary hover:underline inline-flex items-center gap-1">
                             <Mail className="w-3 h-3" />
                             Resend
                           </button>
                           {canReassign && (
-                            <button
-                              type="button"
-                              onClick={() => setReassignTarget(recipient)}
-                              className="text-[11px] text-muted-foreground hover:text-foreground underline ml-2"
-                            >
+                            <button type="button" onClick={() => setReassignTarget(recipient)} className="text-[11px] text-muted-foreground hover:text-foreground underline">
                               Reassign
                             </button>
                           )}
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   </div>
 
-                  {isShowingForm ? (
-                    <div className="border-t border-border pt-2 space-y-2">
+                  {isShowingForm && (
+                    <div className="border-t border-border pt-3 space-y-2">
                       <Input
                         type="email"
                         value={resendEmail}
-                        onChange={(event) => setResendEmail(event.target.value)}
+                        onChange={(e) => setResendEmail(e.target.value)}
                         placeholder="recipient@email.com"
-                        className="h-8 text-sm"
+                        className="h-9 text-sm"
                       />
                       <div className="flex items-center gap-2">
-                        <Button size="sm" className="h-7 text-xs gap-1.5" disabled={resendingId === recipient.id || !resendEmail.trim()} onClick={() => void handleResend(recipient.id)}>
+                        <Button size="sm" className="h-8 text-xs gap-1.5" disabled={resendingId === recipient.id || !resendEmail.trim()} onClick={() => void handleResend(recipient.id)}>
                           {resendingId === recipient.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                           Send
                         </Button>
-                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setResendFormId(null)}>
+                        <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setResendFormId(null)}>
                           Cancel
                         </Button>
                       </div>
                     </div>
-                  ) : null}
+                  )}
                 </div>
               );
             })}
@@ -707,32 +797,32 @@ export default function SigningRequestDetailPage() {
         </section>
       )}
 
+      {/* ── FIELDS ── */}
       {activeTab === "FIELDS" && (
-        <section className="rounded-2xl border border-violet-200/60 bg-gradient-to-br from-violet-50/45 to-white p-5 space-y-3">
-          <h2 className="text-sm font-semibold text-foreground">Field Layout</h2>
+        <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Field Layout</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs text-muted-foreground border-b border-border">
-                  <th className="py-2 pr-3">Type</th>
-                  <th className="py-2 pr-3">Recipient</th>
-                  <th className="py-2 pr-3">Page</th>
-                  <th className="py-2 pr-3">Position</th>
-                  <th className="py-2 pr-3">Size</th>
-                  <th className="py-2">Required</th>
+                <tr style={{ borderBottom: "1px solid hsl(var(--border))" }}>
+                  {["Type", "Recipient", "Page", "Position", "Size", "Required"].map((h) => (
+                    <th key={h} className="text-left py-2 pr-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {request.signingFields.map((field) => {
                   const recipient = request.recipients.find((r) => r.id === field.recipientId);
                   return (
-                    <tr key={field.id} className="border-b border-border/70">
-                      <td className="py-2 pr-3 font-medium text-foreground">{field.type}</td>
-                      <td className="py-2 pr-3 text-muted-foreground">{recipient?.name ?? "Unknown"}</td>
-                      <td className="py-2 pr-3 text-muted-foreground">{field.page}</td>
-                      <td className="py-2 pr-3 text-muted-foreground">x:{field.x.toFixed(2)} y:{field.y.toFixed(2)}</td>
-                      <td className="py-2 pr-3 text-muted-foreground">w:{field.width.toFixed(2)} h:{field.height.toFixed(2)}</td>
-                      <td className="py-2 text-muted-foreground">{field.required ? "Yes" : "No"}</td>
+                    <tr key={field.id} style={{ borderBottom: "1px solid hsl(var(--border) / 0.6)" }}>
+                      <td className="py-2.5 pr-4">
+                        <span className="inline-block px-2 py-0.5 rounded-md bg-muted text-[11px] font-semibold text-foreground">{field.type}</span>
+                      </td>
+                      <td className="py-2.5 pr-4 text-sm text-foreground">{recipient?.name ?? "Unknown"}</td>
+                      <td className="py-2.5 pr-4 text-sm text-muted-foreground">{field.page}</td>
+                      <td className="py-2.5 pr-4 text-xs text-muted-foreground font-mono">x:{field.x.toFixed(2)} y:{field.y.toFixed(2)}</td>
+                      <td className="py-2.5 pr-4 text-xs text-muted-foreground font-mono">w:{field.width.toFixed(2)} h:{field.height.toFixed(2)}</td>
+                      <td className="py-2.5 text-sm text-muted-foreground">{field.required ? "Yes" : "—"}</td>
                     </tr>
                   );
                 })}
@@ -742,40 +832,49 @@ export default function SigningRequestDetailPage() {
         </section>
       )}
 
+      {/* ── TIMELINE ── */}
       {activeTab === "TIMELINE" && (
-        <section className="rounded-2xl border border-indigo-200/60 bg-gradient-to-br from-indigo-50/50 to-white p-5 space-y-3">
-          <h2 className="text-sm font-semibold text-foreground">Audit Timeline</h2>
+        <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Audit Timeline</h2>
           {request.auditLogs.length === 0 ? (
             <p className="text-sm text-muted-foreground">No activity yet.</p>
           ) : (
-            <div className="space-y-3">
-              {request.auditLogs.map((log) => (
-                <div key={log.id} className="flex items-start gap-3 rounded-lg border border-border p-3">
-                  <div className="pt-1">
-                    {log.event === "COMPLETED" ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    ) : log.event === "DECLINED" ? (
-                      <XCircle className="w-4 h-4 text-rose-600" />
-                    ) : log.event === "SENT" ? (
-                      <Send className="w-4 h-4 text-blue-600" />
-                    ) : (
-                      <Clock className="w-4 h-4 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm text-foreground">{eventLabel(log.event)}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(log.createdAt).toLocaleString()}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="relative pl-6">
+              {/* Vertical line */}
+              <div className="absolute left-[7px] top-2 bottom-2 w-[1px] bg-border" />
+
+              <div className="space-y-5">
+                {request.auditLogs.map((log) => {
+                  const color = timelineEventColor(log.event);
+                  return (
+                    <div key={log.id} className="relative flex items-start gap-4">
+                      {/* Dot */}
+                      <span
+                        style={{
+                          position: "absolute",
+                          left: -22,
+                          top: 3,
+                          width: 14,
+                          height: 14,
+                          borderRadius: "50%",
+                          background: color,
+                          border: "2px solid hsl(var(--card))",
+                          boxShadow: `0 0 0 2px ${color}33`,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-foreground leading-tight">{eventLabel(log.event)}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{new Date(log.createdAt).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </section>
       )}
-
-      <div className="flex justify-end">
-        <Button variant="outline" onClick={() => router.push("/dashboard/signing")}>Back to List</Button>
-      </div>
     </div>
   );
 }
@@ -808,7 +907,7 @@ function ReassignModal({
         body: JSON.stringify({ name: name.trim(), email: email.trim() }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data as { error?: { message?: string } }).error?.message ?? "Failed to reassign recipient.");
+      if (!res.ok) throw new Error((data as { error?: { message?: string } }).error?.message ?? "Failed to reassign.");
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to reassign.");
@@ -825,7 +924,7 @@ function ReassignModal({
       <div className="bg-card border border-border rounded-2xl w-full max-w-sm shadow-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-border">
           <h3 className="font-bold text-sm text-foreground">Reassign Recipient</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">The original signing link will be invalidated. A new invitation will be sent to the new email.</p>
+          <p className="text-xs text-muted-foreground mt-0.5">The original signing link will be invalidated and a new invitation sent.</p>
         </div>
         <div className="px-5 py-4 space-y-3">
           <div>
@@ -846,31 +945,6 @@ function ReassignModal({
           </Button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function OverviewKpi({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number | string;
-  tone: "blue" | "emerald" | "violet" | "amber";
-}) {
-  const toneClass =
-    tone === "blue"
-      ? "border-blue-200 bg-blue-50/70"
-      : tone === "emerald"
-        ? "border-emerald-200 bg-emerald-50/70"
-        : tone === "violet"
-          ? "border-violet-200 bg-violet-50/70"
-          : "border-amber-200 bg-amber-50/70";
-  return (
-    <div className={`rounded-xl border p-3 ${toneClass}`}>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-lg font-semibold text-foreground mt-1">{value}</p>
     </div>
   );
 }
