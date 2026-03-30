@@ -902,6 +902,10 @@ export function SigningCeremony({
     signedBlobUrl?: string;
   }>({});
   const [visiblePage, setVisiblePage] = useState<number | null>(null);
+  const [zoom, setZoom] = useState(1.0);
+  const ZOOM_MIN = 0.5;
+  const ZOOM_MAX = 2.0;
+  const ZOOM_STEP = 0.1;
 
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const pageRefs = useRef<Record<number, HTMLDivElement | null>>({});
@@ -2284,19 +2288,98 @@ export function SigningCeremony({
                   {data.agent.agencyName && ` · ${data.agent.agencyName}`}
                 </p>
               </div>
-              <div
-                style={{
-                  flexShrink: 0,
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  padding: "4px 10px",
-                  borderRadius: "99px",
-                  background: canSubmit ? "#dcfce7" : "#fef9c3",
-                  color: canSubmit ? "#15803d" : "#92400e",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {canSubmit ? "✓ Ready" : `${doneCount} / ${reqFields.length} required`}
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+                {/* Zoom controls */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "2px",
+                    background: "#f1f5f9",
+                    borderRadius: "8px",
+                    padding: "2px",
+                    border: "1px solid #e2e8f0",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setZoom((z) => Math.max(ZOOM_MIN, parseFloat((z - ZOOM_STEP).toFixed(1))))}
+                    disabled={zoom <= ZOOM_MIN}
+                    title="Zoom out"
+                    style={{
+                      width: "26px",
+                      height: "26px",
+                      borderRadius: "6px",
+                      border: "none",
+                      background: "transparent",
+                      cursor: zoom <= ZOOM_MIN ? "not-allowed" : "pointer",
+                      opacity: zoom <= ZOOM_MIN ? 0.35 : 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "16px",
+                      fontWeight: 700,
+                      color: "#475569",
+                      transition: "background 0.12s",
+                    }}
+                    onMouseEnter={(e) => { if (zoom > ZOOM_MIN) (e.currentTarget as HTMLButtonElement).style.background = "#e2e8f0"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+                  >
+                    −
+                  </button>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      color: "#475569",
+                      minWidth: "36px",
+                      textAlign: "center",
+                      userSelect: "none",
+                    }}
+                  >
+                    {Math.round(zoom * 100)}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setZoom((z) => Math.min(ZOOM_MAX, parseFloat((z + ZOOM_STEP).toFixed(1))))}
+                    disabled={zoom >= ZOOM_MAX}
+                    title="Zoom in"
+                    style={{
+                      width: "26px",
+                      height: "26px",
+                      borderRadius: "6px",
+                      border: "none",
+                      background: "transparent",
+                      cursor: zoom >= ZOOM_MAX ? "not-allowed" : "pointer",
+                      opacity: zoom >= ZOOM_MAX ? 0.35 : 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "16px",
+                      fontWeight: 700,
+                      color: "#475569",
+                      transition: "background 0.12s",
+                    }}
+                    onMouseEnter={(e) => { if (zoom < ZOOM_MAX) (e.currentTarget as HTMLButtonElement).style.background = "#e2e8f0"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+                  >
+                    +
+                  </button>
+                </div>
+                {/* Progress badge */}
+                <div
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    padding: "4px 10px",
+                    borderRadius: "99px",
+                    background: canSubmit ? "#dcfce7" : "#fef9c3",
+                    color: canSubmit ? "#15803d" : "#92400e",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {canSubmit ? "✓ Ready" : `${doneCount} / ${reqFields.length} required`}
+                </div>
               </div>
             </div>
             {/* Progress bar */}
@@ -2473,12 +2556,21 @@ export function SigningCeremony({
                     ref={(el) => { pageRefs.current[pageNum] = el; }}
                     style={{
                       marginBottom: "16px",
-                      borderRadius: "6px",
-                      overflow: "hidden",
-                      boxShadow: "0 2px 12px rgba(0,0,0,0.12)",
-                      background: "white",
                     }}
                   >
+                    {/* Zoom wrapper — scales the page and its overlays together */}
+                    <div
+                      style={{
+                        transformOrigin: "top center",
+                        transform: `scale(${zoom})`,
+                        // Shrink the containing flow height proportionally so pages don't leave giant gaps
+                        marginBottom: zoom < 1 ? `${(zoom - 1) * 100}%` : "0",
+                        borderRadius: "6px",
+                        overflow: "hidden",
+                        boxShadow: "0 2px 12px rgba(0,0,0,0.12)",
+                        background: "white",
+                      }}
+                    >
                     {/* Page with overlaid field tags */}
                     <div style={{ position: "relative", lineHeight: 0 }}>
                       <img
@@ -2632,6 +2724,7 @@ export function SigningCeremony({
                     >
                       Page {pageNum} of {pageImages.length}
                     </div>
+                  </div>{/* closes zoom wrapper */}
                   </div>
                 );
               })}

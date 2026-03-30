@@ -948,29 +948,34 @@ export default function NewSigningRequestPage() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between gap-3">
+    <div className="space-y-8 animate-fade-in">
+      {/* Page header */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
+          <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground hover:text-foreground">
             <Link href="/dashboard/signing">
               <ArrowLeft className="w-4 h-4" />
               Back to Signing
             </Link>
           </Button>
-          <h1 className="ui-page-title mt-2">New Signing Request</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground mt-3">New Agreement</h1>
+          <p className="text-sm text-muted-foreground mt-1.5 max-w-md">
             {isDocumentTemplateMode
-              ? "Template document is loaded. Add recipients, review fields, then send."
-              : "Upload your document, add recipients, place fields, then send."}
+              ? "Template loaded — add recipients, review fields, then send."
+              : "Upload a document, add recipients, place signature fields, then send."}
           </p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-4">
-        <div className="relative h-1.5 w-full rounded-full bg-muted overflow-hidden">
-          <div className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-300" style={{ width: progressWidth }} />
+      {/* Step indicator — thin progress bar + dot trail */}
+      <div className="space-y-3">
+        <div className="relative h-0.5 w-full rounded-full bg-border/60 overflow-hidden">
+          <div
+            className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-500 ease-out"
+            style={{ width: progressWidth }}
+          />
         </div>
-        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="flex items-center justify-between">
           {STEPS.map((item) => {
             const active = step === item.id;
             const done = step > item.id;
@@ -978,20 +983,38 @@ export default function NewSigningRequestPage() {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => {
-                  if (item.id <= step) setStep(item.id);
-                }}
+                onClick={() => { if (item.id <= step) setStep(item.id); }}
                 className={cn(
-                  "text-left rounded-lg border px-3 py-2 transition-colors",
-                  active ? "border-primary/40 bg-primary/5" : "border-border bg-card",
-                  done && "border-emerald-500/30 bg-emerald-500/5"
+                  "flex flex-col items-center gap-1.5 group transition-opacity",
+                  item.id > step ? "opacity-40 cursor-default" : "opacity-100 cursor-pointer"
                 )}
               >
-                <p className="text-[11px] text-muted-foreground">Step {item.id}</p>
-                <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                  {done ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : null}
+                <div
+                  className={cn(
+                    "w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200",
+                    done
+                      ? "bg-emerald-500 shadow-sm"
+                      : active
+                      ? "bg-primary shadow-md shadow-primary/30 ring-4 ring-primary/15"
+                      : "bg-border/60"
+                  )}
+                >
+                  {done ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                  ) : (
+                    <span className={cn("text-[11px] font-bold", active ? "text-white" : "text-muted-foreground")}>
+                      {item.id}
+                    </span>
+                  )}
+                </div>
+                <span
+                  className={cn(
+                    "text-[11px] font-medium tracking-wide hidden sm:block",
+                    active ? "text-foreground" : "text-muted-foreground"
+                  )}
+                >
                   {item.label}
-                </p>
+                </span>
               </button>
             );
           })}
@@ -999,35 +1022,40 @@ export default function NewSigningRequestPage() {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 shadow-sm">{error}</div>
       )}
 
       {step === 1 && (
         <div className="space-y-5">
           {isDocumentTemplateMode && requestId ? (
-            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            <div className="rounded-2xl border border-blue-200/60 bg-blue-50 px-5 py-4 text-sm text-blue-700 shadow-sm">
               Document template mode: this request already has a generated PDF attached.
             </div>
           ) : null}
-          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="title">Request title (optional)</Label>
+
+          <div className="rounded-2xl border border-border/50 bg-card shadow-sm p-6 space-y-5">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Document details</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">Give this agreement a name and set how long recipients have to sign.</p>
+            </div>
+            <div className="grid md:grid-cols-2 gap-5">
+              <div className="space-y-1.5">
+                <Label htmlFor="title" className="text-sm font-medium">Request title</Label>
                 <Input
                   id="title"
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
                   placeholder="e.g. Client Service Agreement"
-                  className="mt-1.5"
+                  className="h-11 rounded-xl border-border/60 bg-background focus-visible:ring-primary/30"
                 />
               </div>
-              <div>
-                <Label htmlFor="expiresIn">Expires in</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="expiresIn" className="text-sm font-medium">Signing deadline</Label>
                 <select
                   id="expiresIn"
                   value={expiresInHours}
                   onChange={(event) => setExpiresInHours(Number(event.target.value))}
-                  className="mt-1.5 flex h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
+                  className="h-11 w-full rounded-xl border border-border/60 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 >
                   <option value={24}>24 hours</option>
                   <option value={48}>48 hours</option>
@@ -1038,56 +1066,64 @@ export default function NewSigningRequestPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-2xl border border-border/50 bg-card shadow-sm p-6 space-y-5">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Upload document</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">PDF format only, up to 50 MB.</p>
+            </div>
             <div
-              onDragOver={(event) => {
-                event.preventDefault();
-                setDraggingUpload(true);
-              }}
+              onDragOver={(event) => { event.preventDefault(); setDraggingUpload(true); }}
               onDragLeave={() => setDraggingUpload(false)}
               onDrop={onDrop}
               className={cn(
-                "rounded-xl border-2 border-dashed p-10 text-center transition-colors",
-                draggingUpload ? "border-primary bg-primary/5" : "border-border"
+                "rounded-xl border-2 border-dashed p-12 text-center transition-all duration-200 cursor-pointer",
+                draggingUpload
+                  ? "border-primary bg-primary/5 shadow-inner"
+                  : "border-border/50 hover:border-primary/40 hover:bg-muted/30"
               )}
             >
-              <UploadCloud className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm font-medium text-foreground">Drag and drop your PDF</p>
-              <p className="text-xs text-muted-foreground mt-1">PDF only, max 25MB</p>
-              <div className="mt-4">
-                <label className="inline-flex">
-                  <input type="file" accept="application/pdf" className="hidden" onChange={onFileInputChange} />
-                  <span className="inline-flex items-center justify-center rounded-md border border-border px-3 py-2 text-sm cursor-pointer hover:bg-muted">
-                    Choose PDF
-                  </span>
-                </label>
+              <div className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 transition-colors",
+                draggingUpload ? "bg-primary/10" : "bg-muted"
+              )}>
+                <UploadCloud className={cn("w-6 h-6 transition-colors", draggingUpload ? "text-primary" : "text-muted-foreground")} />
               </div>
+              <p className="text-sm font-semibold text-foreground">Drop your PDF here</p>
+              <p className="text-xs text-muted-foreground mt-1.5">or click to browse files</p>
+              <label className="mt-5 inline-flex">
+                <input type="file" accept="application/pdf" className="hidden" onChange={onFileInputChange} />
+                <span className="inline-flex items-center justify-center rounded-lg border border-border/60 bg-background px-4 py-2 text-sm font-medium cursor-pointer hover:bg-muted/60 transition-colors shadow-sm">
+                  Choose PDF
+                </span>
+              </label>
             </div>
 
             {busy && (
-              <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Processing document...
+              <div className="flex items-center gap-3 text-sm text-muted-foreground px-1">
+                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                <span>Processing document…</span>
               </div>
             )}
 
             {fileName && pages.length > 0 && (
-              <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4">
-                <p className="text-sm font-medium text-foreground flex items-center gap-2">
+              <div className="rounded-xl border border-emerald-200/70 bg-emerald-50/50 p-4 flex items-start gap-3">
+                <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0 mt-0.5">
                   <FileText className="w-4 h-4 text-emerald-600" />
-                  {fileName}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {pages.length} page{pages.length === 1 ? "" : "s"} detected
-                </p>
-                {documentBlobUrl && (
-                  <a href={documentBlobUrl} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline mt-2 inline-block">
-                    Open uploaded PDF
-                  </a>
-                )}
-                {documentHash && (
-                  <p className="text-[11px] text-muted-foreground mt-2 break-all">Hash: {documentHash}</p>
-                )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">{fileName}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {pages.length} page{pages.length === 1 ? "" : "s"} detected
+                  </p>
+                  {documentBlobUrl && (
+                    <a href={documentBlobUrl} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline mt-1.5 inline-block">
+                      Open uploaded PDF ↗
+                    </a>
+                  )}
+                  {documentHash && (
+                    <p className="text-[11px] text-muted-foreground/70 mt-1.5 break-all font-mono">SHA: {documentHash.slice(0, 32)}…</p>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -1097,69 +1133,82 @@ export default function NewSigningRequestPage() {
       {step === 2 && (
         <div className="space-y-5">
           {/* Signer type toggle */}
-          <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-            <h2 className="text-sm font-semibold text-foreground">Signer type</h2>
-            <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-2xl border border-border/50 bg-card shadow-sm p-6 space-y-4">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Who is signing?</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">Send to named recipients or create an open public link.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setIsPublicMode(false)}
                 className={cn(
-                  "rounded-lg border p-3 text-left transition-colors",
-                  !isPublicMode ? "border-primary/40 bg-primary/5" : "border-border hover:bg-muted/40"
+                  "rounded-xl border p-4 text-left transition-all duration-150",
+                  !isPublicMode
+                    ? "border-primary/40 bg-primary/5 shadow-sm ring-1 ring-primary/20"
+                    : "border-border/50 hover:border-border hover:bg-muted/30"
                 )}
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <Users className="w-4 h-4 text-muted-foreground" />
-                  <p className="text-sm font-medium text-foreground">Named Recipients</p>
+                <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mb-3", !isPublicMode ? "bg-primary/10" : "bg-muted")}>
+                  <Users className={cn("w-4 h-4", !isPublicMode ? "text-primary" : "text-muted-foreground")} />
                 </div>
-                <p className="text-xs text-muted-foreground">Send to specific people by email</p>
+                <p className="text-sm font-semibold text-foreground">Named Recipients</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Send to specific people by email</p>
               </button>
               <button
                 type="button"
                 onClick={() => setIsPublicMode(true)}
                 className={cn(
-                  "rounded-lg border p-3 text-left transition-colors",
-                  isPublicMode ? "border-primary/40 bg-primary/5" : "border-border hover:bg-muted/40"
+                  "rounded-xl border p-4 text-left transition-all duration-150",
+                  isPublicMode
+                    ? "border-primary/40 bg-primary/5 shadow-sm ring-1 ring-primary/20"
+                    : "border-border/50 hover:border-border hover:bg-muted/30"
                 )}
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <Globe className="w-4 h-4 text-muted-foreground" />
-                  <p className="text-sm font-medium text-foreground">Public Link</p>
+                <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mb-3", isPublicMode ? "bg-primary/10" : "bg-muted")}>
+                  <Globe className={cn("w-4 h-4", isPublicMode ? "text-primary" : "text-muted-foreground")} />
                 </div>
-                <p className="text-xs text-muted-foreground">Anyone with the link can sign</p>
+                <p className="text-sm font-semibold text-foreground">Public Link</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Anyone with the link can sign</p>
               </button>
             </div>
           </div>
 
           {isPublicMode ? (
-            <div className="rounded-xl border border-border bg-card p-5">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Globe className="w-4 h-4 text-primary" />
+            <div className="rounded-2xl border border-border/50 bg-card shadow-sm p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Globe className="w-5 h-5 text-primary" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-foreground">Public signing link</p>
-                  <p className="text-xs text-muted-foreground">After sending, a shareable link will be generated. Anyone who opens it can sign — no email required.</p>
+                  <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                    After sending, a shareable link will be generated. Anyone who opens it can sign — no email required.
+                  </p>
+                  <div className="mt-3 rounded-xl bg-muted/50 border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+                    In the next step, place fields for the <span className="font-semibold text-foreground">Public Signer</span> slot — they&apos;ll be cloned for each person who uses the link.
+                  </div>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground border border-border rounded-lg px-3 py-2 bg-muted/40">
-                In the next step, place fields for the <span className="font-medium text-foreground">Public Signer</span> slot — these will be cloned for each person who uses the link.
-              </p>
             </div>
           ) : (
-          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+          <div className="rounded-2xl border border-border/50 bg-card shadow-sm p-6 space-y-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground">Recipients</h2>
+              <div>
+                <h2 className="text-base font-semibold text-foreground">Recipients</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">Add the people who need to sign.</p>
+              </div>
               <div className="flex items-center gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => setRecipients((prev) => [...prev, makeRecipient()])}>
+                <Button type="button" variant="outline" size="sm" className="rounded-lg" onClick={() => setRecipients((prev) => [...prev, makeRecipient()])}>
                   <Plus className="w-3.5 h-3.5" />
-                  Add Recipient
+                  Add
                 </Button>
                 {session?.user && (
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="rounded-lg"
                     onClick={() => {
                       const alreadyAdded = recipients.some(
                         (r) => r.email.toLowerCase() === (session.user?.email ?? "").toLowerCase()
@@ -1184,44 +1233,44 @@ export default function NewSigningRequestPage() {
             </div>
             <div className="space-y-3">
               {recipients.map((recipient, index) => (
-                <div key={recipient.id} className="rounded-lg border border-border p-3 space-y-3">
+                <div key={recipient.id} className="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">Recipient {index + 1}</p>
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Recipient {index + 1}</span>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => removeRecipient(recipient.id)}
                       disabled={recipients.length === 1}
-                      className="text-muted-foreground"
+                      className="text-muted-foreground hover:text-destructive -mr-1"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
-                  <div className="grid md:grid-cols-2 gap-3">
-                    <div>
-                      <Label>Name</Label>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium">Name</Label>
                       <Input
                         value={recipient.name}
                         onChange={(event) => updateRecipient(recipient.id, { name: event.target.value })}
                         placeholder="Full name"
-                        className="mt-1.5"
+                        className="h-11 rounded-xl border-border/60 bg-background"
                       />
                     </div>
-                    <div>
-                      <Label>Email</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium">Email</Label>
                       <Input
                         type="email"
                         value={recipient.email}
                         onChange={(event) => updateRecipient(recipient.id, { email: event.target.value })}
                         placeholder="name@email.com"
-                        className="mt-1.5"
+                        className="h-11 rounded-xl border-border/60 bg-background"
                       />
                     </div>
                   </div>
                   {authLevel === "SMS_OTP" && (
-                    <div>
-                      <Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium">
                         Phone <span className="text-muted-foreground font-normal">(required for SMS OTP)</span>
                       </Label>
                       <Input
@@ -1229,7 +1278,7 @@ export default function NewSigningRequestPage() {
                         value={recipient.phone}
                         onChange={(event) => updateRecipient(recipient.id, { phone: event.target.value })}
                         placeholder="+1 555 000 0000"
-                        className="mt-1.5"
+                        className="h-11 rounded-xl border-border/60 bg-background"
                       />
                     </div>
                   )}
@@ -1239,53 +1288,64 @@ export default function NewSigningRequestPage() {
           </div>
           )} {/* end isPublicMode ternary */}
 
-          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-            {!isPublicMode && (<>
+          <div className="rounded-2xl border border-border/50 bg-card shadow-sm p-6 space-y-5">
             <div>
-              <Label>Signing mode</Label>
-              <div className="grid grid-cols-2 gap-2 mt-1.5">
+              <h2 className="text-base font-semibold text-foreground">Settings</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">Configure signing workflow, authentication, and notifications.</p>
+            </div>
+
+            {!isPublicMode && (<>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Signing order</Label>
+              <div className="grid grid-cols-2 gap-3 mt-1">
                 <button
                   type="button"
                   onClick={() => setSigningMode("PARALLEL")}
                   className={cn(
-                    "rounded-lg border px-3 py-2 text-sm text-left",
-                    signingMode === "PARALLEL" ? "border-primary/40 bg-primary/5" : "border-border"
+                    "rounded-xl border px-4 py-3 text-sm text-left transition-all",
+                    signingMode === "PARALLEL"
+                      ? "border-primary/40 bg-primary/5 ring-1 ring-primary/20"
+                      : "border-border/50 hover:border-border hover:bg-muted/30"
                   )}
                 >
-                  Parallel
+                  <p className="font-semibold text-foreground">Parallel</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">All sign at the same time</p>
                 </button>
                 <button
                   type="button"
                   onClick={() => setSigningMode("SEQUENTIAL")}
                   className={cn(
-                    "rounded-lg border px-3 py-2 text-sm text-left",
-                    signingMode === "SEQUENTIAL" ? "border-primary/40 bg-primary/5" : "border-border"
+                    "rounded-xl border px-4 py-3 text-sm text-left transition-all",
+                    signingMode === "SEQUENTIAL"
+                      ? "border-primary/40 bg-primary/5 ring-1 ring-primary/20"
+                      : "border-border/50 hover:border-border hover:bg-muted/30"
                   )}
                 >
-                  Sequential
+                  <p className="font-semibold text-foreground">Sequential</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Sign one after another</p>
                 </button>
               </div>
             </div>
 
-            <div>
-              <Label>Authentication level</Label>
-              <div className="grid grid-cols-1 gap-2 mt-1.5">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Authentication</Label>
+              <div className="space-y-2 mt-1">
                 {(
                   [
                     {
                       value: "LINK_ONLY" as AuthLevel,
-                      label: "Link Only",
+                      label: "Link only",
                       description: "Recipient accesses via secure link",
                     },
                     {
                       value: "EMAIL_OTP" as AuthLevel,
                       label: "Email OTP",
-                      description: "Recipient must verify email with a 6-digit code before signing",
+                      description: "Verify with a 6-digit code sent to their email",
                     },
                     {
                       value: "SMS_OTP" as AuthLevel,
                       label: "SMS OTP",
-                      description: "Recipient must verify phone with a 6-digit code before signing",
+                      description: "Verify with a 6-digit code sent to their phone",
                     },
                   ] as const
                 ).map((opt) => (
@@ -1294,40 +1354,42 @@ export default function NewSigningRequestPage() {
                     type="button"
                     onClick={() => setAuthLevel(opt.value)}
                     className={cn(
-                      "rounded-lg border px-3 py-2.5 text-sm text-left",
-                      authLevel === opt.value ? "border-primary/40 bg-primary/5" : "border-border"
+                      "w-full rounded-xl border px-4 py-3 text-sm text-left transition-all",
+                      authLevel === opt.value
+                        ? "border-primary/40 bg-primary/5 ring-1 ring-primary/20"
+                        : "border-border/50 hover:border-border hover:bg-muted/30"
                     )}
                   >
-                    <p className="font-medium text-foreground">{opt.label}</p>
+                    <p className="font-semibold text-foreground">{opt.label}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{opt.description}</p>
                   </button>
                 ))}
               </div>
               {authLevel === "SMS_OTP" && (
-                <p className="text-xs text-amber-600 mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                <p className="text-xs text-amber-700 mt-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5">
                   Ensure phone numbers are entered for all recipients.
                 </p>
               )}
             </div>
             </>)} {/* end !isPublicMode */}
 
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label>CC emails (comma-separated)</Label>
+            <div className="grid md:grid-cols-2 gap-5">
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">CC emails</Label>
                 <Input
                   value={ccInput}
                   onChange={(event) => setCcInput(event.target.value)}
-                  placeholder="manager@company.com, ops@company.com"
-                  className="mt-1.5"
+                  placeholder="manager@co.com, ops@co.com"
+                  className="h-11 rounded-xl border-border/60 bg-background"
                 />
-                {ccEmails.length > 0 && <p className="text-xs text-muted-foreground mt-1">{ccEmails.length} CC email(s)</p>}
+                {ccEmails.length > 0 && <p className="text-xs text-muted-foreground">{ccEmails.length} CC email(s)</p>}
               </div>
-              <div>
-                <Label>Expiration</Label>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Signing deadline</Label>
                 <select
                   value={expiresInHours}
                   onChange={(event) => setExpiresInHours(Number(event.target.value))}
-                  className="mt-1.5 flex h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
+                  className="h-11 w-full rounded-xl border border-border/60 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 >
                   <option value={24}>24 hours</option>
                   <option value={48}>48 hours</option>
@@ -1337,15 +1399,15 @@ export default function NewSigningRequestPage() {
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="message">Message (optional)</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="message" className="text-sm font-medium">Message to recipients</Label>
               <textarea
                 id="message"
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
                 rows={4}
-                placeholder="Add context for your recipients..."
-                className="mt-1.5 w-full rounded-md border border-input bg-card px-3 py-2 text-sm resize-none"
+                placeholder="Add context or instructions for your recipients…"
+                className="w-full rounded-xl border border-border/60 bg-background px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
           </div>
@@ -1353,11 +1415,12 @@ export default function NewSigningRequestPage() {
       )}
 
       {step === 3 && (
-        <div className="grid lg:grid-cols-[280px_1fr] gap-5 items-start">
-          <aside className="rounded-xl border border-border bg-card p-4 space-y-4 lg:sticky lg:top-6">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Recipient</p>
-              <div className="space-y-2">
+        <div className="grid lg:grid-cols-[272px_1fr] gap-6 items-start">
+          <aside className="rounded-2xl border border-border/50 bg-card shadow-sm p-5 space-y-5 lg:sticky lg:top-6">
+            {/* Recipients */}
+            <div className="space-y-2">
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Signing for</p>
+              <div className="space-y-1.5">
                 {savedRecipients.map((recipient) => {
                   const idx = recipientColorIndexById.get(recipient.id) ?? 0;
                   const colors = RECIPIENT_STYLES[idx];
@@ -1367,31 +1430,34 @@ export default function NewSigningRequestPage() {
                       type="button"
                       onClick={() => setActiveRecipientId(recipient.id)}
                       className={cn(
-                        "w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                        "w-full rounded-xl border px-3 py-2.5 text-left text-sm transition-all",
                         activeRecipientId === recipient.id
-                          ? `${colors.chip} border`
-                          : "border-border hover:bg-muted"
+                          ? `${colors.chip} border shadow-sm`
+                          : "border-border/50 hover:bg-muted/40"
                       )}
                     >
-                      <p className="font-medium truncate">{recipient.name}</p>
-                      <p className="text-[11px] opacity-80 truncate">{recipient.email}</p>
+                      <p className="font-semibold truncate">{recipient.name}</p>
+                      <p className="text-[11px] opacity-70 truncate mt-0.5">{recipient.email}</p>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Field Types</p>
-              <div className="grid grid-cols-2 gap-2">
+            {/* Field type picker */}
+            <div className="space-y-2">
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Field type</p>
+              <div className="grid grid-cols-2 gap-1.5">
                 {FIELD_TYPES.map((item) => (
                   <button
                     key={item.type}
                     type="button"
                     onClick={() => setActiveFieldType(item.type)}
                     className={cn(
-                      "rounded-lg border px-2 py-2 text-xs text-left",
-                      activeFieldType === item.type ? "border-primary/40 bg-primary/5 text-primary" : "border-border hover:bg-muted"
+                      "rounded-lg border px-2 py-2 text-xs font-medium text-left transition-all",
+                      activeFieldType === item.type
+                        ? "border-primary/40 bg-primary/5 text-primary shadow-sm"
+                        : "border-border/40 hover:bg-muted/50 text-muted-foreground hover:text-foreground"
                     )}
                   >
                     {item.label}
@@ -1404,26 +1470,26 @@ export default function NewSigningRequestPage() {
               const sel = placedFields.find((f) => f.id === selectedFieldId);
               if (!sel) return null;
               return (
-                <div className="pt-2 border-t border-border space-y-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Selected Field</p>
-                  <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">Field Type</label>
+                <div className="pt-4 border-t border-border/40 space-y-4">
+                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Selected field</p>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground block">Field type</label>
                     <select
                       value={sel.type}
                       onChange={(e) => updateField(sel.id, { type: e.target.value as FieldType })}
-                      className="w-full rounded-md border border-input bg-card px-2 py-1.5 text-sm"
+                      className="w-full rounded-lg border border-border/60 bg-background px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                     >
                       {FIELD_TYPES.map((t) => (
                         <option key={t.type} value={t.type}>{t.label}</option>
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">Assigned To</label>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground block">Assigned to</label>
                     <select
                       value={sel.recipientId}
                       onChange={(e) => updateField(sel.id, { recipientId: e.target.value })}
-                      className="w-full rounded-md border border-input bg-card px-2 py-1.5 text-sm"
+                      className="w-full rounded-lg border border-border/60 bg-background px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                     >
                       {savedRecipients.map((r, i) => (
                         <option key={r.id} value={r.id}>
@@ -1433,18 +1499,18 @@ export default function NewSigningRequestPage() {
                     </select>
                   </div>
                   <div className="flex items-center justify-between">
-                    <label className="text-xs text-muted-foreground">Required</label>
+                    <label className="text-xs font-medium text-muted-foreground">Required</label>
                     <button
                       type="button"
                       onClick={() => updateField(sel.id, { required: !sel.required })}
-                      className={`w-9 h-5 rounded-full transition-colors ${sel.required ? "bg-primary" : "bg-muted"}`}
+                      className={cn("w-9 h-5 rounded-full transition-colors", sel.required ? "bg-primary" : "bg-muted")}
                     >
-                      <span className={`block w-3.5 h-3.5 rounded-full bg-white shadow transition-transform mx-0.5 ${sel.required ? "translate-x-4" : "translate-x-0"}`} />
+                      <span className={cn("block w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-transform mx-0.5", sel.required ? "translate-x-4" : "translate-x-0")} />
                     </button>
                   </div>
                   {sel.type === "ATTACHMENT" && (
-                    <div>
-                      <label className="text-xs text-muted-foreground mb-1 block">Instructions for signer</label>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground block">Instructions for signer</label>
                       <input
                         type="text"
                         value={sel.options?.[0] ?? ""}
@@ -1452,16 +1518,16 @@ export default function NewSigningRequestPage() {
                           updateField(sel.id, { options: e.target.value.trim() ? [e.target.value] : undefined })
                         }
                         placeholder="e.g. Upload your driver's license"
-                        className="w-full rounded-md border border-input bg-card px-2 py-1.5 text-sm"
+                        className="w-full rounded-lg border border-border/60 bg-background px-2.5 py-2 text-sm focus:outline-none"
                       />
-                      <p className="text-[11px] text-muted-foreground mt-1">Shown above the upload button.</p>
+                      <p className="text-[11px] text-muted-foreground">Shown above the upload button.</p>
                     </div>
                   )}
                   <Button
                     type="button"
                     variant="destructive"
                     size="sm"
-                    className="w-full"
+                    className="w-full rounded-lg"
                     onClick={() => {
                       setPlacedFields((prev) => prev.filter((f) => f.id !== selectedFieldId));
                       setSelectedFieldId(null);
@@ -1473,12 +1539,12 @@ export default function NewSigningRequestPage() {
               );
             })()}
 
-            <div className="space-y-2 pt-2 border-t border-border">
-              <Button type="button" className="w-full" onClick={saveFieldsAndContinue} disabled={saveBusy || placedFields.length === 0}>
-                {saveBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Fields"}
+            <div className="space-y-2 pt-4 border-t border-border/40">
+              <Button type="button" className="w-full rounded-xl" onClick={saveFieldsAndContinue} disabled={saveBusy || placedFields.length === 0}>
+                {saveBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save & Continue"}
               </Button>
-              <p className="text-[11px] text-muted-foreground">
-                Click on a page to place a field. Drag to move and use the corner handle to resize.
+              <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
+                Click the document to place a field. Drag to move, corner handle to resize.
               </p>
             </div>
           </aside>
@@ -1753,50 +1819,54 @@ export default function NewSigningRequestPage() {
       )}
 
       {step === 4 && (
-        <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-          <h2 className="text-base font-semibold text-foreground">Review & Send</h2>
-          <div className="rounded-lg border border-border p-4 space-y-2">
-            <p className="text-xs text-muted-foreground">Document</p>
-            <p className="text-sm font-semibold text-foreground">{title.trim() || fileName || "Untitled request"}</p>
-            {fileName ? <p className="text-xs text-muted-foreground">{fileName}</p> : null}
+        <div className="rounded-2xl border border-border/50 bg-card shadow-sm p-7 space-y-6">
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Ready to send?</h2>
+            <p className="text-sm text-muted-foreground mt-1">Review everything before sending the agreement out for signatures.</p>
           </div>
-          <div className="grid md:grid-cols-4 gap-3">
-            <div className="rounded-lg border border-border p-3">
-              <p className="text-xs text-muted-foreground">Recipients</p>
-              <p className="text-sm font-medium text-foreground">{recipientListForReview.length}</p>
+
+          {/* Document name */}
+          <div className="rounded-xl border border-border/50 bg-muted/20 p-4 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <FileText className="w-5 h-5 text-primary" />
             </div>
-            <div className="rounded-lg border border-border p-3">
-              <p className="text-xs text-muted-foreground">Fields</p>
-              <p className="text-sm font-medium text-foreground">{placedFields.length}</p>
-            </div>
-            <div className="rounded-lg border border-border p-3">
-              <p className="text-xs text-muted-foreground">Mode</p>
-              <p className="text-sm font-medium text-foreground">
-                {isPublicMode ? "Public Link" : signingMode === "SEQUENTIAL" ? "Sequential" : "Parallel"}
-              </p>
-            </div>
-            <div className="rounded-lg border border-border p-3">
-              <p className="text-xs text-muted-foreground">Auth</p>
-              <p className="text-sm font-medium text-foreground">
-                {isPublicMode ? "Public Link (No OTP)" : authLevel === "EMAIL_OTP" ? "Email OTP" : authLevel === "SMS_OTP" ? "SMS OTP" : "Link Only"}
-              </p>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground truncate">{title.trim() || fileName || "Untitled request"}</p>
+              {fileName && title.trim() && <p className="text-xs text-muted-foreground mt-0.5 truncate">{fileName}</p>}
             </div>
           </div>
-          <div className="rounded-lg border border-border p-4 space-y-3">
+
+          {/* Stats row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: "Recipients", value: String(recipientListForReview.length) },
+              { label: "Fields placed", value: String(placedFields.length) },
+              { label: "Signing order", value: isPublicMode ? "Public link" : signingMode === "SEQUENTIAL" ? "Sequential" : "Parallel" },
+              { label: "Authentication", value: isPublicMode ? "Open" : authLevel === "EMAIL_OTP" ? "Email OTP" : authLevel === "SMS_OTP" ? "SMS OTP" : "Link only" },
+            ].map((stat) => (
+              <div key={stat.label} className="rounded-xl border border-border/40 bg-muted/20 p-3.5">
+                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{stat.label}</p>
+                <p className="text-sm font-semibold text-foreground mt-1">{stat.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Field coverage per recipient */}
+          <div className="space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-foreground">Recipients & Field Coverage</p>
+              <p className="text-sm font-semibold text-foreground">Field coverage</p>
               <p className="text-xs text-muted-foreground">Expires: {expiresAtPreview}</p>
             </div>
             <div className="space-y-2">
               {recipientListForReview.map((recipient) => {
                 const count = fieldCountByRecipient.get(recipient.id) ?? 0;
                 return (
-                  <div key={recipient.id} className="rounded-md border border-border px-3 py-2 flex items-center justify-between gap-3">
+                  <div key={recipient.id} className="rounded-xl border border-border/40 px-4 py-3 flex items-center justify-between gap-3 bg-muted/10">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{recipient.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{recipient.email}</p>
+                      <p className="text-sm font-semibold text-foreground truncate">{recipient.name}</p>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">{recipient.email}</p>
                     </div>
-                    <Badge className={count > 0 ? "bg-emerald-500/10 text-emerald-700" : "bg-red-500/10 text-red-700"}>
+                    <Badge className={cn("font-semibold", count > 0 ? "bg-emerald-500/10 text-emerald-700 border-emerald-200" : "bg-red-500/10 text-red-700 border-red-200")}>
                       {count} field{count === 1 ? "" : "s"}
                     </Badge>
                   </div>
@@ -1804,17 +1874,19 @@ export default function NewSigningRequestPage() {
               })}
             </div>
           </div>
+
           {recipientsMissingFields.length > 0 && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="rounded-xl border border-red-200/70 bg-red-50 px-4 py-3 text-sm text-red-700">
               Assign at least one field to every recipient before sending.
             </div>
           )}
-          <div className="flex justify-end">
+
+          <div className="flex justify-end pt-1">
             <Button
               type="button"
               onClick={sendRequest}
               disabled={sendBusy || !!createdPublicLinkUrl || recipientsMissingFields.length > 0 || recipientListForReview.length === 0}
-              className="gap-2"
+              className="h-11 px-6 rounded-xl gap-2 text-sm font-semibold"
             >
               {sendBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : isPublicMode ? <Globe className="w-4 h-4" /> : <Send className="w-4 h-4" />}
               {isPublicMode ? (createdPublicLinkUrl ? "Public Link Created" : "Send & Create Public Link") : "Send for Signature"}
@@ -1825,23 +1897,27 @@ export default function NewSigningRequestPage() {
 
       {/* Public link success */}
       {createdPublicLinkUrl && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <Globe className="w-5 h-5 text-emerald-600" />
-            <p className="text-sm font-semibold text-emerald-800">Public signing link created!</p>
+        <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/60 shadow-sm p-6 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+              <Globe className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-emerald-900">Public signing link created</p>
+              <p className="text-xs text-emerald-700 mt-0.5">Anyone with this link can open and sign the document.</p>
+            </div>
           </div>
-          <p className="text-xs text-emerald-700">Share this link — anyone who opens it can sign the document.</p>
           <div className="flex items-center gap-2">
             <input
               readOnly
               value={createdPublicLinkUrl}
-              className="flex-1 h-9 rounded-md border border-emerald-300 bg-white px-3 text-sm font-mono text-foreground"
+              className="flex-1 h-10 rounded-xl border border-emerald-200 bg-white px-3 text-sm font-mono text-foreground"
             />
             <Button
               type="button"
               size="sm"
               variant="outline"
-              className="h-9 gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+              className="h-10 gap-1.5 rounded-xl border-emerald-200 text-emerald-800 hover:bg-emerald-100"
               onClick={async () => {
                 await navigator.clipboard.writeText(createdPublicLinkUrl).catch(() => {});
                 setCopiedPublicLink(true);
@@ -1856,7 +1932,7 @@ export default function NewSigningRequestPage() {
             type="button"
             variant="outline"
             size="sm"
-            className="w-full border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+            className="w-full rounded-xl border-emerald-200 text-emerald-800 hover:bg-emerald-100"
             onClick={() => { window.location.href = "/dashboard/signing"; }}
           >
             Go to Agreements
@@ -1865,25 +1941,33 @@ export default function NewSigningRequestPage() {
       )}
 
       {!createdPublicLinkUrl && (
-      <div className="flex items-center justify-between gap-3">
-        <Button type="button" variant="outline" onClick={goBack} disabled={step === 1 || busy || saveBusy || sendBusy}>
-          Back
-        </Button>
-        <Button
-          type="button"
-          onClick={goNext}
-          disabled={
-            busy ||
-            saveBusy ||
-            sendBusy ||
-            (step === 1 && !canContinueFromStep1()) ||
-            (step === 2 && !canContinueFromStep2()) ||
-            (step === 3 && placedFields.length === 0)
-          }
-        >
-          {step === 3 ? "Save & Continue" : step === 4 ? "Done" : "Continue"}
-        </Button>
-      </div>
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={goBack}
+            disabled={step === 1 || busy || saveBusy || sendBusy}
+            className="h-11 px-5 rounded-xl"
+          >
+            Back
+          </Button>
+          <Button
+            type="button"
+            onClick={goNext}
+            disabled={
+              busy ||
+              saveBusy ||
+              sendBusy ||
+              (step === 1 && !canContinueFromStep1()) ||
+              (step === 2 && !canContinueFromStep2()) ||
+              (step === 3 && placedFields.length === 0)
+            }
+            className="h-11 px-6 rounded-xl font-semibold"
+          >
+            {busy || saveBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {step === 3 ? "Save & Continue" : step === 4 ? "Done" : "Continue"}
+          </Button>
+        </div>
       )}
     </div>
   );
