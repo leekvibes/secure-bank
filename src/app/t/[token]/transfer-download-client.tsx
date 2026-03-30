@@ -36,7 +36,7 @@ interface Props {
   expired: boolean;
   alreadyDownloaded: boolean;
   files: FileEntry[];
-  agent: { displayName: string; company: string | null; photoUrl: string | null };
+  agent: { displayName: string; company: string | null; photoUrl: string | null; logoUrl: string | null };
 }
 
 export function TransferDownloadClient({
@@ -131,11 +131,35 @@ export function TransferDownloadClient({
     <main className="min-h-screen bg-gradient-to-b from-blue-50/60 via-slate-50 to-white">
       {/* Header */}
       <header className="bg-white/95 backdrop-blur border-b border-blue-100 shadow-sm sticky top-0 z-10">
-        <div className="max-w-screen-md mx-auto px-4 py-3 flex items-center justify-between">
-          <BrandLogo size="sm" />
-          <div className="flex items-center gap-2 text-xs text-gray-500">
+        <div className="max-w-screen-md mx-auto px-4 py-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+          {/* Left: trust pill */}
+          <div className="flex items-center gap-1.5 text-xs text-gray-500">
             <Shield className="w-3.5 h-3.5 text-blue-400" />
             Encrypted Transfer
+          </div>
+          {/* Center: agent logo or SecureLink wordmark */}
+          <div className="flex flex-col items-center gap-0.5">
+            {agent.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={agent.logoUrl} alt={agent.company ?? agent.displayName} style={{ height: "28px", maxWidth: "120px", objectFit: "contain" }} />
+            ) : (
+              <span className="text-base font-extrabold tracking-tight text-slate-900">
+                Secure<span className="text-blue-500">Link</span>
+              </span>
+            )}
+            {agent.company && <span className="text-[10px] text-slate-400">{agent.company}</span>}
+          </div>
+          {/* Right: agent avatar */}
+          <div className="flex flex-col items-end gap-0.5">
+            {agent.photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={agent.photoUrl} alt={agent.displayName} className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-100" />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-xs font-bold">
+                {agent.displayName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            <span className="text-[10px] text-slate-400 max-w-[56px] truncate text-right">{agent.displayName}</span>
           </div>
         </div>
       </header>

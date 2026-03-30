@@ -282,29 +282,31 @@ export default function AgreementsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-end gap-1 border-b border-border overflow-x-auto pb-0 -mb-px">
-        {MAIN_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => { setActiveTab(tab.id); setShowMoreOpen(false); }}
-            className={`px-3 py-2 text-sm whitespace-nowrap border-b-2 transition-colors ${
-              activeTab === tab.id
-                ? "border-primary text-primary font-medium"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab.label}
-            {tabCounts[tab.id] > 0 && (
-              <span className="ml-1.5 text-[11px] rounded-full bg-muted px-1.5 py-0.5 text-muted-foreground">
-                {tabCounts[tab.id]}
-              </span>
-            )}
-          </button>
-        ))}
+      <div className="flex items-end border-b border-border -mb-px">
+        <div className="flex items-end gap-1 overflow-x-auto pb-0 flex-1 min-w-0">
+          {MAIN_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => { setActiveTab(tab.id); setShowMoreOpen(false); }}
+              className={`px-3 py-2 text-sm whitespace-nowrap border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? "border-primary text-primary font-medium"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab.label}
+              {tabCounts[tab.id] > 0 && (
+                <span className="ml-1.5 text-[11px] rounded-full bg-muted px-1.5 py-0.5 text-muted-foreground">
+                  {tabCounts[tab.id]}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
 
-        {/* Show More dropdown */}
-        <div className="relative pb-0" ref={moreRef}>
+        {/* Show More dropdown — outside overflow container so dropdown isn't clipped */}
+        <div className="relative flex-shrink-0 pb-0" ref={moreRef}>
           <button
             type="button"
             onClick={() => setShowMoreOpen((v) => !v)}

@@ -78,11 +78,6 @@ export async function DELETE(
       return apiSuccess({ deleted: true });
     }
 
-    // Completed records cannot be deleted
-    if (request.status === "COMPLETED") {
-      return apiError(409, "CONFLICT", "Completed documents cannot be deleted.");
-    }
-
     // Soft delete: set deletedAt = now
     const now = new Date();
     await db.docSignRequest.update({

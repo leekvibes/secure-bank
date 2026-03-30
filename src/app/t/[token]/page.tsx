@@ -14,7 +14,7 @@ export default async function TransferPage({
         select: { id: true, fileName: true, mimeType: true, sizeBytes: true, downloadCount: true },
       },
       agent: {
-        select: { displayName: true, agencyName: true, company: true, photoUrl: true },
+        select: { displayName: true, agencyName: true, company: true, photoUrl: true, logoUrl: true },
       },
     },
   });
@@ -46,6 +46,7 @@ export default async function TransferPage({
         displayName: transfer.agent.displayName,
         company: transfer.agent.company ?? transfer.agent.agencyName ?? null,
         photoUrl: transfer.agent.photoUrl ?? null,
+        logoUrl: transfer.agent.logoUrl ?? null,
       }}
     />
   );

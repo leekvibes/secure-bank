@@ -29,7 +29,7 @@ interface DocData {
     expiresAt: string;
     signingMode: string;
   };
-  agent: { displayName: string; agencyName: string | null };
+  agent: { displayName: string; agencyName: string | null; company?: string | null; logoUrl?: string | null; photoUrl?: string | null };
   pages: { page: number; widthPts: number; heightPts: number }[];
   fields: Field[];
   totalRecipients: number;
@@ -1524,9 +1524,79 @@ export function SigningCeremony({
             zIndex: 100,
             background: "white",
             borderBottom: "1px solid #e2e8f0",
-            padding: "10px 16px 0",
           }}
         >
+          {/* Agent branding bar */}
+          <div
+            style={{
+              borderBottom: "1px solid #f1f5f9",
+              padding: "8px 16px",
+            }}
+          >
+            <div
+              style={{
+                maxWidth: "840px",
+                margin: "0 auto",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              {/* Left spacer */}
+              <div style={{ width: "36px" }} />
+              {/* Center: logo or wordmark */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
+                {data.agent.logoUrl ? (
+                  <img
+                    src={data.agent.logoUrl}
+                    alt={data.agent.agencyName ?? data.agent.displayName}
+                    style={{ height: "28px", maxWidth: "120px", objectFit: "contain" }}
+                  />
+                ) : (
+                  <span style={{ fontSize: "15px", fontWeight: 800, letterSpacing: "-0.5px", color: "#0f172a" }}>
+                    Secure<span style={{ color: "#3b82f6" }}>Link</span>
+                  </span>
+                )}
+                {(data.agent.agencyName || data.agent.company) && (
+                  <span style={{ fontSize: "10px", color: "#94a3b8" }}>
+                    {data.agent.agencyName ?? data.agent.company}
+                  </span>
+                )}
+              </div>
+              {/* Right: agent photo / initials */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1px" }}>
+                {data.agent.photoUrl ? (
+                  <img
+                    src={data.agent.photoUrl}
+                    alt={data.agent.displayName}
+                    style={{ width: "32px", height: "32px", borderRadius: "50%", objectFit: "cover", border: "2px solid #e2e8f0" }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: "32px",
+                      height: "32px",
+                      borderRadius: "50%",
+                      background: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "white",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {data.agent.displayName.trim().split(/\s+/).map((w: string) => w[0]).join("").toUpperCase().slice(0, 2)}
+                  </div>
+                )}
+                <span style={{ fontSize: "9px", color: "#94a3b8", maxWidth: "50px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {data.agent.displayName}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ padding: "10px 16px 0" }}>
           <div style={{ maxWidth: "840px", margin: "0 auto" }}>
             <div
               style={{
@@ -1573,6 +1643,7 @@ export function SigningCeremony({
                 }}
               />
             </div>
+          </div>
           </div>
         </div>
 

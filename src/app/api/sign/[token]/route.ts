@@ -15,7 +15,7 @@ async function handleNewFlow(
     include: {
       request: {
         include: {
-          agent: { select: { displayName: true, agencyName: true } },
+          agent: { select: { displayName: true, agencyName: true, company: true, logoUrl: true, photoUrl: true } },
           pages: { orderBy: { page: "asc" } },
           recipients: {
             select: { id: true, status: true, order: true },
@@ -121,6 +121,9 @@ async function handleNewFlow(
     agent: {
       displayName: request.agent.displayName,
       agencyName: request.agent.agencyName,
+      company: request.agent.company,
+      logoUrl: request.agent.logoUrl,
+      photoUrl: request.agent.photoUrl,
     },
     pages: request.pages,
     fields: fields.map((f) => ({
