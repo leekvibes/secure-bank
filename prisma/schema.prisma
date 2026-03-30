@@ -492,6 +492,7 @@ model DocSignField {
   required    Boolean  @default(true)
   options     String?  // JSON for DROPDOWN/RADIO choices
   value       String?  // filled in after signing (text or base64 PNG for SIGNATURE)
+  signatureId String?  // SL-XXXX-XXXX-XXXX — set for SIGNATURE/INITIALS fields on completion
   completedAt DateTime?
   createdAt   DateTime @default(now())
 

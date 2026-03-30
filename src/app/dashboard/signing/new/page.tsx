@@ -443,6 +443,44 @@ export default function NewSigningRequestPage() {
     container.scrollTo({ top, behavior: "smooth" });
   }, [activePage, step]);
 
+  // Render PDF pages as images when entering step 3 (replaces unreliable iframes)
+  useEffect(() => {
+    if (step !== 3) return;
+    if (!documentBlobUrl) return;
+    if (detailPages.length > 0 && detailPages.every((p) => p.imageUrl)) return; // already rendered
+    let cancelled = false;
+    async function renderPages() {
+      try {
+        const pdfjsLib = await import("pdfjs-dist");
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+        const pdf = await pdfjsLib.getDocument({ url: documentBlobUrl! }).promise;
+        const rendered: DetailPage[] = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          if (cancelled) return;
+          const page = await pdf.getPage(i);
+          const vp = page.getViewport({ scale: 2 });
+          const canvas = document.createElement("canvas");
+          canvas.width = vp.width;
+          canvas.height = vp.height;
+          const ctx = canvas.getContext("2d")!;
+          await page.render({ canvasContext: ctx, viewport: vp, canvas }).promise;
+          const dim = pages.find((p) => p.page === i);
+          rendered.push({
+            page: i,
+            widthPts: dim?.widthPts ?? vp.width / 2,
+            heightPts: dim?.heightPts ?? vp.height / 2,
+            imageUrl: canvas.toDataURL("image/jpeg", 0.92),
+          });
+        }
+        if (!cancelled) setDetailPages(rendered);
+      } catch (err) {
+        console.warn("[step3/render] pdfjs failed, staying with iframe fallback:", err);
+      }
+    }
+    void renderPages();
+    return () => { cancelled = true; };
+  }, [step, documentBlobUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const updateField = useCallback((fieldId: string, patch: Partial<PlacedField>) => {
     setPlacedFields((prev) => prev.map((field) => (field.id === fieldId ? { ...field, ...patch } : field)));
   }, []);
@@ -503,8 +541,8 @@ export default function NewSigningRequestPage() {
       setError("Only PDF files are accepted.");
       return;
     }
-    if (file.size > 25 * 1024 * 1024) {
-      setError("File must be 25MB or smaller.");
+    if (file.size > 50 * 1024 * 1024) {
+      setError("File must be 50MB or smaller.");
       return;
     }
 
@@ -1292,7 +1330,7 @@ export default function NewSigningRequestPage() {
             </div>
           </aside>
 
-          <div ref={placementScrollRef} className="space-y-4 max-h-[78vh] overflow-y-auto pr-1">
+          <div ref={placementScrollRef} className="space-y-4 pr-1">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground">Field Placement</h2>
               <div className="flex items-center gap-2">

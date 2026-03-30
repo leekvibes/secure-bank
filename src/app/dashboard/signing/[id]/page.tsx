@@ -620,7 +620,7 @@ export default function SigningRequestDetailPage() {
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => handleDownload("signed")} disabled={downloadBusy !== null} className="gap-2">
               {downloadBusy === "signed" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              Download Signed PDF
+              {request.signedBlobUrl ? "Download Signed PDF" : "Download PDF"}
             </Button>
             <Button variant="outline" onClick={() => handleDownload("cert")} disabled={downloadBusy !== null || !request.certificate?.blobUrl} className="gap-2">
               {downloadBusy === "cert" ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />}
@@ -630,6 +630,14 @@ export default function SigningRequestDetailPage() {
               {downloadBusy === "original" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               Download Original
             </Button>
+            {status === "COMPLETED" && (
+              <Button variant="outline" asChild className="gap-2">
+                <a href={`/envelope/${id}`} target="_blank" rel="noopener noreferrer">
+                  <ShieldAlert className="w-4 h-4" />
+                  Verify Envelope
+                </a>
+              </Button>
+            )}
           </div>
         </section>
       )}

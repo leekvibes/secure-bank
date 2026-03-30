@@ -1873,10 +1873,11 @@ export function SigningCeremony({
     return (
       <div
         style={{
-          minHeight: "100vh",
+          height: "100vh",
           background: "#e8ecf0",
           display: "flex",
           flexDirection: "column",
+          overflow: "hidden",
         }}
       >
         {/* Sticky header */}

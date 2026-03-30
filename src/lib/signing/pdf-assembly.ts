@@ -21,6 +21,10 @@ export interface FieldValue {
   width: number;     // 0–1 fraction
   height: number;    // 0–1 fraction
   value: string;     // text, "true"/"false", or base64 PNG for SIGNATURE/INITIALS
+  // Attribution — populated for SIGNATURE/INITIALS fields
+  signatureId?: string | null;
+  recipientName?: string | null;
+  completedAt?: Date | string | null;
 }
 
 export interface PageDim {
@@ -96,7 +100,8 @@ export async function assemblePdf(
   originalBlobUrl: string,
   fields: FieldValue[],
   pages: PageDim[],
-  documentHash?: string
+  documentHash?: string,
+  requestId?: string
 ): Promise<{ url: string; hash: string }> {
   // Fetch the original PDF bytes
   const res = await fetch(originalBlobUrl);
@@ -157,6 +162,36 @@ export async function assemblePdf(
           font,
           size: Math.min(12, coords.height * 0.6),
           color: hex(0, 0, 180),
+        });
+      }
+      // ── Signature attribution block ────────────────────────────────────────
+      if (field.signatureId) {
+        const attrFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const attrSize = 6;
+        const attrY = coords.y - attrSize - 2; // just below the signature box
+        const signerPart = field.recipientName ? sanitizeText(field.recipientName) + " | " : "";
+        let datePart = "";
+        if (field.completedAt) {
+          try {
+            datePart = new Date(field.completedAt).toUTCString().slice(0, 16) + " | ";
+          } catch { /* ignore */ }
+        }
+        const attrLine = `${field.signatureId} | ${signerPart}${datePart}SecureLink`;
+        // Draw a very thin underline at the bottom of the signature box
+        pdfPage.drawLine({
+          start: { x: coords.x, y: coords.y },
+          end: { x: coords.x + coords.width, y: coords.y },
+          thickness: 0.5,
+          color: hex(100, 116, 139),
+          dashArray: [3, 2],
+        });
+        pdfPage.drawText(truncate(attrLine, 90), {
+          x: coords.x,
+          y: Math.max(attrY, 2),
+          font: attrFont,
+          size: attrSize,
+          color: hex(100, 116, 139),
+          maxWidth: Math.max(coords.width, 120),
         });
       }
     } else if (field.type === "CHECKBOX") {
@@ -236,7 +271,8 @@ export async function assemblePdf(
       height: bannerHeight,
       color: bannerBg,
     });
-    pdfPage.drawText("SIGNED DOCUMENT - DO NOT MODIFY - SecureLink", {
+    const verifyPath = requestId ? `mysecurelink.co/envelope/${requestId}` : "mysecurelink.co";
+    pdfPage.drawText(`SIGNED DOCUMENT - DO NOT MODIFY - SecureLink | Verify: ${verifyPath}`, {
       x: 6,
       y: 3.5,
       font: bannerFont,

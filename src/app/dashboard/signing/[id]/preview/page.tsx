@@ -152,11 +152,11 @@ export default function PreviewPage() {
             </div>
           )}
           <a
-            href={`/api/signing/requests/${encodeURIComponent(id)}/download${isCompleted ? "" : "?type=original"}`}
+            href={`/api/signing/requests/${encodeURIComponent(id)}/download${(isCompleted && request?.signedBlobUrl) ? "" : "?type=original"}`}
             download
             style={{ padding: "6px 12px", borderRadius: "8px", border: "none", background: "#3b82f6", color: "white", fontSize: "13px", fontWeight: 600, cursor: "pointer", textDecoration: "none" }}
           >
-            Download
+            {(isCompleted && request?.signedBlobUrl) ? "Download Signed" : "Download Original"}
           </a>
         </div>
       </div>

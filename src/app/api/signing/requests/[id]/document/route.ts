@@ -5,6 +5,9 @@ import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { processPdf } from "@/lib/signing/pdf-pipeline";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
 // POST /api/signing/requests/[id]/document
 // Upload the PDF, run the pipeline (Blob upload + page dimensions + hash)
 export async function POST(
@@ -34,7 +37,7 @@ export async function POST(
 
     const fileObj = file as File;
     if (fileObj.type !== "application/pdf") return apiError(400, "BAD_REQUEST", "Only PDF files are accepted.");
-    if (fileObj.size > 25 * 1024 * 1024) return apiError(400, "BAD_REQUEST", "File must be under 25 MB.");
+    if (fileObj.size > 50 * 1024 * 1024) return apiError(400, "BAD_REQUEST", "File must be under 50 MB.");
 
     const buffer = Buffer.from(await fileObj.arrayBuffer());
     const originalName = fileObj.name || "document.pdf";
@@ -85,6 +88,9 @@ export async function POST(
     });
   } catch (err) {
     console.error("[signing/document/upload]", err);
-    return apiError(500, "SERVER_ERROR", "Failed to process document.");
+    const msg = process.env.NODE_ENV !== "production" && err instanceof Error
+      ? err.message
+      : "Failed to process document.";
+    return apiError(500, "SERVER_ERROR", msg);
   }
 }

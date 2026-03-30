@@ -56,14 +56,17 @@ export async function GET(
     fileName = request.originalName ?? `${safeName}.pdf`;
     if (!blobUrl) return apiError(404, "NOT_READY", "Original document is not available.");
   } else {
-    // signed (default)
+    // signed (default) — fall back to original if assembly never ran
     blobUrl = request.signedBlobUrl ?? null;
     fileName = `signed_${safeName}.pdf`;
     if (!blobUrl) {
       if (request.status !== "COMPLETED") {
         return apiError(409, "NOT_COMPLETE", "Signing is not yet complete. The assembled PDF is only available after all parties have signed.");
       }
-      return apiError(404, "NOT_READY", "Signed PDF is not available yet.");
+      // Assembly failed for this document — serve original as fallback
+      blobUrl = request.blobUrl ?? null;
+      fileName = request.originalName ?? `${safeName}.pdf`;
+      if (!blobUrl) return apiError(404, "NOT_READY", "Document is not available.");
     }
   }
 

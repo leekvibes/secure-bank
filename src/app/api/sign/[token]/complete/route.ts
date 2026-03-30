@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
+import { generateSignatureId } from "@/lib/signing/signature-id";
 
 const fieldValueSchema = z.object({
   id: z.string().min(1),
@@ -73,6 +74,14 @@ export async function POST(
 
   const completedAt = new Date();
 
+  // Generate signature IDs for SIGNATURE/INITIALS fields
+  const sigIdMap = new Map<string, string>();
+  for (const f of recipient.fields) {
+    const isSig = f.type === "SIGNATURE" || f.type === "INITIALS";
+    const val = valueMap.get(f.id) ?? "";
+    if (isSig && val) sigIdMap.set(f.id, generateSignatureId());
+  }
+
   // Persist field values + mark recipient complete in a transaction
   await db.$transaction([
     // Save each field value
@@ -80,7 +89,11 @@ export async function POST(
       const val = valueMap.get(f.id) ?? "";
       return db.docSignField.update({
         where: { id: f.id },
-        data: { value: val, completedAt: val ? completedAt : null },
+        data: {
+          value: val,
+          completedAt: val ? completedAt : null,
+          ...(sigIdMap.has(f.id) ? { signatureId: sigIdMap.get(f.id) } : {}),
+        },
       });
     }),
     // Mark recipient complete
@@ -166,6 +179,9 @@ export async function POST(
         orderBy: [{ page: "asc" }, { y: "asc" }],
       });
 
+      // Build recipient lookup for attribution
+      const recipientNameMap = new Map(allRecipients.map((r) => [r.id, r.name]));
+
       const fieldValues = allFields
         .filter((f) => f.value)
         .map((f) => ({
@@ -177,6 +193,9 @@ export async function POST(
           width: f.width,
           height: f.height,
           value: f.value!,
+          signatureId: f.signatureId ?? null,
+          recipientName: recipientNameMap.get(f.recipientId) ?? null,
+          completedAt: f.completedAt ?? null,
         }));
 
       const pageDims = request.pages.map((p) => ({
@@ -187,7 +206,7 @@ export async function POST(
 
       // Assemble signed PDF
       const assemblyResult = request.blobUrl
-        ? await assemblePdf(request.blobUrl, fieldValues, pageDims, request.documentHash ?? undefined)
+        ? await assemblePdf(request.blobUrl, fieldValues, pageDims, request.documentHash ?? undefined, request.id)
         : null;
       const signedBlobUrl = assemblyResult?.url ?? null;
       const signedDocumentHash = assemblyResult?.hash ?? null;
