@@ -289,6 +289,7 @@ export default function NewSigningRequestPage() {
   const [activePage, setActivePage] = useState(1);
 
   const pageRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const placementScrollRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
 
   const progressWidth = useMemo(() => `${((step - 1) / (STEPS.length - 1)) * 100}%`, [step]);
@@ -432,6 +433,15 @@ export default function NewSigningRequestPage() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedFieldId]);
+
+  useEffect(() => {
+    if (step !== 3) return;
+    const container = placementScrollRef.current;
+    const node = pageRefs.current[activePage];
+    if (!container || !node) return;
+    const top = Math.max(0, node.offsetTop - 12);
+    container.scrollTo({ top, behavior: "smooth" });
+  }, [activePage, step]);
 
   const updateField = useCallback((fieldId: string, patch: Partial<PlacedField>) => {
     setPlacedFields((prev) => prev.map((field) => (field.id === fieldId ? { ...field, ...patch } : field)));
@@ -1282,7 +1292,7 @@ export default function NewSigningRequestPage() {
             </div>
           </aside>
 
-          <div className="space-y-4">
+          <div ref={placementScrollRef} className="space-y-4 max-h-[78vh] overflow-y-auto pr-1">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground">Field Placement</h2>
               <div className="flex items-center gap-2">
