@@ -9,6 +9,7 @@ import {
   Clock3,
   FileSignature,
   Filter,
+  Globe,
   LayoutTemplate,
   Loader2,
   Plus,
@@ -51,6 +52,7 @@ interface SigningRequestListItem {
   displayStatus?: SigningStatus;
   completedRecipients?: number;
   isEditable?: boolean;
+  hasPublicLinks?: boolean;
 }
 
 function resolveDisplayStatus(request: SigningRequestListItem): SigningStatus {
@@ -526,11 +528,17 @@ export default function AgreementsPage() {
                       <p className="text-[11px] text-red-600 mt-0.5">Permanent deletion in {daysLeft} day{daysLeft === 1 ? "" : "s"}</p>
                     ) : null}
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
-                    <span
-                      style={{ width: 7, height: 7, borderRadius: "50%", background: dot.color, flexShrink: 0, display: "inline-block" }}
-                    />
-                    <span style={{ fontSize: "12px", fontWeight: 500, color: dot.color }}>{dot.label}</span>
+                  <div className="flex flex-col items-end gap-1 shrink-0 mt-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: dot.color, flexShrink: 0, display: "inline-block" }} />
+                      <span style={{ fontSize: "12px", fontWeight: 500, color: dot.color }}>{dot.label}</span>
+                    </div>
+                    {request.hasPublicLinks && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-1.5 py-0.5">
+                        <Globe className="w-2.5 h-2.5" />
+                        Public
+                      </span>
+                    )}
                   </div>
                 </div>
 

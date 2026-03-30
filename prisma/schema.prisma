@@ -64,6 +64,7 @@ model User {
   docSignRequests        DocSignRequest[]
   docSignTemplates       DocSignTemplate[]
   templateUsages         TemplateUsage[]
+  docSignPublicLinks     DocSignPublicLink[]
 }
 
 model SecureLink {
@@ -449,6 +450,7 @@ model DocSignRequest {
   pages        DocSignPage[]
   certificate  CertificateOfCompletion?
   documentTemplateInstance DocumentTemplateInstance?
+  publicLinks  DocSignPublicLink[]
 }
 
 model DocSignRecipient {
@@ -473,10 +475,12 @@ model DocSignRecipient {
   otpExpiresAt         DateTime?
   otpAttempts          Int        @default(0)
   isAgent       Boolean   @default(false)
+  isPublicSlot  Boolean   @default(false)
   createdAt     DateTime  @default(now())
 
-  request DocSignRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  fields  DocSignField[]
+  request      DocSignRequest      @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  fields       DocSignField[]
+  publicUsage  DocSignPublicUsage?
 
   @@index([requestId])
   @@index([token])
@@ -539,6 +543,43 @@ model DocSignAuditLog {
 
   requestId String
   request   DocSignRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}
+
+model DocSignPublicLink {
+  id              String    @id @default(cuid())
+  agentId         String
+  requestId       String
+  slotRecipientId String    // FK to DocSignRecipient that holds the field layout
+  token           String    @unique
+  label           String?
+  maxUses         Int?      // null = unlimited
+  usedCount       Int       @default(0)
+  requireName     Boolean   @default(true)
+  requireEmail    Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  expiresAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  agent   User           @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  request DocSignRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  usages  DocSignPublicUsage[]
+
+  @@index([agentId])
+  @@index([requestId])
+  @@index([token])
+}
+
+model DocSignPublicUsage {
+  id          String   @id @default(cuid())
+  linkId      String
+  recipientId String   @unique
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  link      DocSignPublicLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  recipient DocSignRecipient  @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([linkId])
 }
 
 model DocSignTemplate {

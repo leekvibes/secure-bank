@@ -9,14 +9,19 @@ import {
   BellRing,
   Calendar,
   CheckCircle2,
+  ChevronDown,
   Clock,
+  Copy,
   Download,
   Edit2,
   ExternalLink,
   FileText,
+  Globe,
   LayoutTemplate,
+  Link2,
   Loader2,
   Mail,
+  Plus,
   Send,
   ShieldCheck,
   Trash2,
@@ -40,6 +45,7 @@ interface Recipient {
   completedAt: string | null;
   token: string;
   isAgent?: boolean;
+  isPublicSlot?: boolean;
   phone?: string | null;
 }
 
@@ -67,6 +73,24 @@ interface PageDim {
   page: number;
   widthPts: number;
   heightPts: number;
+}
+
+interface PublicLink {
+  id: string;
+  token: string;
+  label: string | null;
+  maxUses: number | null;
+  usedCount: number;
+  requireName: boolean;
+  requireEmail: boolean;
+  isActive: boolean;
+  expiresAt: string | null;
+  createdAt: string;
+  usages: Array<{
+    id: string;
+    createdAt: string;
+    recipient: { name: string; email: string; status: string; completedAt: string | null };
+  }>;
 }
 
 interface SigningRequestDetail {
@@ -137,6 +161,8 @@ function eventLabel(event: string) {
     DEADLINE_EXTENDED: "Deadline extended",
     CREATED_FROM_TEMPLATE: "Created from template",
     EXPIRY_REMINDER_SENT: "Expiry reminder sent",
+    PUBLIC_LINK_CREATED: "Public signing link created",
+    PUBLIC_LINK_USED: "Someone signed via public link",
   };
   return map[event] ?? event;
 }
@@ -177,6 +203,15 @@ export default function SigningRequestDetailPage() {
   const [saveTemplateBusy, setSaveTemplateBusy] = useState(false);
   const [saveTemplateSuccess, setSaveTemplateSuccess] = useState(false);
 
+  // Public links
+  const [publicLinks, setPublicLinks] = useState<PublicLink[]>([]);
+  const [publicLinksLoading, setPublicLinksLoading] = useState(false);
+  const [showCreatePublicLink, setShowCreatePublicLink] = useState(false);
+  const [copiedPublicToken, setCopiedPublicToken] = useState<string | null>(null);
+  const [togglingLinkId, setTogglingLinkId] = useState<string | null>(null);
+  const [deletingLinkId, setDeletingLinkId] = useState<string | null>(null);
+  const [confirmDeleteLinkId, setConfirmDeleteLinkId] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -199,6 +234,11 @@ export default function SigningRequestDetailPage() {
     return () => { cancelled = true; };
   }, [id]);
 
+  useEffect(() => {
+    void loadPublicLinks();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
   const status = useMemo(() => (request ? resolveDisplayStatus(request) : null), [request]);
   const dot = status ? statusDot(status) : null;
   const completedRecipients = request?.recipients.filter((r) => r.status === "COMPLETED").length ?? 0;
@@ -215,6 +255,52 @@ export default function SigningRequestDetailPage() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to reload.");
     setRequest((data?.request ?? data) as SigningRequestDetail);
+  }
+
+  async function loadPublicLinks() {
+    if (!id) return;
+    setPublicLinksLoading(true);
+    try {
+      const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}/public-links`, { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setPublicLinks((data as { links: PublicLink[] }).links ?? []);
+    } finally {
+      setPublicLinksLoading(false);
+    }
+  }
+
+  async function togglePublicLink(linkId: string, isActive: boolean) {
+    setTogglingLinkId(linkId);
+    try {
+      const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}/public-links/${linkId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive }),
+      });
+      if (res.ok) setPublicLinks((prev) => prev.map((l) => l.id === linkId ? { ...l, isActive } : l));
+    } finally {
+      setTogglingLinkId(null);
+    }
+  }
+
+  async function deletePublicLink(linkId: string) {
+    setDeletingLinkId(linkId);
+    try {
+      const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}/public-links/${linkId}`, { method: "DELETE" });
+      if (res.ok) {
+        setPublicLinks((prev) => prev.filter((l) => l.id !== linkId));
+        setConfirmDeleteLinkId(null);
+      }
+    } finally {
+      setDeletingLinkId(null);
+    }
+  }
+
+  async function copyPublicLink(token: string) {
+    const url = `${window.location.origin}/sign/public/${token}`;
+    await navigator.clipboard.writeText(url).catch(() => {});
+    setCopiedPublicToken(token);
+    setTimeout(() => setCopiedPublicToken(null), 2000);
   }
 
   async function handleRemind() {
@@ -637,6 +723,122 @@ export default function SigningRequestDetailPage() {
             </section>
           </div>
 
+          {/* Public Links */}
+          <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Public Signing Links</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Anyone with the link can sign — no email required.</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                onClick={() => setShowCreatePublicLink(true)}
+                disabled={status === "VOIDED" || status === "COMPLETED" || status === "EXPIRED"}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Create Link
+              </Button>
+            </div>
+
+            {publicLinksLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              </div>
+            ) : publicLinks.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border p-5 text-center">
+                <Globe className="w-7 h-7 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-xs font-medium text-muted-foreground">No public links yet</p>
+                <p className="text-xs text-muted-foreground/70 mt-0.5">Great for open houses, walk-in clients, or when you don&apos;t know the signer&apos;s email.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {publicLinks.map((link) => {
+                  const url = typeof window !== "undefined" ? `${window.location.origin}/sign/public/${link.token}` : `/sign/public/${link.token}`;
+                  const isCopied = copiedPublicToken === link.token;
+                  const isConfirming = confirmDeleteLinkId === link.id;
+                  const usageLabel = link.maxUses != null
+                    ? `${link.usedCount} / ${link.maxUses} uses`
+                    : `${link.usedCount} use${link.usedCount !== 1 ? "s" : ""}`;
+
+                  return (
+                    <div key={link.id} className={`rounded-xl border border-border p-3 space-y-2 ${!link.isActive ? "opacity-60" : ""}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-medium text-foreground">{link.label ?? "Untitled link"}</p>
+                            <span
+                              style={{
+                                fontSize: "10px", fontWeight: 600, letterSpacing: "0.05em",
+                                color: link.isActive ? "#16a34a" : "#94a3b8",
+                                background: link.isActive ? "#f0fdf4" : "#f1f5f9",
+                                border: `1px solid ${link.isActive ? "#bbf7d0" : "#e2e8f0"}`,
+                                borderRadius: 999, padding: "1px 8px",
+                              }}
+                            >
+                              {link.isActive ? "Active" : "Inactive"}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 font-mono truncate">{url}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">{usageLabel}</p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => void copyPublicLink(link.token)}>
+                            <Copy className="w-3 h-3" />
+                            {isCopied ? "Copied!" : "Copy"}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            disabled={togglingLinkId === link.id}
+                            onClick={() => void togglePublicLink(link.id, !link.isActive)}
+                          >
+                            {togglingLinkId === link.id ? <Loader2 className="w-3 h-3 animate-spin" /> : link.isActive ? "Pause" : "Resume"}
+                          </Button>
+                          {!isConfirming ? (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDeleteLinkId(link.id)}>
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <Button variant="destructive" size="sm" className="h-7 text-xs" disabled={deletingLinkId === link.id} onClick={() => void deletePublicLink(link.id)}>
+                                {deletingLinkId === link.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Delete"}
+                              </Button>
+                              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setConfirmDeleteLinkId(null)}>Cancel</Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {link.usages.length > 0 && (
+                        <div className="border-t border-border pt-2 space-y-1">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Signers</p>
+                          {link.usages.slice(0, 5).map((u) => {
+                            const rdot = u.recipient.status === "COMPLETED" ? "#16a34a" : u.recipient.status === "DECLINED" ? "#e11d48" : "#94a3b8";
+                            return (
+                              <div key={u.id} className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: rdot, flexShrink: 0, display: "inline-block" }} />
+                                  <p className="text-xs text-foreground truncate">{u.recipient.name || "Guest"}</p>
+                                  {u.recipient.email && <p className="text-[11px] text-muted-foreground truncate">{u.recipient.email}</p>}
+                                </div>
+                                <p className="text-[11px] text-muted-foreground shrink-0">{new Date(u.createdAt).toLocaleDateString()}</p>
+                              </div>
+                            );
+                          })}
+                          {link.usages.length > 5 && (
+                            <p className="text-[11px] text-muted-foreground">+{link.usages.length - 5} more</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
           {/* Files & downloads */}
           <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
             <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Files & Downloads</h2>
@@ -730,6 +932,12 @@ export default function SigningRequestDetailPage() {
                               Agent
                             </span>
                           )}
+                          {recipient.isPublicSlot && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-1.5 py-0.5">
+                              <Globe className="w-3 h-3" />
+                              Public slot
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground truncate">{recipient.email}</p>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -792,6 +1000,18 @@ export default function SigningRequestDetailPage() {
               recipient={reassignTarget}
               onClose={() => setReassignTarget(null)}
               onSuccess={async () => { setReassignTarget(null); await reload(); }}
+            />
+          )}
+
+          {showCreatePublicLink && (
+            <CreatePublicLinkModal
+              requestId={id}
+              recipients={request.recipients}
+              onClose={() => setShowCreatePublicLink(false)}
+              onCreated={(link) => {
+                setPublicLinks((prev) => [link as unknown as PublicLink, ...prev]);
+                setShowCreatePublicLink(false);
+              }}
             />
           )}
         </section>
@@ -875,6 +1095,144 @@ export default function SigningRequestDetailPage() {
           )}
         </section>
       )}
+    </div>
+  );
+}
+
+function CreatePublicLinkModal({
+  requestId,
+  recipients,
+  onClose,
+  onCreated,
+}: {
+  requestId: string;
+  recipients: Recipient[];
+  onClose: () => void;
+  onCreated: (link: PublicLink) => void;
+}) {
+  const recipientsWithFields = recipients.filter((r) => !r.isPublicSlot);
+  const [label, setLabel] = useState("");
+  const [maxUses, setMaxUses] = useState<"unlimited" | number>("unlimited");
+  const [maxUsesInput, setMaxUsesInput] = useState("10");
+  const [requireName, setRequireName] = useState(true);
+  const [requireEmail, setRequireEmail] = useState(false);
+  const [slotRecipientId, setSlotRecipientId] = useState(recipientsWithFields[0]?.id ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleCreate() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/signing/requests/${requestId}/public-links`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label: label.trim() || null,
+          maxUses: maxUses === "unlimited" ? null : Number(maxUsesInput) || null,
+          requireName,
+          requireEmail,
+          slotRecipientId: slotRecipientId || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: { message?: string } }).error?.message ?? "Failed to create link.");
+      onCreated((data as { link: PublicLink }).link);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create link.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-card border border-border rounded-2xl w-full max-w-sm shadow-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Globe className="w-4 h-4 text-primary" />
+            <h3 className="font-bold text-sm text-foreground">Create Public Signing Link</h3>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">Anyone with this link can open the document and sign — no email required.</p>
+        </div>
+        <div className="px-5 py-4 space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground block mb-1">Label <span className="font-normal">(optional)</span></label>
+            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Open House 123 Main St" className="h-9 text-sm" />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground block mb-2">Max Uses</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMaxUses("unlimited")}
+                className={`flex-1 h-9 rounded-lg border text-sm transition-colors ${maxUses === "unlimited" ? "border-primary bg-primary/5 text-primary font-medium" : "border-border text-muted-foreground hover:text-foreground"}`}
+              >
+                Unlimited
+              </button>
+              <button
+                type="button"
+                onClick={() => setMaxUses(Number(maxUsesInput) || 10)}
+                className={`flex-1 h-9 rounded-lg border text-sm transition-colors ${maxUses !== "unlimited" ? "border-primary bg-primary/5 text-primary font-medium" : "border-border text-muted-foreground hover:text-foreground"}`}
+              >
+                Limited
+              </button>
+            </div>
+            {maxUses !== "unlimited" && (
+              <div className="mt-2">
+                <Input
+                  type="number"
+                  min="1"
+                  value={maxUsesInput}
+                  onChange={(e) => { setMaxUsesInput(e.target.value); setMaxUses(Number(e.target.value) || 1); }}
+                  className="h-9 text-sm"
+                  placeholder="10"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-muted-foreground block">Collect from signers</label>
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input type="checkbox" checked={requireName} onChange={(e) => setRequireName(e.target.checked)} className="rounded" />
+              <span className="text-sm text-foreground">Require full name</span>
+            </label>
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input type="checkbox" checked={requireEmail} onChange={(e) => setRequireEmail(e.target.checked)} className="rounded" />
+              <span className="text-sm text-foreground">Require email address</span>
+            </label>
+          </div>
+
+          {recipientsWithFields.length > 1 && (
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Public signer fills this slot</label>
+              <select
+                value={slotRecipientId}
+                onChange={(e) => setSlotRecipientId(e.target.value)}
+                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                {recipientsWithFields.map((r) => (
+                  <option key={r.id} value={r.id}>{r.name} ({r.email})</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {error && <p className="text-xs text-red-600">{error}</p>}
+        </div>
+        <div className="px-5 py-3 border-t border-border flex gap-2">
+          <Button variant="outline" size="sm" className="flex-1" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button size="sm" className="flex-1 gap-1.5" onClick={() => void handleCreate()} disabled={busy || !slotRecipientId}>
+            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
+            Create Link
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

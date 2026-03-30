@@ -111,6 +111,7 @@ export async function GET(req: NextRequest) {
           orderBy: { order: "asc" },
         },
         _count: { select: { signingFields: true } },
+        publicLinks: { select: { id: true, isActive: true }, where: { isActive: true }, take: 1 },
       },
       orderBy: { createdAt: "desc" },
       take: 100,
@@ -145,7 +146,8 @@ export async function GET(req: NextRequest) {
         r.status === "DRAFT" ||
         ((r.status === "SENT" || r.status === "OPENED") && completedCount === 0);
 
-      return { ...r, displayStatus, completedRecipients: completedCount, isEditable, deletedAt: r.deletedAt ?? null };
+      const hasPublicLinks = r.publicLinks.length > 0;
+      return { ...r, displayStatus, completedRecipients: completedCount, isEditable, deletedAt: r.deletedAt ?? null, hasPublicLinks };
     });
 
     return apiSuccess({ requests: augmented });
