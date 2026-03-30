@@ -4,10 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
-  AlertTriangle,
-  ArrowRight,
   Ban,
-  CheckCircle2,
   ChevronDown,
   Clock3,
   FileSignature,
@@ -17,11 +14,9 @@ import {
   Plus,
   RotateCcw,
   Search,
-  Send,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
 type SigningStatus = "DRAFT" | "SENT" | "OPENED" | "PARTIALLY_SIGNED" | "COMPLETED" | "VOIDED" | "EXPIRED";
@@ -67,31 +62,35 @@ function resolveDisplayStatus(request: SigningRequestListItem): SigningStatus {
   return request.status;
 }
 
-function statusBadge(status: SigningStatus) {
-  if (status === "DRAFT") return { label: "Draft", className: "bg-slate-200 text-slate-700" };
-  if (status === "PARTIALLY_SIGNED") return { label: "Partially Signed", className: "bg-amber-100 text-amber-800" };
-  if (status === "SENT" || status === "OPENED") return { label: "Sent", className: "bg-blue-100 text-blue-800" };
-  if (status === "COMPLETED") return { label: "Completed", className: "bg-emerald-100 text-emerald-800" };
-  if (status === "VOIDED") return { label: "Voided", className: "bg-orange-100 text-orange-800" };
-  return { label: "Expired", className: "bg-rose-100 text-rose-800" };
+function statusDot(status: SigningStatus): { color: string; label: string } {
+  if (status === "COMPLETED") return { color: "#16a34a", label: "Completed" };
+  if (status === "PARTIALLY_SIGNED") return { color: "#d97706", label: "Partially Signed" };
+  if (status === "SENT" || status === "OPENED") return { color: "#2563eb", label: "Sent" };
+  if (status === "VOIDED") return { color: "#ea580c", label: "Voided" };
+  if (status === "EXPIRED") return { color: "#e11d48", label: "Expired" };
+  return { color: "#94a3b8", label: "Draft" };
 }
 
-function statusIcon(status: SigningStatus) {
-  if (status === "COMPLETED") return <CheckCircle2 className="w-4 h-4 text-emerald-600" />;
-  if (status === "PARTIALLY_SIGNED") return <AlertTriangle className="w-4 h-4 text-amber-600" />;
-  if (status === "SENT" || status === "OPENED") return <Send className="w-4 h-4 text-blue-600" />;
-  if (status === "VOIDED") return <Ban className="w-4 h-4 text-orange-600" />;
-  if (status === "EXPIRED") return <Clock3 className="w-4 h-4 text-rose-600" />;
-  return <FileSignature className="w-4 h-4 text-slate-600" />;
+function statusProgressColor(status: SigningStatus): string {
+  if (status === "COMPLETED") return "#16a34a";
+  if (status === "PARTIALLY_SIGNED") return "#d97706";
+  if (status === "SENT" || status === "OPENED") return "#2563eb";
+  if (status === "VOIDED") return "#ea580c";
+  if (status === "EXPIRED") return "#e11d48";
+  return "#94a3b8";
 }
 
-function statusCardTone(status: SigningStatus) {
-  if (status === "COMPLETED") return "from-emerald-50 to-white border-emerald-200/70";
-  if (status === "PARTIALLY_SIGNED") return "from-amber-50 to-white border-amber-200/70";
-  if (status === "SENT" || status === "OPENED") return "from-blue-50 to-white border-blue-200/70";
-  if (status === "VOIDED") return "from-orange-50 to-white border-orange-200/70";
-  if (status === "EXPIRED") return "from-rose-50 to-white border-rose-200/70";
-  return "from-slate-50 to-white border-slate-200/70";
+function recipientInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+function recipientChipColor(status: string): string {
+  if (status === "COMPLETED") return "#16a34a";
+  if (status === "DECLINED") return "#e11d48";
+  if (status === "OPENED") return "#2563eb";
+  return "#94a3b8";
 }
 
 function daysUntilPermanentDelete(deletedAt: string): number {
@@ -328,10 +327,11 @@ export default function AgreementsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="ui-page-title">Agreements</h1>
-          <p className="text-sm text-muted-foreground mt-1">Track signature requests with a cleaner, card-first control center.</p>
+          <p className="text-sm text-muted-foreground mt-1">Track and manage your signature requests.</p>
         </div>
         <div className="flex items-center gap-2">
           <Button asChild variant="outline" className="gap-2 h-10 px-4">
@@ -349,109 +349,131 @@ export default function AgreementsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <MetricCard label="Total Requests" value={metrics.total} tone="neutral" />
-        <MetricCard label="Sent" value={metrics.sent} tone="blue" />
-        <MetricCard label="Partially Signed" value={metrics.partial} tone="amber" />
-        <MetricCard label="Completed" value={metrics.completed} tone="emerald" />
+      {/* Floating metrics */}
+      <div className="grid grid-cols-2 lg:grid-cols-4">
+        {[
+          { label: "TOTAL", value: metrics.total },
+          { label: "SENT", value: metrics.sent },
+          { label: "IN PROGRESS", value: metrics.partial },
+          { label: "COMPLETED", value: metrics.completed },
+        ].map((m, i) => (
+          <div
+            key={m.label}
+            className="px-6 py-4 flex flex-col gap-1"
+            style={{ borderLeft: i > 0 ? "1px solid hsl(var(--border))" : undefined }}
+          >
+            <span
+              style={{
+                fontSize: "10px",
+                fontWeight: 600,
+                letterSpacing: "0.1em",
+                color: "hsl(var(--muted-foreground))",
+                textTransform: "uppercase",
+              }}
+            >
+              {m.label}
+            </span>
+            <span style={{ fontSize: "28px", fontWeight: 800, lineHeight: 1, color: "hsl(var(--foreground))" }}>
+              {m.value}
+            </span>
+          </div>
+        ))}
       </div>
 
-      <div className="rounded-2xl border border-border bg-gradient-to-br from-slate-50/90 via-white to-blue-50/40 p-4 space-y-4">
-        <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by title, file name, recipient name, or email"
-              className="pl-9 h-10"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground px-2">
-              <Filter className="w-3.5 h-3.5" />
-              Sort
-            </span>
-            <select
-              value={sortMode}
-              onChange={(event) => setSortMode(event.target.value as SortMode)}
-              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="NEWEST">Newest first</option>
-              <option value="OLDEST">Oldest first</option>
-              <option value="ATTENTION">Needs attention</option>
-            </select>
-          </div>
+      {/* Search + sort — bare, no container */}
+      <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search by title, file name, recipient name, or email"
+            className="pl-9 h-10"
+          />
         </div>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground px-2">
+            <Filter className="w-3.5 h-3.5" />
+            Sort
+          </span>
+          <select
+            value={sortMode}
+            onChange={(event) => setSortMode(event.target.value as SortMode)}
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="NEWEST">Newest first</option>
+            <option value="OLDEST">Oldest first</option>
+            <option value="ATTENTION">Needs attention</option>
+          </select>
+        </div>
+      </div>
 
-        <div className="flex items-end border-b border-border -mb-px">
-          <div className="flex items-end gap-1 overflow-x-auto pb-0 flex-1 min-w-0">
-            {MAIN_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  setShowMoreOpen(false);
-                }}
-                className={`px-3 py-2 text-sm whitespace-nowrap border-b-2 transition-colors ${
-                  activeTab === tab.id
-                    ? "border-primary text-primary font-medium"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {tab.label}
-                {tabCounts[tab.id] > 0 && (
-                  <span className="ml-1.5 text-[11px] rounded-full bg-muted px-1.5 py-0.5 text-muted-foreground">
-                    {tabCounts[tab.id]}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          <div className="relative flex-shrink-0 pb-0" ref={moreRef}>
+      {/* Pill tabs */}
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0 bg-muted rounded-xl p-1 flex items-center gap-1 overflow-x-auto">
+          {MAIN_TABS.map((tab) => (
             <button
+              key={tab.id}
               type="button"
-              onClick={() => setShowMoreOpen((v) => !v)}
-              className={`px-3 py-2 text-sm whitespace-nowrap border-b-2 flex items-center gap-1 transition-colors ${
-                isMoreActive
-                  ? "border-primary text-primary font-medium"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                setActiveTab(tab.id);
+                setShowMoreOpen(false);
+              }}
+              className={`px-3 py-1.5 text-sm whitespace-nowrap rounded-lg transition-all flex items-center gap-1.5 ${
+                activeTab === tab.id
+                  ? "bg-card text-foreground font-medium shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {isMoreActive ? MORE_TABS.find((t) => t.id === activeTab)?.label : "More"}
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMoreOpen ? "rotate-180" : ""}`} />
+              {tab.label}
+              {tabCounts[tab.id] > 0 && (
+                <span className="text-[11px] rounded-full bg-muted px-1.5 py-0.5 text-muted-foreground">
+                  {tabCounts[tab.id]}
+                </span>
+              )}
             </button>
-            {showMoreOpen && (
-              <div className="absolute top-full left-0 mt-1 z-50 bg-card border border-border rounded-xl shadow-lg py-1 min-w-[170px]">
-                {MORE_TABS.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                      setShowMoreOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between hover:bg-muted/60 transition-colors ${
-                      activeTab === tab.id ? "text-primary font-medium" : "text-foreground"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      {tab.id === "DELETED" && <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />}
-                      {tab.id === "EXPIRING_SOON" && <AlertCircle className="w-3.5 h-3.5 text-amber-500" />}
-                      {tab.id === "DECLINED" && <Ban className="w-3.5 h-3.5 text-red-500" />}
-                      {tab.id === "DRAFTS" && <Clock3 className="w-3.5 h-3.5 text-muted-foreground" />}
-                      {tab.label}
-                    </span>
-                    {tabCounts[tab.id] > 0 && (
-                      <span className="text-[11px] rounded-full bg-muted px-1.5 py-0.5 text-muted-foreground">{tabCounts[tab.id]}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          ))}
+        </div>
+
+        <div className="relative flex-shrink-0" ref={moreRef}>
+          <button
+            type="button"
+            onClick={() => setShowMoreOpen((v) => !v)}
+            className={`px-3 py-1.5 text-sm whitespace-nowrap rounded-lg flex items-center gap-1 transition-all bg-muted ${
+              isMoreActive ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {isMoreActive ? MORE_TABS.find((t) => t.id === activeTab)?.label : "More"}
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMoreOpen ? "rotate-180" : ""}`} />
+          </button>
+          {showMoreOpen && (
+            <div className="absolute top-full right-0 mt-1 z-50 bg-card border border-border rounded-xl shadow-lg py-1 min-w-[170px]">
+              {MORE_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setShowMoreOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between hover:bg-muted/60 transition-colors ${
+                    activeTab === tab.id ? "text-primary font-medium" : "text-foreground"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    {tab.id === "DELETED" && <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />}
+                    {tab.id === "EXPIRING_SOON" && <AlertCircle className="w-3.5 h-3.5 text-amber-500" />}
+                    {tab.id === "DECLINED" && <Ban className="w-3.5 h-3.5 text-red-500" />}
+                    {tab.id === "DRAFTS" && <Clock3 className="w-3.5 h-3.5 text-muted-foreground" />}
+                    {tab.label}
+                  </span>
+                  {tabCounts[tab.id] > 0 && (
+                    <span className="text-[11px] rounded-full bg-muted px-1.5 py-0.5 text-muted-foreground">{tabCounts[tab.id]}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -478,52 +500,134 @@ export default function AgreementsPage() {
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {displayed.map((request) => {
             const status = resolveDisplayStatus(request);
-            const badge = statusBadge(status);
-            const completed = typeof request.completedRecipients === "number"
-              ? request.completedRecipients
-              : request.recipients.filter((recipient) => recipient.status === "COMPLETED").length;
+            const dot = statusDot(status);
+            const progressColor = statusProgressColor(status);
+            const completed =
+              typeof request.completedRecipients === "number"
+                ? request.completedRecipients
+                : request.recipients.filter((recipient) => recipient.status === "COMPLETED").length;
             const completionPercent = request.recipients.length > 0 ? Math.round((completed / request.recipients.length) * 100) : 0;
             const isDeleted = !!request.deletedAt;
             const isConfirmingDelete = confirmDeleteId === request.id;
             const daysLeft = isDeleted && request.deletedAt ? daysUntilPermanentDelete(request.deletedAt) : null;
 
             return (
-              <article key={request.id} className={`rounded-2xl border bg-gradient-to-br ${statusCardTone(status)} p-4 flex flex-col gap-4 hover:border-primary/30 transition-colors shadow-sm ${isDeleted ? "opacity-80" : ""}`}>
+              <article
+                key={request.id}
+                className={`rounded-2xl border border-border bg-card p-4 flex flex-col gap-3 hover:border-primary/30 transition-colors ${isDeleted ? "opacity-75" : ""}`}
+              >
+                {/* Title + status dot */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">{request.title?.trim() || request.originalName || "Untitled agreement"}</p>
-                    <p className="text-xs text-muted-foreground truncate mt-1">{request.originalName || "No uploaded file name"}</p>
+                    <p className="text-sm font-semibold text-foreground truncate">
+                      {request.title?.trim() || request.originalName || "Untitled agreement"}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">{request.originalName || "No file name"}</p>
                     {isDeleted && daysLeft !== null ? (
                       <p className="text-[11px] text-red-600 mt-1">Permanent deletion in {daysLeft} day{daysLeft === 1 ? "" : "s"}</p>
                     ) : null}
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {statusIcon(status)}
-                    <Badge className={badge.className}>{badge.label}</Badge>
+                  <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+                    <span
+                      style={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: "50%",
+                        background: dot.color,
+                        flexShrink: 0,
+                        display: "inline-block",
+                      }}
+                    />
+                    <span style={{ fontSize: "12px", fontWeight: 500, color: dot.color }}>{dot.label}</span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <MiniStat label="Recipients" value={request.recipients.length} />
-                  <MiniStat label="Fields" value={request._count.signingFields} />
-                  <MiniStat label="Progress" value={`${completionPercent}%`} />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="h-1.5 rounded-full bg-slate-200/70 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-primary to-blue-500 rounded-full" style={{ width: `${completionPercent}%` }} />
+                {/* Recipient avatar chips */}
+                {request.recipients.length > 0 && (
+                  <div className="flex items-center gap-1">
+                    <div className="flex -space-x-1.5">
+                      {request.recipients.slice(0, 5).map((r) => (
+                        <span
+                          key={r.id}
+                          title={`${r.name} (${r.status})`}
+                          style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: "50%",
+                            background: recipientChipColor(r.status),
+                            border: "2px solid hsl(var(--card))",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "9px",
+                            fontWeight: 700,
+                            color: "#fff",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {recipientInitials(r.name)}
+                        </span>
+                      ))}
+                      {request.recipients.length > 5 && (
+                        <span
+                          style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: "50%",
+                            background: "#94a3b8",
+                            border: "2px solid hsl(var(--card))",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "9px",
+                            fontWeight: 700,
+                            color: "#fff",
+                          }}
+                        >
+                          +{request.recipients.length - 5}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-muted-foreground ml-1">
+                      {completed}/{request.recipients.length} signed
+                    </span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    {completed}/{request.recipients.length} signed · {request.signingMode === "SEQUENTIAL" ? "Sequential" : "Parallel"} flow
-                  </p>
+                )}
+
+                {/* Progress bar — 3px, status color */}
+                <div className="h-[3px] rounded-full bg-border overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${completionPercent}%`, background: progressColor }}
+                  />
                 </div>
 
-                <div className="text-[11px] text-muted-foreground flex items-center justify-between">
-                  <span>Created: {new Date(request.createdAt).toLocaleDateString()}</span>
-                  <span>Expires: {new Date(request.expiresAt).toLocaleDateString()}</span>
+                {/* Micro metadata row */}
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { key: "CREATED", val: new Date(request.createdAt).toLocaleDateString() },
+                    { key: "EXPIRES", val: new Date(request.expiresAt).toLocaleDateString() },
+                    { key: "MODE", val: request.signingMode === "SEQUENTIAL" ? "Sequential" : "Parallel" },
+                  ].map((col) => (
+                    <div key={col.key}>
+                      <p
+                        style={{
+                          fontSize: "9px",
+                          fontWeight: 600,
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
+                          color: "hsl(var(--muted-foreground))",
+                        }}
+                      >
+                        {col.key}
+                      </p>
+                      <p className="text-[11px] font-medium text-foreground mt-0.5">{col.val}</p>
+                    </div>
+                  ))}
                 </div>
 
-                <div className="pt-1 flex items-center justify-between gap-2">
+                {/* Actions */}
+                <div className="flex items-center justify-between gap-2 pt-1">
                   {isDeleted ? (
                     <div className="flex items-center gap-2">
                       <Button
@@ -536,7 +640,6 @@ export default function AgreementsPage() {
                         {restoreBusy === request.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
                         Restore
                       </Button>
-
                       {!isConfirmingDelete ? (
                         <Button
                           variant="ghost"
@@ -571,8 +674,8 @@ export default function AgreementsPage() {
                       {!isConfirmingDelete ? (
                         <Button
                           variant="ghost"
-                          size="sm"
-                          className="h-8 text-muted-foreground hover:text-destructive"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
                           onClick={() => {
                             setDeleteError(null);
                             setConfirmDeleteId(request.id);
@@ -583,18 +686,19 @@ export default function AgreementsPage() {
                       ) : (
                         <div className="flex items-center gap-2">
                           <Button variant="destructive" size="sm" className="h-8" disabled={deleteBusy} onClick={() => void handleDelete(request.id)}>
-                            {deleteBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Confirm delete"}
+                            {deleteBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Confirm"}
                           </Button>
                           <Button variant="ghost" size="sm" className="h-8" onClick={() => setConfirmDeleteId(null)}>
                             Cancel
                           </Button>
                         </div>
                       )}
-                      <Button asChild size="sm" className="gap-1.5 h-8 px-3">
-                        <Link href={`/dashboard/signing/${request.id}`}>
-                          View Details
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </Link>
+                      <Button
+                        asChild
+                        size="sm"
+                        className="h-8 px-4 rounded-full text-xs font-semibold"
+                      >
+                        <Link href={`/dashboard/signing/${request.id}`}>View</Link>
                       </Button>
                     </>
                   )}
@@ -604,32 +708,6 @@ export default function AgreementsPage() {
           })}
         </div>
       )}
-    </div>
-  );
-}
-
-function MetricCard({ label, value, tone }: { label: string; value: number; tone: "neutral" | "blue" | "amber" | "emerald" }) {
-  const toneClass =
-    tone === "blue"
-      ? "border-blue-200 bg-blue-50"
-      : tone === "amber"
-        ? "border-amber-200 bg-amber-50"
-        : tone === "emerald"
-          ? "border-emerald-200 bg-emerald-50"
-          : "border-border bg-card";
-  return (
-    <div className={`rounded-xl border p-3 ${toneClass}`}>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-xl font-semibold text-foreground mt-1">{value}</p>
-    </div>
-  );
-}
-
-function MiniStat({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="rounded-lg border border-border bg-muted/30 px-2 py-2">
-      <p className="text-[10px] text-muted-foreground">{label}</p>
-      <p className="text-sm font-semibold text-foreground">{value}</p>
     </div>
   );
 }
