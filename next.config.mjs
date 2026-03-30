@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverActionsBodySizeLimit: "50mb",
+  serverActions: {
+    bodySizeLimit: "50mb",
   },
   webpack: (config) => {
     // pdfjs-dist tries to require 'canvas' for server-side rendering; alias it away in browser builds
