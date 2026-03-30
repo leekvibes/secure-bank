@@ -268,6 +268,7 @@ export default function SigningRequestDetailPage() {
   const completedRecipients = request?.recipients.filter((r) => r.status === "COMPLETED").length ?? 0;
   const canSendDraft = status === "DRAFT";
   const canRemind = status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED";
+  const canManagePublicLinks = status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED";
   const canVoid = status !== "COMPLETED" && status !== "VOIDED" && status !== "EXPIRED";
   const isEditable = request?.isEditable ?? status === "DRAFT";
   const canDelete = !!status;
@@ -544,7 +545,7 @@ export default function SigningRequestDetailPage() {
     { id: "RECIPIENTS", label: "Recipients" },
     { id: "FIELDS", label: "Fields" },
     { id: "TIMELINE", label: "Timeline" },
-    { id: "PUBLIC_LINKS", label: "PL" },
+    { id: "PUBLIC_LINKS", label: "Public Links" },
   ];
 
   return (
@@ -1083,12 +1084,17 @@ export default function SigningRequestDetailPage() {
               size="sm"
               className="h-8 gap-1.5 text-xs"
               onClick={() => setShowCreatePublicLink(true)}
-              disabled={status === "VOIDED" || status === "COMPLETED" || status === "EXPIRED"}
+              disabled={!canManagePublicLinks}
             >
               <Plus className="w-3.5 h-3.5" />
               Create Link
             </Button>
           </div>
+          {!canManagePublicLinks && (
+            <p className="text-xs text-muted-foreground">
+              Send this agreement first, then create public signing links.
+            </p>
+          )}
 
           {publicLinksLoading ? (
             <div className="flex items-center justify-center py-4">
@@ -1215,7 +1221,7 @@ function CreatePublicLinkModal({
   onClose: () => void;
   onCreated: (link: PublicLink) => void;
 }) {
-  const recipientsWithFields = recipients.filter((r) => !r.isPublicSlot);
+  const recipientsWithFields = recipients;
   const [label, setLabel] = useState("");
   const [maxUses, setMaxUses] = useState<"unlimited" | number>("unlimited");
   const [maxUsesInput, setMaxUsesInput] = useState("10");

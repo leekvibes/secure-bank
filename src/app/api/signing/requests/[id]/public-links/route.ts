@@ -54,11 +54,15 @@ export async function POST(
   });
   if (!request) return apiError(404, "NOT_FOUND", "Request not found.");
   if (request.agentId !== session.user.id) return apiError(403, "FORBIDDEN", "Access denied.");
+  if (request.status === "DRAFT") {
+    return apiError(400, "NOT_SENT", "Send the agreement before creating public links.");
+  }
   if (request.status === "VOIDED") return apiError(400, "VOIDED", "Cannot create public link for a voided request.");
   if (request.status === "COMPLETED") return apiError(400, "COMPLETED", "Cannot create public link for a completed request.");
+  if (request.status === "EXPIRED") return apiError(400, "EXPIRED", "Cannot create public link for an expired request.");
 
   // Must have at least one recipient with fields
-  const recipientsWithFields = request.recipients.filter((r) => r.fields.length > 0 && !r.isPublicSlot);
+  const recipientsWithFields = request.recipients.filter((r) => r.fields.length > 0);
   if (recipientsWithFields.length === 0) {
     return apiError(400, "NO_FIELDS", "Place signing fields on the document before creating a public link.");
   }

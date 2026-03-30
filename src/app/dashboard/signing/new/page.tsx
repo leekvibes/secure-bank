@@ -354,6 +354,13 @@ export default function NewSigningRequestPage() {
   }, [savedRecipients]);
 
   useEffect(() => {
+    if (!isPublicMode) return;
+    // Public links should always use direct-link auth and parallel semantics.
+    setAuthLevel("LINK_ONLY");
+    setSigningMode("PARALLEL");
+  }, [isPublicMode]);
+
+  useEffect(() => {
     const initialRequestId = searchParams.get("requestId");
     if (!initialRequestId || requestId) return;
     const requestIdParam = initialRequestId;
@@ -1553,12 +1560,14 @@ export default function NewSigningRequestPage() {
             </div>
             <div className="rounded-lg border border-border p-3">
               <p className="text-xs text-muted-foreground">Mode</p>
-              <p className="text-sm font-medium text-foreground">{signingMode === "SEQUENTIAL" ? "Sequential" : "Parallel"}</p>
+              <p className="text-sm font-medium text-foreground">
+                {isPublicMode ? "Public Link" : signingMode === "SEQUENTIAL" ? "Sequential" : "Parallel"}
+              </p>
             </div>
             <div className="rounded-lg border border-border p-3">
               <p className="text-xs text-muted-foreground">Auth</p>
               <p className="text-sm font-medium text-foreground">
-                {authLevel === "EMAIL_OTP" ? "Email OTP" : authLevel === "SMS_OTP" ? "SMS OTP" : "Link Only"}
+                {isPublicMode ? "Public Link (No OTP)" : authLevel === "EMAIL_OTP" ? "Email OTP" : authLevel === "SMS_OTP" ? "SMS OTP" : "Link Only"}
               </p>
             </div>
           </div>
@@ -1593,11 +1602,11 @@ export default function NewSigningRequestPage() {
             <Button
               type="button"
               onClick={sendRequest}
-              disabled={sendBusy || recipientsMissingFields.length > 0 || recipientListForReview.length === 0}
+              disabled={sendBusy || !!createdPublicLinkUrl || recipientsMissingFields.length > 0 || recipientListForReview.length === 0}
               className="gap-2"
             >
               {sendBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : isPublicMode ? <Globe className="w-4 h-4" /> : <Send className="w-4 h-4" />}
-              {isPublicMode ? "Create Public Link" : "Send for Signature"}
+              {isPublicMode ? (createdPublicLinkUrl ? "Public Link Created" : "Send & Create Public Link") : "Send for Signature"}
             </Button>
           </div>
         </div>
