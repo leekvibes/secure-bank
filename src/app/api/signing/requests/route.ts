@@ -19,6 +19,13 @@ export async function POST(req: NextRequest) {
     const message = String(body.message ?? "").trim() || null;
     const expiresInHours = Number(body.expiresInHours) || 72;
 
+    const AUTH_LEVELS = ["LINK_ONLY", "EMAIL_OTP", "SMS_OTP"] as const;
+    type AuthLevel = (typeof AUTH_LEVELS)[number];
+    const rawAuthLevel = String(body.authLevel ?? "LINK_ONLY");
+    const authLevel: AuthLevel = (AUTH_LEVELS as readonly string[]).includes(rawAuthLevel)
+      ? (rawAuthLevel as AuthLevel)
+      : "LINK_ONLY";
+
     // Plan gating check (counts sent requests, not drafts)
     const user = await db.user.findUnique({
       where: { id: session.user.id },
@@ -44,6 +51,7 @@ export async function POST(req: NextRequest) {
         status: "DRAFT",
         expiresAt: addHours(new Date(), expiresInHours),
         agentId: session.user.id,
+        authLevel,
         consentText: CONSENT_TEXT_V1,
         consentVersion: CURRENT_CONSENT_VERSION,
       },

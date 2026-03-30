@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 
 type Step = 1 | 2 | 3 | 4;
 type SigningMode = "PARALLEL" | "SEQUENTIAL";
+type AuthLevel = "LINK_ONLY" | "EMAIL_OTP" | "SMS_OTP";
 
 type FieldType =
   | "SIGNATURE"
@@ -46,6 +47,7 @@ interface RecipientDraft {
   id: string;
   name: string;
   email: string;
+  phone: string;
 }
 
 interface RecipientServer {
@@ -142,7 +144,7 @@ const RECIPIENT_STYLES = [
 ];
 
 function makeRecipient(): RecipientDraft {
-  return { id: crypto.randomUUID(), name: "", email: "" };
+  return { id: crypto.randomUUID(), name: "", email: "", phone: "" };
 }
 
 function clamp(value: number, min = 0, max = 1) {
@@ -277,6 +279,7 @@ export default function NewSigningRequestPage() {
   const [recipients, setRecipients] = useState<RecipientDraft[]>([makeRecipient()]);
   const [savedRecipients, setSavedRecipients] = useState<RecipientServer[]>([]);
   const [signingMode, setSigningMode] = useState<SigningMode>("PARALLEL");
+  const [authLevel, setAuthLevel] = useState<AuthLevel>("LINK_ONLY");
   const [ccInput, setCcInput] = useState("");
 
   const [activeFieldType, setActiveFieldType] = useState<FieldType>("SIGNATURE");
@@ -390,6 +393,7 @@ export default function NewSigningRequestPage() {
               id: recipient.id,
               name: recipient.name,
               email: recipient.email,
+              phone: "",
             })),
           );
           setActiveRecipientId(normalized.recipients[0].id);
@@ -473,6 +477,7 @@ export default function NewSigningRequestPage() {
         title: title.trim() || undefined,
         message: message.trim() || undefined,
         expiresInHours,
+        authLevel,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -522,7 +527,12 @@ export default function NewSigningRequestPage() {
   async function saveRecipientsAndLoadDetail() {
     if (!requestId) throw new Error("Please upload a document first.");
     const cleaned = recipients
-      .map((recipient, idx) => ({ name: recipient.name.trim(), email: recipient.email.trim(), order: idx }))
+      .map((recipient, idx) => ({
+        name: recipient.name.trim(),
+        email: recipient.email.trim(),
+        phone: recipient.phone.trim() || null,
+        order: idx,
+      }))
       .filter((recipient) => recipient.name && recipient.email);
     if (cleaned.length === 0) throw new Error("Add at least one recipient.");
 
@@ -532,6 +542,7 @@ export default function NewSigningRequestPage() {
       body: JSON.stringify({
         recipients: cleaned,
         signingMode,
+        authLevel,
         ccEmails,
         message: message.trim() || undefined,
         expiresInHours,
@@ -977,6 +988,7 @@ export default function NewSigningRequestPage() {
                             id: crypto.randomUUID(),
                             name: session.user?.name ?? "",
                             email: session.user?.email ?? "",
+                            phone: "",
                           },
                         ]);
                       }
@@ -1024,6 +1036,20 @@ export default function NewSigningRequestPage() {
                       />
                     </div>
                   </div>
+                  {authLevel === "SMS_OTP" && (
+                    <div>
+                      <Label>
+                        Phone <span className="text-muted-foreground font-normal">(required for SMS OTP)</span>
+                      </Label>
+                      <Input
+                        type="tel"
+                        value={recipient.phone}
+                        onChange={(event) => updateRecipient(recipient.id, { phone: event.target.value })}
+                        placeholder="+1 555 000 0000"
+                        className="mt-1.5"
+                      />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1054,6 +1080,49 @@ export default function NewSigningRequestPage() {
                   Sequential
                 </button>
               </div>
+            </div>
+
+            <div>
+              <Label>Authentication level</Label>
+              <div className="grid grid-cols-1 gap-2 mt-1.5">
+                {(
+                  [
+                    {
+                      value: "LINK_ONLY" as AuthLevel,
+                      label: "Link Only",
+                      description: "Recipient accesses via secure link",
+                    },
+                    {
+                      value: "EMAIL_OTP" as AuthLevel,
+                      label: "Email OTP",
+                      description: "Recipient must verify email with a 6-digit code before signing",
+                    },
+                    {
+                      value: "SMS_OTP" as AuthLevel,
+                      label: "SMS OTP",
+                      description: "Recipient must verify phone with a 6-digit code before signing",
+                    },
+                  ] as const
+                ).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setAuthLevel(opt.value)}
+                    className={cn(
+                      "rounded-lg border px-3 py-2.5 text-sm text-left",
+                      authLevel === opt.value ? "border-primary/40 bg-primary/5" : "border-border"
+                    )}
+                  >
+                    <p className="font-medium text-foreground">{opt.label}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{opt.description}</p>
+                  </button>
+                ))}
+              </div>
+              {authLevel === "SMS_OTP" && (
+                <p className="text-xs text-amber-600 mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                  Ensure phone numbers are entered for all recipients.
+                </p>
+              )}
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
@@ -1340,7 +1409,7 @@ export default function NewSigningRequestPage() {
             <p className="text-sm font-semibold text-foreground">{title.trim() || fileName || "Untitled request"}</p>
             {fileName ? <p className="text-xs text-muted-foreground">{fileName}</p> : null}
           </div>
-          <div className="grid md:grid-cols-3 gap-3">
+          <div className="grid md:grid-cols-4 gap-3">
             <div className="rounded-lg border border-border p-3">
               <p className="text-xs text-muted-foreground">Recipients</p>
               <p className="text-sm font-medium text-foreground">{recipientListForReview.length}</p>
@@ -1352,6 +1421,12 @@ export default function NewSigningRequestPage() {
             <div className="rounded-lg border border-border p-3">
               <p className="text-xs text-muted-foreground">Mode</p>
               <p className="text-sm font-medium text-foreground">{signingMode === "SEQUENTIAL" ? "Sequential" : "Parallel"}</p>
+            </div>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs text-muted-foreground">Auth</p>
+              <p className="text-sm font-medium text-foreground">
+                {authLevel === "EMAIL_OTP" ? "Email OTP" : authLevel === "SMS_OTP" ? "SMS OTP" : "Link Only"}
+              </p>
             </div>
           </div>
           <div className="rounded-lg border border-border p-4 space-y-3">

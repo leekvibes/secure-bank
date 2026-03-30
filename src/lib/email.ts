@@ -1052,6 +1052,45 @@ export async function sendAccountBannedEmail(args: {
   });
 }
 
+// ── DocSign: OTP Verification Code ───────────────────────────────────────────
+
+export async function sendOtpEmail({
+  toEmail,
+  recipientName,
+  otp,
+  documentTitle,
+}: {
+  toEmail: string;
+  recipientName: string;
+  otp: string;
+  documentTitle: string | null;
+}): Promise<{ success: boolean; error?: string }> {
+  const resend = getClient();
+  if (!resend) return { success: false, error: "Email not configured" };
+  try {
+    await resend.emails.send({
+      from: FROM_TRANSACTIONAL,
+      to: toEmail,
+      subject: `Your signing verification code: ${otp}`,
+      html: emailTemplate({
+        heading: "Verify your identity",
+        body:
+          `<p style="margin:0 0 14px;font-size:15px;color:#475569;line-height:1.7;">Hi ${recipientName},</p>` +
+          `<p style="margin:0 0 14px;font-size:15px;color:#475569;line-height:1.7;">You've been asked to sign <strong style="color:#0F172A;">${documentTitle ?? "a document"}</strong>. Enter this code to continue:</p>` +
+          `<div style="background:#f1f5f9;border-radius:8px;padding:24px;text-align:center;margin:24px 0">
+            <span style="font-size:36px;font-weight:800;letter-spacing:8px;color:#0f172a">${otp}</span>
+          </div>` +
+          `<p style="color:#64748b;font-size:13px;margin:0;">This code expires in 10 minutes. If you didn't request this, you can ignore this email.</p>`,
+        fromSecurity: true,
+      }),
+    });
+    return { success: true };
+  } catch (err) {
+    console.error("[sendOtpEmail]", err);
+    return { success: false, error: "Failed to send email" };
+  }
+}
+
 // ── 17. Data Revealed → Agent ─────────────────────────────────────────────────
 
 export async function sendRevealNotification(args: {

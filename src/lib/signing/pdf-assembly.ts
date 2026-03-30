@@ -37,6 +37,9 @@ export interface RecipientSummary {
   consentAt: Date | null;
   completedAt: Date | null;
   declinedAt: Date | null;
+  authLevel?: string | null;
+  emailOtpVerifiedAt?: Date | null;
+  smsOtpVerifiedAt?: Date | null;
 }
 
 export interface AuditEvent {
@@ -333,6 +336,25 @@ export async function generateCertificate(
     }
     if (r.completedAt) {
       page.drawText(`  Signed:  ${r.completedAt.toUTCString()}`, {
+        x: 58, y, font: fontR, size: 8, color: grayMid,
+      });
+      y -= 12;
+    }
+    if (r.emailOtpVerifiedAt) {
+      page.drawText(`  Auth: Email OTP verified at ${r.emailOtpVerifiedAt.toUTCString()}`, {
+        x: 58, y, font: fontR, size: 8, color: grayMid,
+      });
+      y -= 12;
+    } else if (r.smsOtpVerifiedAt) {
+      page.drawText(`  Auth: SMS OTP verified at ${r.smsOtpVerifiedAt.toUTCString()}`, {
+        x: 58, y, font: fontR, size: 8, color: grayMid,
+      });
+      y -= 12;
+    } else {
+      const authLabel = r.authLevel && r.authLevel !== "LINK_ONLY"
+        ? `Secure link (${r.authLevel})`
+        : "Secure link (LINK_ONLY)";
+      page.drawText(`  Auth: ${authLabel}`, {
         x: 58, y, font: fontR, size: 8, color: grayMid,
       });
       y -= 12;

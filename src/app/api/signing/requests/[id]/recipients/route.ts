@@ -12,12 +12,14 @@ const schema = z.object({
       z.object({
         name: z.string().min(1, "Name required").max(100),
         email: z.string().email("Valid email required"),
+        phone: z.string().max(30).optional().nullable(),
         order: z.number().int().min(0).optional(),
       })
     )
     .min(1, "At least one recipient is required")
     .max(10, "Maximum 10 recipients"),
   signingMode: z.enum(["PARALLEL", "SEQUENTIAL"]).default("PARALLEL"),
+  authLevel: z.enum(["LINK_ONLY", "EMAIL_OTP", "SMS_OTP"]).optional(),
   ccEmails: z.array(z.string().email()).max(20).optional(),
   message: z.string().max(1000).optional(),
   expiresInHours: z.number().int().min(1).max(720).optional(),
@@ -49,7 +51,7 @@ export async function POST(
       return apiError(400, "VALIDATION_ERROR", first ?? "Invalid input.");
     }
 
-    const { recipients, signingMode, ccEmails, message, expiresInHours } = parsed.data;
+    const { recipients, signingMode, authLevel, ccEmails, message, expiresInHours } = parsed.data;
 
     // Replace all existing recipients (idempotent — can be called multiple times in DRAFT)
     await db.docSignRecipient.deleteMany({ where: { requestId: request.id } });
@@ -61,6 +63,7 @@ export async function POST(
             requestId: request.id,
             name: r.name.trim(),
             email: r.email.toLowerCase().trim(),
+            phone: r.phone ?? null,
             order: r.order ?? idx,
             token: crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, ""),
           },
@@ -74,6 +77,7 @@ export async function POST(
       signingMode,
       ccEmails: ccEmails && ccEmails.length > 0 ? JSON.stringify(ccEmails) : null,
     };
+    if (authLevel !== undefined) updates.authLevel = authLevel;
     if (message !== undefined) updates.message = message.trim() || null;
     if (expiresInHours !== undefined) updates.expiresAt = addHours(new Date(), expiresInHours);
 

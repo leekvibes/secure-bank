@@ -38,7 +38,7 @@ interface DocData {
   completedCount: number;
 }
 
-type Screen = "loading" | "error" | "consent" | "signing" | "decline-form" | "complete";
+type Screen = "loading" | "error" | "otp-required" | "otp-verify" | "consent" | "signing" | "decline-form" | "complete";
 type SigMode = "type" | "draw" | "upload";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -843,6 +843,14 @@ export function SigningCeremony({
 
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
+  // ── OTP state ─────────────────────────────────────────────────────────────
+  const [otpInput, setOtpInput] = useState("");
+  const [otpChannel, setOtpChannel] = useState<"email" | "sms" | null>(null);
+  const [otpMaskedTarget, setOtpMaskedTarget] = useState<string | null>(null);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+
   // Helper: process raw API response data into component state
   const applyDocData = useCallback((json: Record<string, unknown>) => {
     const d = json as unknown as DocData;
@@ -853,7 +861,12 @@ export function SigningCeremony({
     }
     setFieldValues(prefill);
     setData(d);
-    setScreen("consent");
+    const authLevel = d.request.authLevel ?? "LINK_ONLY";
+    if (authLevel === "EMAIL_OTP" || authLevel === "SMS_OTP") {
+      setScreen("otp-required");
+    } else {
+      setScreen("consent");
+    }
   }, []);
 
   // ── Load signing data ────────────────────────────────────────────────────
@@ -913,6 +926,49 @@ export function SigningCeremony({
       setPdfRendering(false);
     }
   }, []);
+
+  // ── OTP: Send ────────────────────────────────────────────────────────────
+  const sendOtp = useCallback(async () => {
+    if (!token) return;
+    setOtpSending(true);
+    setOtpError(null);
+    try {
+      const res = await fetch(`/api/sign/${token}/send-otp`, { method: "POST" });
+      const json = await res.json().catch(() => ({})) as { channel?: "email" | "sms"; maskedTarget?: string; error?: { message?: string } };
+      if (!res.ok) {
+        setOtpError(json?.error?.message ?? "Failed to send code.");
+        return;
+      }
+      setOtpChannel(json.channel ?? null);
+      setOtpMaskedTarget(json.maskedTarget ?? null);
+      setScreen("otp-verify");
+    } finally {
+      setOtpSending(false);
+    }
+  }, [token]);
+
+  // ── OTP: Verify ──────────────────────────────────────────────────────────
+  const verifyOtp = useCallback(async () => {
+    if (!token) return;
+    setOtpVerifying(true);
+    setOtpError(null);
+    try {
+      const res = await fetch(`/api/sign/${token}/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ otp: otpInput }),
+      });
+      const json = await res.json().catch(() => ({})) as { verified?: boolean; channel?: string; error?: { message?: string } };
+      if (!res.ok) {
+        setOtpError(json?.error?.message ?? "Verification failed.");
+        return;
+      }
+      setOtpInput("");
+      setScreen("consent");
+    } finally {
+      setOtpVerifying(false);
+    }
+  }, [token, otpInput]);
 
   // ── Consent → Signing ────────────────────────────────────────────────────
   const sendConsent = useCallback(async () => {
@@ -1102,6 +1158,297 @@ export function SigningCeremony({
   }
 
   if (!data) return null;
+
+  // ── OTP Required ─────────────────────────────────────────────────────────
+  if (screen === "otp-required") {
+    const channelLabel = (data.request.authLevel ?? "EMAIL_OTP") === "SMS_OTP" ? "phone" : "email";
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--background)", display: "flex", flexDirection: "column" }}>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "24px",
+            maxWidth: "480px",
+            margin: "0 auto",
+            width: "100%",
+          }}
+        >
+          <div style={{ marginBottom: "28px", textAlign: "center" }}>
+            <span style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.5px", color: "var(--foreground)" }}>
+              Secure<span style={{ color: "#3b82f6" }}>Link</span>
+            </span>
+            <p style={{ fontSize: "11px", color: "var(--muted-foreground)", marginTop: "4px", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+              Electronic Signing
+            </p>
+          </div>
+
+          <div
+            style={{
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: "16px",
+              padding: "28px 24px",
+              width: "100%",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
+              <div
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "12px",
+                  background: "#eff6ff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+              </div>
+              <div>
+                <h2 style={{ fontWeight: 700, fontSize: "15px", color: "var(--foreground)", marginBottom: "2px" }}>
+                  Verify Your Identity
+                </h2>
+                <p style={{ fontSize: "12px", color: "var(--muted-foreground)" }}>One more step before signing</p>
+              </div>
+            </div>
+
+            <p style={{ fontSize: "13px", color: "var(--muted-foreground)", lineHeight: 1.65, marginBottom: "20px" }}>
+              To confirm your identity, a 6-digit verification code will be sent to your <strong style={{ color: "var(--foreground)" }}>{channelLabel}</strong>. This helps ensure the document is signed by the right person.
+            </p>
+
+            {otpError && (
+              <div
+                style={{
+                  marginBottom: "16px",
+                  background: "#fef2f2",
+                  border: "1px solid #fecaca",
+                  borderRadius: "8px",
+                  padding: "10px 14px",
+                  fontSize: "13px",
+                  color: "#b91c1c",
+                }}
+              >
+                {otpError}
+              </div>
+            )}
+
+            <button
+              onClick={() => void sendOtp()}
+              disabled={otpSending}
+              style={{
+                width: "100%",
+                borderRadius: "12px",
+                padding: "13px",
+                fontWeight: 700,
+                fontSize: "14px",
+                color: "white",
+                border: "none",
+                cursor: otpSending ? "not-allowed" : "pointer",
+                background: otpSending ? "#94a3b8" : "linear-gradient(135deg, #00A3FF, #0057FF)",
+                boxShadow: otpSending ? "none" : "0 4px 14px rgba(0,87,255,0.28)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+              }}
+            >
+              {otpSending && (
+                <div
+                  style={{
+                    width: "16px",
+                    height: "16px",
+                    borderRadius: "50%",
+                    border: "2px solid rgba(255,255,255,0.4)",
+                    borderTopColor: "white",
+                    animation: "sc-spin 0.7s linear infinite",
+                  }}
+                />
+              )}
+              {otpSending ? "Sending…" : "Send Verification Code"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── OTP Verify ───────────────────────────────────────────────────────────
+  if (screen === "otp-verify") {
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--background)", display: "flex", flexDirection: "column" }}>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "24px",
+            maxWidth: "480px",
+            margin: "0 auto",
+            width: "100%",
+          }}
+        >
+          <div style={{ marginBottom: "28px", textAlign: "center" }}>
+            <span style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.5px", color: "var(--foreground)" }}>
+              Secure<span style={{ color: "#3b82f6" }}>Link</span>
+            </span>
+            <p style={{ fontSize: "11px", color: "var(--muted-foreground)", marginTop: "4px", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+              Electronic Signing
+            </p>
+          </div>
+
+          <div
+            style={{
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: "16px",
+              padding: "28px 24px",
+              width: "100%",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
+              <div
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "12px",
+                  background: "#eff6ff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+              </div>
+              <div>
+                <h2 style={{ fontWeight: 700, fontSize: "15px", color: "var(--foreground)", marginBottom: "2px" }}>
+                  Enter Verification Code
+                </h2>
+                <p style={{ fontSize: "12px", color: "var(--muted-foreground)" }}>
+                  {otpMaskedTarget ? `A 6-digit code was sent to ${otpMaskedTarget}` : "A 6-digit code was sent"}
+                </p>
+              </div>
+            </div>
+
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={otpInput}
+              onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="000000"
+              style={{
+                width: "100%",
+                border: "1px solid var(--border)",
+                borderRadius: "10px",
+                padding: "14px",
+                fontSize: "28px",
+                fontWeight: 700,
+                letterSpacing: "12px",
+                textAlign: "center",
+                background: "var(--background)",
+                color: "var(--foreground)",
+                outline: "none",
+                boxSizing: "border-box",
+                marginBottom: "16px",
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && otpInput.length === 6) void verifyOtp();
+              }}
+            />
+
+            {otpError && (
+              <div
+                style={{
+                  marginBottom: "16px",
+                  background: "#fef2f2",
+                  border: "1px solid #fecaca",
+                  borderRadius: "8px",
+                  padding: "10px 14px",
+                  fontSize: "13px",
+                  color: "#b91c1c",
+                }}
+              >
+                {otpError}
+              </div>
+            )}
+
+            <button
+              onClick={() => void verifyOtp()}
+              disabled={otpVerifying || otpInput.length !== 6}
+              style={{
+                width: "100%",
+                borderRadius: "12px",
+                padding: "13px",
+                fontWeight: 700,
+                fontSize: "14px",
+                color: "white",
+                border: "none",
+                cursor: otpVerifying || otpInput.length !== 6 ? "not-allowed" : "pointer",
+                background: otpVerifying || otpInput.length !== 6 ? "#94a3b8" : "linear-gradient(135deg, #00A3FF, #0057FF)",
+                boxShadow: otpVerifying || otpInput.length !== 6 ? "none" : "0 4px 14px rgba(0,87,255,0.28)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                marginBottom: "12px",
+              }}
+            >
+              {otpVerifying && (
+                <div
+                  style={{
+                    width: "16px",
+                    height: "16px",
+                    borderRadius: "50%",
+                    border: "2px solid rgba(255,255,255,0.4)",
+                    borderTopColor: "white",
+                    animation: "sc-spin 0.7s linear infinite",
+                  }}
+                />
+              )}
+              {otpVerifying ? "Verifying…" : "Verify"}
+            </button>
+
+            <p style={{ textAlign: "center", fontSize: "12px", color: "var(--muted-foreground)" }}>
+              Didn&apos;t receive a code?{" "}
+              <button
+                onClick={() => {
+                  setOtpInput("");
+                  setOtpError(null);
+                  void sendOtp();
+                }}
+                disabled={otpSending}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#3b82f6",
+                  textDecoration: "underline",
+                  cursor: otpSending ? "not-allowed" : "pointer",
+                  fontSize: "inherit",
+                  padding: 0,
+                }}
+              >
+                {otpSending ? "Sending…" : "Resend code"}
+              </button>
+            </p>
+          </div>
+        </div>
+        <style>{`@keyframes sc-spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   // ── Consent ──────────────────────────────────────────────────────────────
   if (screen === "consent") {

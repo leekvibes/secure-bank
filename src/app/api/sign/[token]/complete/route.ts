@@ -112,6 +112,21 @@ export async function POST(
   const allRecipients = await db.docSignRecipient.findMany({
     where: { requestId: request.id },
     orderBy: { order: "asc" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      token: true,
+      status: true,
+      order: true,
+      ipAddress: true,
+      userAgent: true,
+      consentAt: true,
+      completedAt: true,
+      declinedAt: true,
+      emailOtpVerifiedAt: true,
+      smsOtpVerifiedAt: true,
+    },
   });
 
   const allDone = allRecipients.every((r) =>
@@ -191,6 +206,9 @@ export async function POST(
         consentAt: r.consentAt,
         completedAt: r.completedAt,
         declinedAt: r.declinedAt,
+        authLevel: request.authLevel ?? null,
+        emailOtpVerifiedAt: r.emailOtpVerifiedAt,
+        smsOtpVerifiedAt: r.smsOtpVerifiedAt,
       }));
 
       const certUrl = await generateCertificate(
