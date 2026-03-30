@@ -11,6 +11,7 @@ import {
   Clock,
   Download,
   Edit2,
+  FileText,
   Loader2,
   Mail,
   Send,
@@ -25,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 
 type RequestStatus = "DRAFT" | "SENT" | "OPENED" | "PARTIALLY_SIGNED" | "COMPLETED" | "VOIDED" | "EXPIRED";
 type RecipientStatus = "PENDING" | "OPENED" | "COMPLETED" | "DECLINED";
+type DetailTab = "OVERVIEW" | "RECIPIENTS" | "FIELDS" | "TIMELINE" | "FILES";
 
 interface Recipient {
   id: string;
@@ -80,35 +82,32 @@ interface SigningRequestDetail {
   pages: PageDim[];
   auditLogs: AuditLog[];
   certificate?: { blobUrl: string } | null;
+  isEditable?: boolean;
 }
 
 function resolveDisplayStatus(request: SigningRequestDetail): RequestStatus {
   if (request.displayStatus) return request.displayStatus;
   const completedCount = request.recipients.filter((recipient) => recipient.status === "COMPLETED").length;
-  if (
-    (request.status === "SENT" || request.status === "OPENED") &&
-    completedCount > 0 &&
-    completedCount < request.recipients.length
-  ) {
+  if ((request.status === "SENT" || request.status === "OPENED") && completedCount > 0 && completedCount < request.recipients.length) {
     return "PARTIALLY_SIGNED";
   }
   return request.status;
 }
 
 function requestBadge(status: RequestStatus) {
-  if (status === "DRAFT") return { label: "Draft", className: "bg-muted text-muted-foreground" };
-  if (status === "PARTIALLY_SIGNED") return { label: "Partially Signed", className: "bg-violet-500/10 text-violet-700" };
-  if (status === "SENT" || status === "OPENED") return { label: "Sent", className: "bg-blue-500/10 text-blue-700" };
-  if (status === "COMPLETED") return { label: "Completed", className: "bg-emerald-500/10 text-emerald-700" };
-  if (status === "VOIDED") return { label: "Voided", className: "bg-orange-500/10 text-orange-700" };
-  return { label: "Expired", className: "bg-red-500/10 text-red-700" };
+  if (status === "DRAFT") return { label: "Draft", className: "bg-slate-200 text-slate-700" };
+  if (status === "PARTIALLY_SIGNED") return { label: "Partially Signed", className: "bg-amber-100 text-amber-800" };
+  if (status === "SENT" || status === "OPENED") return { label: "Sent", className: "bg-blue-100 text-blue-800" };
+  if (status === "COMPLETED") return { label: "Completed", className: "bg-emerald-100 text-emerald-800" };
+  if (status === "VOIDED") return { label: "Voided", className: "bg-orange-100 text-orange-800" };
+  return { label: "Expired", className: "bg-rose-100 text-rose-800" };
 }
 
 function recipientStatusBadge(status: RecipientStatus) {
-  if (status === "COMPLETED") return { label: "Signed", className: "bg-emerald-500/10 text-emerald-700" };
-  if (status === "OPENED") return { label: "Opened", className: "bg-blue-500/10 text-blue-700" };
-  if (status === "DECLINED") return { label: "Declined", className: "bg-red-500/10 text-red-700" };
-  return { label: "Waiting", className: "bg-muted text-muted-foreground" };
+  if (status === "COMPLETED") return { label: "Signed", className: "bg-emerald-100 text-emerald-800" };
+  if (status === "OPENED") return { label: "Opened", className: "bg-blue-100 text-blue-800" };
+  if (status === "DECLINED") return { label: "Declined", className: "bg-rose-100 text-rose-800" };
+  return { label: "Waiting", className: "bg-slate-200 text-slate-700" };
 }
 
 function eventLabel(event: string) {
@@ -135,6 +134,8 @@ export default function SigningRequestDetailPage() {
   const [request, setRequest] = useState<SigningRequestDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<DetailTab>("OVERVIEW");
+
   const [voidBusy, setVoidBusy] = useState(false);
   const [remindBusy, setRemindBusy] = useState(false);
   const [downloadBusy, setDownloadBusy] = useState<null | "signed" | "cert" | "original">(null);
@@ -172,11 +173,11 @@ export default function SigningRequestDetailPage() {
   }, [id]);
 
   const status = useMemo(() => (request ? resolveDisplayStatus(request) : null), [request]);
-  const statusBadge = status ? requestBadge(status) : null;
+  const statusPill = status ? requestBadge(status) : null;
   const completedRecipients = request?.recipients.filter((recipient) => recipient.status === "COMPLETED").length ?? 0;
   const canRemind = status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED";
   const canVoid = status !== "COMPLETED" && status !== "VOIDED" && status !== "EXPIRED";
-  const isEditable = (request as unknown as { isEditable?: boolean })?.isEditable ?? status === "DRAFT";
+  const isEditable = request?.isEditable ?? status === "DRAFT";
   const canDelete = status === "DRAFT" || status === "VOIDED" || status === "EXPIRED";
 
   async function reload() {
@@ -277,9 +278,7 @@ export default function SigningRequestDetailPage() {
     setDownloadBusy(type);
     setActionError(null);
     try {
-      const res = await fetch(
-        `/api/signing/requests/${encodeURIComponent(id)}/download${type === "signed" ? "" : `?type=${type}`}`
-      );
+      const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}/download${type === "signed" ? "" : `?type=${type}`}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.error?.message ?? data?.error ?? "Download failed.");
@@ -329,9 +328,17 @@ export default function SigningRequestDetailPage() {
     count: request.signingFields.filter((field) => field.recipientId === recipient.id).length,
   }));
 
+  const tabs: Array<{ id: DetailTab; label: string }> = [
+    { id: "OVERVIEW", label: "Overview" },
+    { id: "RECIPIENTS", label: "Recipients" },
+    { id: "FIELDS", label: "Fields" },
+    { id: "TIMELINE", label: "Timeline" },
+    { id: "FILES", label: "Files" },
+  ];
+
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
             <Link href="/dashboard/signing">
@@ -341,207 +348,142 @@ export default function SigningRequestDetailPage() {
           </Button>
           <h1 className="ui-page-title mt-2">{request.title?.trim() || request.originalName || "Untitled request"}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {request.originalName || "No document name"} · {request.signingMode === "SEQUENTIAL" ? "Sequential" : "Parallel"} flow
+            {request.originalName || "No file name"} · {request.signingMode === "SEQUENTIAL" ? "Sequential" : "Parallel"} flow
           </p>
         </div>
-        {statusBadge ? <Badge className={statusBadge.className}>{statusBadge.label}</Badge> : null}
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="rounded-xl border border-border bg-card p-3">
-          <p className="text-xs text-muted-foreground">Recipients</p>
-          <p className="text-lg font-semibold text-foreground">{request.recipients.length}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3">
-          <p className="text-xs text-muted-foreground">Progress</p>
-          <p className="text-lg font-semibold text-foreground">
-            {completedRecipients}/{request.recipients.length}
-          </p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3">
-          <p className="text-xs text-muted-foreground">Fields</p>
-          <p className="text-lg font-semibold text-foreground">{request.signingFields.length}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3">
-          <p className="text-xs text-muted-foreground">Expires</p>
-          <p className="text-sm font-medium text-foreground">{new Date(request.expiresAt).toLocaleString()}</p>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border bg-card p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          {isEditable && (
-            <Button variant="outline" asChild className="gap-2">
-              <Link href={`/dashboard/signing/${id}/edit-fields`}>
-                <Edit2 className="w-4 h-4" />
-                Edit Fields
-              </Link>
-            </Button>
-          )}
-          <Button
-            onClick={() => handleDownload("signed")}
-            disabled={downloadBusy !== null || !request.signedBlobUrl}
-            title={!request.signedBlobUrl ? "Available when all parties have signed" : undefined}
-            className="gap-2"
-          >
-            {downloadBusy === "signed" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            Download Signed PDF
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => handleDownload("cert")}
-            disabled={downloadBusy !== null || !request.certificate?.blobUrl}
-            title={!request.certificate?.blobUrl ? "Available when all parties have signed" : undefined}
-            className="gap-2"
-          >
-            {downloadBusy === "cert" ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />}
-            Download Certificate
-          </Button>
-          <Button variant="outline" onClick={() => handleDownload("original")} disabled={downloadBusy !== null} className="gap-2">
-            {downloadBusy === "original" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            Download Original
-          </Button>
-          <Button variant="outline" onClick={handleRemind} disabled={!canRemind || remindBusy} className="gap-2">
-            {remindBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <BellRing className="w-4 h-4" />}
-            Send Reminder
-          </Button>
-          <Button variant="destructive" onClick={handleVoid} disabled={!canVoid || voidBusy} className="gap-2">
-            {voidBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
-            Void Request
-          </Button>
-          {canDelete && !confirmDelete && (
-            <Button
-              variant="ghost"
-              className="gap-2 text-muted-foreground hover:text-destructive"
-              onClick={() => setConfirmDelete(true)}
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete
-            </Button>
-          )}
-          {confirmDelete && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-destructive">Delete this request?</span>
-              <Button variant="destructive" size="sm" disabled={deleteBusy} onClick={handleDelete} className="gap-1.5">
-                {deleteBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                Confirm Delete
+        <div className="rounded-xl border border-border bg-card p-3 w-full max-w-[360px] space-y-2">
+          <div className="flex items-center justify-between">
+            {statusPill ? <Badge className={statusPill.className}>{statusPill.label}</Badge> : <span />}
+            <p className="text-[11px] text-muted-foreground">Created {new Date(request.createdAt).toLocaleDateString()}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {isEditable && (
+              <Button variant="outline" size="sm" asChild className="h-8 gap-1.5">
+                <Link href={`/dashboard/signing/${id}/edit-fields`}>
+                  <Edit2 className="w-3.5 h-3.5" />
+                  Edit
+                </Link>
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>
-                Cancel
-              </Button>
-            </div>
-          )}
-        </div>
-        {actionError ? (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{actionError}</div>
-        ) : null}
-      </div>
-
-      {/* ── Document Viewer ──────────────────────────────────────────── */}
-      {request.blobUrl && (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          {/* Open preview in new tab */}
-          <a
-            href={`/dashboard/signing/${id}/preview`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/40 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <Download className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-semibold text-foreground">
-                {request.signedBlobUrl ? "View Signed Document" : "Live Document View"}
-              </span>
-              {request.signedBlobUrl ? (
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700">
-                  Completed
-                </span>
+            )}
+            <Button variant="outline" size="sm" onClick={handleRemind} disabled={!canRemind || remindBusy} className="h-8 gap-1.5">
+              {remindBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BellRing className="w-3.5 h-3.5" />}
+              Remind
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleDownload("signed")} disabled={downloadBusy !== null} className="h-8 gap-1.5">
+              {downloadBusy === "signed" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+              PDF
+            </Button>
+            <Button variant="destructive" size="sm" onClick={handleVoid} disabled={!canVoid || voidBusy} className="h-8 gap-1.5">
+              {voidBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
+              Void
+            </Button>
+          </div>
+          {canDelete && (
+            <div className="pt-1">
+              {!confirmDelete ? (
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-destructive inline-flex items-center gap-1"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete request
+                </button>
               ) : (
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700">
-                  Live
-                </span>
+                <div className="flex items-center gap-2">
+                  <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleteBusy} className="h-7 text-xs">
+                    {deleteBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : "Confirm delete"}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)} className="h-7 text-xs">
+                    Cancel
+                  </Button>
+                </div>
               )}
             </div>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
-          </a>
-          {/* Download row */}
-          <div className="flex flex-wrap gap-2 p-3 border-t border-border bg-muted/30">
-            {request.signedBlobUrl && (
-              <Button size="sm" variant="outline" onClick={() => handleDownload("signed")} disabled={downloadBusy !== null} className="gap-1.5">
-                {downloadBusy === "signed" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                Download Signed PDF
-              </Button>
-            )}
-            {request.certificate?.blobUrl && (
-              <Button size="sm" variant="outline" onClick={() => handleDownload("cert")} disabled={downloadBusy !== null} className="gap-1.5">
-                {downloadBusy === "cert" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldAlert className="w-3.5 h-3.5" />}
-                Download Certificate
-              </Button>
-            )}
-            <Button size="sm" variant="ghost" onClick={() => handleDownload("original")} disabled={downloadBusy !== null} className="gap-1.5 text-muted-foreground">
-              {downloadBusy === "original" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-              Download Original
-            </Button>
-            {!request.signedBlobUrl && (
-              <span className="text-xs text-muted-foreground self-center ml-1">
-                Signed PDF &amp; Certificate available once all parties complete
-              </span>
-            )}
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
-      {(status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED") && (
-        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Send className="w-4 h-4" />
-            Signing Links
-          </h2>
-          <p className="text-xs text-muted-foreground">Share these links directly with each recipient if they didn&apos;t receive the email.</p>
-          <div className="space-y-2">
-            {request.recipients.map((recipient) => {
-              const signUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/sign/${recipient.token}`;
-              const isCopied = copiedToken === recipient.token;
-              return (
-                <div key={recipient.id} className="rounded-lg border border-border p-3 flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{recipient.name}</p>
-                    <p className="text-xs text-muted-foreground font-mono truncate">{signUrl}</p>
+      {actionError ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</div> : null}
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <OverviewKpi label="Recipients" value={request.recipients.length} />
+        <OverviewKpi label="Signed" value={`${completedRecipients}/${request.recipients.length}`} />
+        <OverviewKpi label="Fields" value={request.signingFields.length} />
+        <OverviewKpi label="Expires" value={new Date(request.expiresAt).toLocaleDateString()} />
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-2">
+        <div className="flex flex-wrap gap-2">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+                activeTab === tab.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeTab === "OVERVIEW" && (
+        <div className="grid lg:grid-cols-[1.1fr_1fr] gap-5">
+          <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
+            <h2 className="text-sm font-semibold text-foreground">Recipient Progress</h2>
+            <div className="space-y-2">
+              {fieldCountsByRecipient.map(({ recipient, count }) => {
+                const badge = recipientStatusBadge(recipient.status);
+                return (
+                  <div key={recipient.id} className="rounded-lg border border-border p-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{recipient.name}</p>
+                      <p className="text-xs text-muted-foreground">{recipient.email}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">{count} field{count === 1 ? "" : "s"}</p>
+                    </div>
+                    <Badge className={badge.className}>{badge.label}</Badge>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void copySigningLink(recipient.token)}
-                    className="shrink-0 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-muted transition-colors"
-                  >
-                    {isCopied ? "Copied!" : "Copy Link"}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
+            <h2 className="text-sm font-semibold text-foreground">Quick Links</h2>
+            {(status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED") ? (
+              <div className="space-y-2">
+                {request.recipients.map((recipient) => {
+                  const signUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/sign/${recipient.token}`;
+                  const isCopied = copiedToken === recipient.token;
+                  return (
+                    <div key={recipient.id} className="rounded-lg border border-border p-3 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{recipient.name}</p>
+                        <p className="text-xs text-muted-foreground font-mono truncate">{signUrl}</p>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => void copySigningLink(recipient.token)}>
+                        {isCopied ? "Copied" : "Copy"}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Links are shown while request is active.</p>
+            )}
+          </section>
         </div>
       )}
 
-      <div className="grid lg:grid-cols-2 gap-5">
-        <section className="rounded-xl border border-border bg-card p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <UserCheck className="w-4 h-4" />
-            Recipient Status
-          </h2>
-          {resendSuccess && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-              {resendSuccess}
-            </div>
-          )}
-          {resendError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {resendError}
-            </div>
-          )}
+      {activeTab === "RECIPIENTS" && (
+        <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
+          <h2 className="text-sm font-semibold text-foreground">Recipients</h2>
+          {resendSuccess ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{resendSuccess}</div> : null}
+          {resendError ? <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{resendError}</div> : null}
+
           <div className="space-y-2">
             {fieldCountsByRecipient.map(({ recipient, count }) => {
               const badge = recipientStatusBadge(recipient.status);
@@ -550,87 +492,99 @@ export default function SigningRequestDetailPage() {
               return (
                 <div key={recipient.id} className="rounded-lg border border-border p-3 space-y-2">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{recipient.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{recipient.email}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {request.signingMode === "SEQUENTIAL" ? `Signer ${recipient.order + 1}` : "Parallel"} · {count} field{count === 1 ? "" : "s"}
-                      </p>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{recipient.name}</p>
+                      <p className="text-xs text-muted-foreground">{recipient.email}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">{request.signingMode === "SEQUENTIAL" ? `Signer ${recipient.order + 1}` : "Parallel"} · {count} field{count === 1 ? "" : "s"}</p>
                     </div>
-                    <div className="text-right shrink-0 space-y-1.5">
+                    <div className="text-right">
                       <Badge className={badge.className}>{badge.label}</Badge>
-                      {recipient.completedAt ? (
-                        <p className="text-[11px] text-muted-foreground">{new Date(recipient.completedAt).toLocaleString()}</p>
-                      ) : null}
-                      {canResend && !isShowingForm && (
-                        <button
-                          type="button"
-                          onClick={() => openResendForm(recipient)}
-                          className="flex items-center gap-1 text-[11px] text-primary hover:underline"
-                        >
+                      {recipient.completedAt ? <p className="text-[11px] text-muted-foreground mt-1">{new Date(recipient.completedAt).toLocaleString()}</p> : null}
+                      {canResend && !isShowingForm ? (
+                        <button type="button" onClick={() => openResendForm(recipient)} className="mt-1 text-[11px] text-primary hover:underline inline-flex items-center gap-1">
                           <Mail className="w-3 h-3" />
-                          Resend Email
+                          Resend
                         </button>
-                      )}
+                      ) : null}
                     </div>
                   </div>
-                  {isShowingForm && (
+
+                  {isShowingForm ? (
                     <div className="border-t border-border pt-2 space-y-2">
-                      <p className="text-xs text-muted-foreground">Send to (edit to use a different address):</p>
                       <Input
                         type="email"
                         value={resendEmail}
-                        onChange={(e) => setResendEmail(e.target.value)}
+                        onChange={(event) => setResendEmail(event.target.value)}
                         placeholder="recipient@email.com"
                         className="h-8 text-sm"
                       />
                       <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          className="h-7 text-xs gap-1.5"
-                          disabled={resendingId === recipient.id || !resendEmail.trim()}
-                          onClick={() => void handleResend(recipient.id)}
-                        >
-                          {resendingId === recipient.id ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <Send className="w-3 h-3" />
-                          )}
+                        <Button size="sm" className="h-7 text-xs gap-1.5" disabled={resendingId === recipient.id || !resendEmail.trim()} onClick={() => void handleResend(recipient.id)}>
+                          {resendingId === recipient.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                           Send
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => setResendFormId(null)}
-                        >
+                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setResendFormId(null)}>
                           Cancel
                         </Button>
                       </div>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               );
             })}
           </div>
         </section>
+      )}
 
-        <section className="rounded-xl border border-border bg-card p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Clock className="w-4 h-4" />
-            Activity Timeline
-          </h2>
+      {activeTab === "FIELDS" && (
+        <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
+          <h2 className="text-sm font-semibold text-foreground">Field Layout</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                  <th className="py-2 pr-3">Type</th>
+                  <th className="py-2 pr-3">Recipient</th>
+                  <th className="py-2 pr-3">Page</th>
+                  <th className="py-2 pr-3">Position</th>
+                  <th className="py-2 pr-3">Size</th>
+                  <th className="py-2">Required</th>
+                </tr>
+              </thead>
+              <tbody>
+                {request.signingFields.map((field) => {
+                  const recipient = request.recipients.find((r) => r.id === field.recipientId);
+                  return (
+                    <tr key={field.id} className="border-b border-border/70">
+                      <td className="py-2 pr-3 font-medium text-foreground">{field.type}</td>
+                      <td className="py-2 pr-3 text-muted-foreground">{recipient?.name ?? "Unknown"}</td>
+                      <td className="py-2 pr-3 text-muted-foreground">{field.page}</td>
+                      <td className="py-2 pr-3 text-muted-foreground">x:{field.x.toFixed(2)} y:{field.y.toFixed(2)}</td>
+                      <td className="py-2 pr-3 text-muted-foreground">w:{field.width.toFixed(2)} h:{field.height.toFixed(2)}</td>
+                      <td className="py-2 text-muted-foreground">{field.required ? "Yes" : "No"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {activeTab === "TIMELINE" && (
+        <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
+          <h2 className="text-sm font-semibold text-foreground">Audit Timeline</h2>
           {request.auditLogs.length === 0 ? (
             <p className="text-sm text-muted-foreground">No activity yet.</p>
           ) : (
             <div className="space-y-3">
               {request.auditLogs.map((log) => (
-                <div key={log.id} className="flex items-start gap-3">
+                <div key={log.id} className="flex items-start gap-3 rounded-lg border border-border p-3">
                   <div className="pt-1">
                     {log.event === "COMPLETED" ? (
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                     ) : log.event === "DECLINED" ? (
-                      <XCircle className="w-4 h-4 text-red-600" />
+                      <XCircle className="w-4 h-4 text-rose-600" />
                     ) : log.event === "SENT" ? (
                       <Send className="w-4 h-4 text-blue-600" />
                     ) : (
@@ -646,13 +600,52 @@ export default function SigningRequestDetailPage() {
             </div>
           )}
         </section>
-      </div>
+      )}
+
+      {activeTab === "FILES" && (
+        <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-foreground">Files & Downloads</h2>
+          {request.blobUrl ? (
+            <a href={`/dashboard/signing/${id}/preview`} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-border p-4 hover:bg-muted/40 transition-colors flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">Open Live Document Preview</span>
+              </div>
+              <ArrowLeft className="w-4 h-4 rotate-180 text-muted-foreground" />
+            </a>
+          ) : (
+            <p className="text-sm text-muted-foreground">No document preview available.</p>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => handleDownload("signed")} disabled={downloadBusy !== null} className="gap-2">
+              {downloadBusy === "signed" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              Download Signed PDF
+            </Button>
+            <Button variant="outline" onClick={() => handleDownload("cert")} disabled={downloadBusy !== null || !request.certificate?.blobUrl} className="gap-2">
+              {downloadBusy === "cert" ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />}
+              Download Certificate
+            </Button>
+            <Button variant="outline" onClick={() => handleDownload("original")} disabled={downloadBusy !== null} className="gap-2">
+              {downloadBusy === "original" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              Download Original
+            </Button>
+          </div>
+        </section>
+      )}
 
       <div className="flex justify-end">
-        <Button variant="outline" onClick={() => router.push("/dashboard/signing")}>
-          Back to List
-        </Button>
+        <Button variant="outline" onClick={() => router.push("/dashboard/signing")}>Back to List</Button>
       </div>
+    </div>
+  );
+}
+
+function OverviewKpi({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-lg font-semibold text-foreground mt-1">{value}</p>
     </div>
   );
 }
