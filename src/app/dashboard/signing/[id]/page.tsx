@@ -241,6 +241,35 @@ function fmtDuration(ms: number): string {
   return `${min}m ${sec}s`;
 }
 
+function trackingHealth(recipient: {
+  readCompletenessPct: number;
+  totalDwellMs: number;
+  pagesViewed: number;
+  pagesTotal: number;
+}) {
+  const hasNoActivity = recipient.totalDwellMs <= 0 || recipient.pagesViewed === 0;
+  if (hasNoActivity) {
+    return {
+      label: "No activity",
+      tone: "text-slate-700 bg-slate-100 border-slate-200",
+    };
+  }
+  const strongRead =
+    recipient.readCompletenessPct >= 80 &&
+    recipient.totalDwellMs >= 12000 &&
+    recipient.pagesViewed >= Math.max(1, Math.ceil(recipient.pagesTotal * 0.8));
+  if (strongRead) {
+    return {
+      label: "Strong evidence read",
+      tone: "text-emerald-700 bg-emerald-50 border-emerald-200",
+    };
+  }
+  return {
+    label: "Partial activity",
+    tone: "text-amber-700 bg-amber-50 border-amber-200",
+  };
+}
+
 export default function SigningRequestDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -1376,6 +1405,7 @@ export default function SigningRequestDetailPage() {
                   <thead>
                     <tr style={{ borderBottom: "1px solid hsl(var(--border))" }}>
                       <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Recipient</th>
+                      <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Tracking Health</th>
                       <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Read Coverage</th>
                       <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Time</th>
                       <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Views</th>
@@ -1383,46 +1413,59 @@ export default function SigningRequestDetailPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {request.readingAnalytics.recipients.map((recipient) => (
-                      <tr key={`summary-${recipient.recipientId}`} style={{ borderBottom: "1px solid hsl(var(--border) / 0.6)" }}>
-                        <td className="py-2.5 px-3">
-                          <p className="font-medium text-foreground">{recipient.recipientName}</p>
-                          <p className="text-xs text-muted-foreground">{recipient.recipientEmail}</p>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="flex items-center gap-2 min-w-[170px]">
-                            <div className="h-2 rounded-full bg-muted overflow-hidden flex-1">
-                              <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${recipient.readCompletenessPct}%` }} />
-                            </div>
-                            <span className="inline-flex items-center rounded-md border border-border px-2 py-0.5 text-xs font-medium shrink-0">
-                              {recipient.readCompletenessPct}%
+                    {request.readingAnalytics.recipients.map((recipient) => {
+                      const health = trackingHealth(recipient);
+                      return (
+                        <tr key={`summary-${recipient.recipientId}`} style={{ borderBottom: "1px solid hsl(var(--border) / 0.6)" }}>
+                          <td className="py-2.5 px-3">
+                            <p className="font-medium text-foreground">{recipient.recipientName}</p>
+                            <p className="text-xs text-muted-foreground">{recipient.recipientEmail}</p>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${health.tone}`}>
+                              {health.label}
                             </span>
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{fmtDuration(recipient.totalDwellMs)}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">
-                          {recipient.pages.reduce((sum, page) => sum + page.viewCount, 0)}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          {recipient.unreadPages.length > 0 ? (
-                            <span className="text-xs text-amber-700">{recipient.unreadPages.join(", ")}</span>
-                          ) : (
-                            <span className="text-xs text-emerald-700">None</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <div className="flex items-center gap-2 min-w-[170px]">
+                              <div className="h-2 rounded-full bg-muted overflow-hidden flex-1">
+                                <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${recipient.readCompletenessPct}%` }} />
+                              </div>
+                              <span className="inline-flex items-center rounded-md border border-border px-2 py-0.5 text-xs font-medium shrink-0">
+                                {recipient.readCompletenessPct}%
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 text-muted-foreground">{fmtDuration(recipient.totalDwellMs)}</td>
+                          <td className="py-2.5 px-3 text-muted-foreground">
+                            {recipient.pages.reduce((sum, page) => sum + page.viewCount, 0)}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            {recipient.unreadPages.length > 0 ? (
+                              <span className="text-xs text-amber-700">{recipient.unreadPages.join(", ")}</span>
+                            ) : (
+                              <span className="text-xs text-emerald-700">None</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
               <div className="space-y-3">
-                {request.readingAnalytics.recipients.map((recipient) => (
+                {request.readingAnalytics.recipients.map((recipient) => {
+                  const health = trackingHealth(recipient);
+                  return (
                   <div key={recipient.recipientId} className="rounded-xl border border-border p-4 space-y-3 bg-card/60">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold text-foreground">{recipient.recipientName}</p>
                         <p className="text-xs text-muted-foreground">{recipient.recipientEmail}</p>
+                        <span className={`mt-2 inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-medium ${health.tone}`}>
+                          {health.label}
+                        </span>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-semibold text-foreground">{recipient.readCompletenessPct}% read</p>
@@ -1462,7 +1505,7 @@ export default function SigningRequestDetailPage() {
                       </p>
                     )}
                   </div>
-                ))}
+                )})}
               </div>
             </>
           )}
