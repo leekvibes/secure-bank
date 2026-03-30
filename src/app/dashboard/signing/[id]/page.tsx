@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
+  BarChart3,
   ArrowLeft,
   Ban,
   BellRing,
@@ -13,6 +14,7 @@ import {
   Clock,
   Copy,
   Download,
+  Eye,
   Edit2,
   ExternalLink,
   FileText,
@@ -23,6 +25,7 @@ import {
   Mail,
   Paperclip,
   Plus,
+  RefreshCw,
   Send,
   ShieldCheck,
   Trash2,
@@ -267,6 +270,8 @@ export default function SigningRequestDetailPage() {
   const [reassignTarget, setReassignTarget] = useState<Recipient | null>(null);
   const [saveTemplateBusy, setSaveTemplateBusy] = useState(false);
   const [saveTemplateSuccess, setSaveTemplateSuccess] = useState(false);
+  const [analyticsRefreshing, setAnalyticsRefreshing] = useState(false);
+  const [analyticsUpdatedAt, setAnalyticsUpdatedAt] = useState<Date | null>(null);
 
   // Public links
   const [publicLinks, setPublicLinks] = useState<PublicLink[]>([]);
@@ -288,7 +293,10 @@ export default function SigningRequestDetailPage() {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to load signing request.");
         const detail = (data?.request ?? data) as SigningRequestDetail;
-        if (!cancelled) setRequest(detail);
+        if (!cancelled) {
+          setRequest(detail);
+          setAnalyticsUpdatedAt(new Date());
+        }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load signing request.");
       } finally {
@@ -315,13 +323,35 @@ export default function SigningRequestDetailPage() {
   const canDelete = !!status;
   const isExpiringSoon = request && (status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED") && new Date(request.expiresAt).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000 && new Date(request.expiresAt).getTime() > Date.now();
   const canSaveTemplate = status === "SENT" || status === "COMPLETED";
+  const analyticsLiveTracking = status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED";
 
-  async function reload() {
+  const reload = useCallback(async () => {
     if (!id) return;
     const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}`, { cache: "no-store" });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error?.message ?? data?.error ?? "Failed to reload.");
     setRequest((data?.request ?? data) as SigningRequestDetail);
+    setAnalyticsUpdatedAt(new Date());
+  }, [id]);
+
+  useEffect(() => {
+    if (activeTab !== "ANALYTICS") return;
+    if (!analyticsLiveTracking) return;
+    const timer = window.setInterval(() => {
+      void reload().catch(() => {});
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [activeTab, analyticsLiveTracking, reload]);
+
+  async function refreshAnalytics() {
+    setAnalyticsRefreshing(true);
+    try {
+      await reload();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to refresh analytics.");
+    } finally {
+      setAnalyticsRefreshing(false);
+    }
   }
 
   async function loadPublicLinks() {
@@ -1284,38 +1314,71 @@ export default function SigningRequestDetailPage() {
       {/* ── ANALYTICS ── */}
       {activeTab === "ANALYTICS" && (
         <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Signing Analytics</h2>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground inline-flex items-center gap-1.5">
+                <BarChart3 className="w-3.5 h-3.5" />
+                Signing Analytics
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                Per-page read behavior by recipient (time, scroll depth, and coverage).
+              </p>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => void refreshAnalytics()}
+                disabled={analyticsRefreshing}
+              >
+                {analyticsRefreshing ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />}
+                Refresh
+              </Button>
+              <p className="text-[11px] text-muted-foreground">
+                {analyticsUpdatedAt ? `Updated ${analyticsUpdatedAt.toLocaleTimeString()}` : "Not refreshed yet"}
+                {analyticsLiveTracking ? " • live polling every 15s" : ""}
+              </p>
+            </div>
+          </div>
 
           {!request.readingAnalytics || request.readingAnalytics.recipients.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No page-view analytics captured yet. This appears after recipients open and review document pages.</p>
+            <div className="rounded-xl border border-dashed border-border bg-muted/30 p-5">
+              <p className="text-sm font-medium text-foreground">No page-view analytics captured yet.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Data appears once recipients open the document and view pages in the signing flow.
+              </p>
+            </div>
           ) : (
             <>
               <div className="grid md:grid-cols-4 gap-3">
-                <div className="rounded-lg border border-border px-3 py-2">
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Avg Read</p>
-                  <p className="text-sm font-semibold text-foreground mt-0.5">{request.readingAnalytics.summary.avgReadCompletenessPct}%</p>
+                  <p className="text-sm font-semibold text-emerald-800 mt-0.5">{request.readingAnalytics.summary.avgReadCompletenessPct}%</p>
                 </div>
-                <div className="rounded-lg border border-border px-3 py-2">
+                <div className="rounded-lg border border-sky-200 bg-sky-50/70 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Total View Time</p>
-                  <p className="text-sm font-semibold text-foreground mt-0.5">{fmtDuration(request.readingAnalytics.summary.totalDwellMs)}</p>
+                  <p className="text-sm font-semibold text-sky-800 mt-0.5">{fmtDuration(request.readingAnalytics.summary.totalDwellMs)}</p>
                 </div>
-                <div className="rounded-lg border border-border px-3 py-2">
+                <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Signed w/ Unread</p>
-                  <p className="text-sm font-semibold text-foreground mt-0.5">{request.readingAnalytics.summary.signedWithUnreadCount}</p>
+                  <p className="text-sm font-semibold text-amber-800 mt-0.5">{request.readingAnalytics.summary.signedWithUnreadCount}</p>
                 </div>
-                <div className="rounded-lg border border-border px-3 py-2">
+                <div className="rounded-lg border border-violet-200 bg-violet-50/70 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Recipients</p>
-                  <p className="text-sm font-semibold text-foreground mt-0.5">{request.readingAnalytics.summary.recipientCount}</p>
+                  <p className="text-sm font-semibold text-violet-800 mt-0.5">{request.readingAnalytics.summary.recipientCount}</p>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-border overflow-x-auto">
+              <div className="rounded-xl border border-border overflow-x-auto bg-card/70">
                 <table className="w-full min-w-[720px] text-sm">
                   <thead>
                     <tr style={{ borderBottom: "1px solid hsl(var(--border))" }}>
                       <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Recipient</th>
-                      <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Read %</th>
+                      <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Read Coverage</th>
                       <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Time</th>
+                      <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Views</th>
                       <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Unread Pages</th>
                     </tr>
                   </thead>
@@ -1327,11 +1390,19 @@ export default function SigningRequestDetailPage() {
                           <p className="text-xs text-muted-foreground">{recipient.recipientEmail}</p>
                         </td>
                         <td className="py-2.5 px-3">
-                          <span className="inline-flex items-center rounded-md border border-border px-2 py-0.5 text-xs font-medium">
-                            {recipient.readCompletenessPct}%
-                          </span>
+                          <div className="flex items-center gap-2 min-w-[170px]">
+                            <div className="h-2 rounded-full bg-muted overflow-hidden flex-1">
+                              <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${recipient.readCompletenessPct}%` }} />
+                            </div>
+                            <span className="inline-flex items-center rounded-md border border-border px-2 py-0.5 text-xs font-medium shrink-0">
+                              {recipient.readCompletenessPct}%
+                            </span>
+                          </div>
                         </td>
                         <td className="py-2.5 px-3 text-muted-foreground">{fmtDuration(recipient.totalDwellMs)}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">
+                          {recipient.pages.reduce((sum, page) => sum + page.viewCount, 0)}
+                        </td>
                         <td className="py-2.5 px-3">
                           {recipient.unreadPages.length > 0 ? (
                             <span className="text-xs text-amber-700">{recipient.unreadPages.join(", ")}</span>
@@ -1347,7 +1418,7 @@ export default function SigningRequestDetailPage() {
 
               <div className="space-y-3">
                 {request.readingAnalytics.recipients.map((recipient) => (
-                  <div key={recipient.recipientId} className="rounded-xl border border-border p-4 space-y-3">
+                  <div key={recipient.recipientId} className="rounded-xl border border-border p-4 space-y-3 bg-card/60">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold text-foreground">{recipient.recipientName}</p>
@@ -1376,6 +1447,7 @@ export default function SigningRequestDetailPage() {
                               : "border-amber-200 bg-amber-50 text-amber-700"
                           }`}
                         >
+                          <Eye className="w-3 h-3" />
                           P{p.page}
                           <span className="text-[10px] opacity-80">{fmtDuration(p.totalDwellMs)}</span>
                           <span className="text-[10px] opacity-80">{Math.round(p.maxScrollPct)}%</span>

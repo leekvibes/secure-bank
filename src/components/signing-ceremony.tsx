@@ -791,14 +791,13 @@ function FieldModal({
                     const res = await fetch(`/api/sign/${token}/attachment`, { method: "POST", body: fd });
                     const json = await res.json().catch(() => ({})) as { url?: string; name?: string; size?: number; type?: string; error?: { message?: string } };
                     if (!res.ok) throw new Error(json?.error?.message ?? "Upload failed. Please try again.");
-                    setVal(JSON.stringify({ url: json.url, name: json.name, size: json.size, type: json.type }));
+                    const attachValue = JSON.stringify({ url: json.url, name: json.name, size: json.size, type: json.type });
+                    setVal(attachValue);
+                    // Auto-confirm so fieldValues is updated immediately — no manual "Confirm" tap needed
+                    onConfirm(attachValue);
                   } catch (err) {
-                    const msg = err instanceof Error ? err.message : "Upload failed.";
+                    const msg = err instanceof Error ? err.message : "Upload failed. Please try again.";
                     setUploadError(msg);
-                    // Fallback: store as base64 so signer isn't blocked
-                    const reader = new FileReader();
-                    reader.onload = (ev) => setVal((ev.target?.result as string) ?? "");
-                    reader.readAsDataURL(file);
                   } finally {
                     setUploadingFile(false);
                   }
@@ -1078,7 +1077,7 @@ export function SigningCeremony({
   };
 
   const flushActivePageView = useCallback(
-    async (source: string, opts?: { keepalive?: boolean }) => {
+    async (source: string, opts?: { keepalive?: boolean; preferBeacon?: boolean }) => {
       if (screen !== "signing") return;
       const active = activePageViewRef.current;
       if (!active) return;
@@ -1100,6 +1099,11 @@ export function SigningCeremony({
       };
 
       try {
+        if (opts?.preferBeacon && typeof navigator !== "undefined" && "sendBeacon" in navigator) {
+          const body = new Blob([JSON.stringify(payload)], { type: "application/json" });
+          const accepted = navigator.sendBeacon(`/api/sign/${token}/analytics/page-view`, body);
+          if (accepted) return;
+        }
         await fetch(`/api/sign/${token}/analytics/page-view`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1201,17 +1205,22 @@ export function SigningCeremony({
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === "hidden") {
-        void flushActivePageView("tab-hidden", { keepalive: true });
+        void flushActivePageView("tab-hidden", { keepalive: true, preferBeacon: true });
       }
     };
     const handleUnload = () => {
-      void flushActivePageView("before-unload", { keepalive: true });
+      void flushActivePageView("before-unload", { keepalive: true, preferBeacon: true });
+    };
+    const handlePageHide = () => {
+      void flushActivePageView("page-hide", { keepalive: true, preferBeacon: true });
     };
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("beforeunload", handleUnload);
+    window.addEventListener("pagehide", handlePageHide);
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("beforeunload", handleUnload);
+      window.removeEventListener("pagehide", handlePageHide);
     };
   }, [flushActivePageView]);
 
