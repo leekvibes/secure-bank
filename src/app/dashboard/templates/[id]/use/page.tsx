@@ -27,6 +27,7 @@ type VariableDef = {
 };
 type ClauseDef = { id: string; label: string; required?: boolean; defaultEnabled?: boolean };
 type DocSchema = { title: string; roles: string[]; variables: VariableDef[]; clauses?: ClauseDef[]; blocks: Block[] };
+type WizardStep = "SETUP" | "PARTY_A" | "PARTY_B" | "TERMS" | "REVIEW";
 
 interface TemplateDetail {
   id: string;
@@ -48,6 +49,32 @@ function defaultValueForType(type: VariableDef["type"]): string {
   return "";
 }
 
+function normalizeKey(key: string) {
+  return key.toLowerCase().replace(/[^a-z0-9]/g, "_");
+}
+
+function isPartyAKey(key: string) {
+  const normalized = normalizeKey(key);
+  return normalized.startsWith("party_a_") || normalized.startsWith("seller_") || normalized.startsWith("landlord_");
+}
+
+function isPartyBKey(key: string) {
+  const normalized = normalizeKey(key);
+  return normalized.startsWith("party_b_") || normalized.startsWith("buyer_") || normalized.startsWith("tenant_");
+}
+
+function isTermsKey(key: string) {
+  const normalized = normalizeKey(key);
+  return (
+    normalized.includes("term") ||
+    normalized.includes("governing") ||
+    normalized.includes("consideration") ||
+    normalized.includes("payment") ||
+    normalized.includes("delivery") ||
+    normalized.includes("custom_terms")
+  );
+}
+
 export default function UseDocumentTemplatePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -63,6 +90,7 @@ export default function UseDocumentTemplatePage() {
   const [fullTextEditing, setFullTextEditing] = useState(false);
   const [blockOverrides, setBlockOverrides] = useState<Record<string, string>>({});
   const [enabledClauses, setEnabledClauses] = useState<string[]>([]);
+  const [step, setStep] = useState<WizardStep>("SETUP");
 
   useEffect(() => {
     if (!isDocumentTemplatesEnabledClient()) {
@@ -133,12 +161,62 @@ export default function UseDocumentTemplatePage() {
     [visibleBlocks],
   );
 
+  const groupedVariables = useMemo(() => {
+    if (!schema) return { setup: [], partyA: [], partyB: [], terms: [] } as Record<string, VariableDef[]>;
+    const partyA = schema.variables.filter((v) => isPartyAKey(v.key));
+    const partyB = schema.variables.filter((v) => isPartyBKey(v.key));
+    const terms = schema.variables.filter((v) => !isPartyAKey(v.key) && !isPartyBKey(v.key) && isTermsKey(v.key));
+    const setup = schema.variables.filter((v) => !isPartyAKey(v.key) && !isPartyBKey(v.key) && !isTermsKey(v.key));
+    return { setup, partyA, partyB, terms };
+  }, [schema]);
+
+  const stepOrder = useMemo(() => {
+    const steps: WizardStep[] = ["SETUP"];
+    if (groupedVariables.partyA.length > 0) steps.push("PARTY_A");
+    if (groupedVariables.partyB.length > 0) steps.push("PARTY_B");
+    if (groupedVariables.terms.length > 0 || (schema?.clauses?.length ?? 0) > 0 || editableBlocks.length > 0) {
+      steps.push("TERMS");
+    }
+    steps.push("REVIEW");
+    return steps;
+  }, [groupedVariables.partyA.length, groupedVariables.partyB.length, groupedVariables.terms.length, schema?.clauses?.length, editableBlocks.length]);
+
+  const currentStepIndex = stepOrder.indexOf(step);
+
+  function requiredMissing(vars: VariableDef[]) {
+    return vars.filter((variable) => variable.required && !(values[variable.key] ?? "").trim()).map((variable) => variable.label);
+  }
+
+  const stepBlockingErrors = useMemo(() => {
+    if (step === "SETUP") return requiredMissing(groupedVariables.setup);
+    if (step === "PARTY_A") return requiredMissing(groupedVariables.partyA);
+    if (step === "PARTY_B") return requiredMissing(groupedVariables.partyB);
+    if (step === "TERMS") return requiredMissing(groupedVariables.terms);
+    return [];
+  }, [step, groupedVariables, values]);
+
   function toggleClause(clauseId: string, forced: boolean) {
     if (forced) return;
     setEnabledClauses((prev) => {
       if (prev.includes(clauseId)) return prev.filter((item) => item !== clauseId);
       return [...prev, clauseId];
     });
+  }
+
+  function goNextStep() {
+    if (stepBlockingErrors.length > 0) {
+      setError(`Please complete required fields: ${stepBlockingErrors.slice(0, 3).join(", ")}${stepBlockingErrors.length > 3 ? "..." : ""}`);
+      return;
+    }
+    setError(null);
+    const next = stepOrder[currentStepIndex + 1];
+    if (next) setStep(next);
+  }
+
+  function goPrevStep() {
+    setError(null);
+    const prev = stepOrder[currentStepIndex - 1];
+    if (prev) setStep(prev);
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -234,115 +312,200 @@ export default function UseDocumentTemplatePage() {
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       ) : null}
 
-      <form onSubmit={handleSubmit} className="grid lg:grid-cols-[360px_1fr] gap-5">
+      <form onSubmit={handleSubmit} className="grid lg:grid-cols-[400px_1fr] gap-5">
         <div className="rounded-xl border border-border bg-card p-5 space-y-4 lg:sticky lg:top-6 h-fit">
-          <div>
-            <Label htmlFor="requestTitle">Request Title</Label>
-            <Input
-              id="requestTitle"
-              value={requestTitle}
-              onChange={(event) => setRequestTitle(event.target.value)}
-              className="mt-1.5"
-            />
-          </div>
-
-          <div className="space-y-3">
-            <p className="text-sm font-semibold text-foreground">Variables</p>
-            {schema.variables.map((variable) => (
-              <div key={variable.key}>
-                <Label htmlFor={variable.key}>
-                  {variable.label}
-                  {variable.required ? <span className="text-red-600"> *</span> : null}
-                </Label>
-                {variable.type === "multiline" || variable.type === "address" ? (
-                  <textarea
-                    id={variable.key}
-                    value={values[variable.key] ?? ""}
-                    required={variable.required}
-                    maxLength={variable.maxLength}
-                    onChange={(event) => setValues((prev) => ({ ...prev, [variable.key]: event.target.value }))}
-                    className="mt-1.5 w-full rounded-md border border-input bg-card px-3 py-2 text-sm resize-none min-h-[86px]"
-                  />
-                ) : (
-                  <Input
-                    id={variable.key}
-                    type={variable.type === "email" ? "email" : variable.type === "number" ? "number" : "text"}
-                    value={values[variable.key] ?? ""}
-                    required={variable.required}
-                    maxLength={variable.maxLength}
-                    onChange={(event) => setValues((prev) => ({ ...prev, [variable.key]: event.target.value }))}
-                    className="mt-1.5"
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-
-          {(schema.clauses ?? []).length > 0 ? (
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-foreground">Optional Clauses</p>
-              {(schema.clauses ?? []).map((clause) => {
-                const checked = clause.required || enabledClauses.includes(clause.id);
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Template Setup</p>
+            <div className="grid grid-cols-5 gap-1.5">
+              {stepOrder.map((item, index) => {
+                const active = item === step;
+                const done = index < currentStepIndex;
                 return (
-                  <label key={clause.id} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      disabled={Boolean(clause.required)}
-                      onChange={() => toggleClause(clause.id, Boolean(clause.required))}
-                    />
-                    <span className={clause.required ? "text-foreground font-medium" : "text-foreground"}>
-                      {clause.label}
-                      {clause.required ? " (required)" : ""}
-                    </span>
-                  </label>
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => {
+                      if (index <= currentStepIndex) setStep(item);
+                    }}
+                    className={`h-2 rounded-full ${active ? "bg-primary" : done ? "bg-emerald-500" : "bg-muted"}`}
+                    aria-label={`Step ${index + 1}`}
+                  />
                 );
               })}
             </div>
-          ) : null}
-
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={fullTextEditing}
-                onChange={(event) => setFullTextEditing(event.target.checked)}
-              />
-              <span className="text-foreground font-medium">Enable advanced text editing</span>
-            </label>
+            <p className="text-sm font-semibold text-foreground">
+              {step === "SETUP" && "1. Agreement Setup"}
+              {step === "PARTY_A" && `${currentStepIndex + 1}. Party A Details`}
+              {step === "PARTY_B" && `${currentStepIndex + 1}. Party B Details`}
+              {step === "TERMS" && `${currentStepIndex + 1}. Terms & Clauses`}
+              {step === "REVIEW" && `${currentStepIndex + 1}. Final Review`}
+            </p>
             <p className="text-xs text-muted-foreground">
-              Turn on to rewrite editable clauses and paragraphs before rendering.
+              {step === "SETUP" && "Set document title and agreement metadata first."}
+              {step === "PARTY_A" && "Capture sender-side legal details."}
+              {step === "PARTY_B" && "Capture recipient-side legal details."}
+              {step === "TERMS" && "Adjust terms, clauses, and optional editable paragraphs."}
+              {step === "REVIEW" && "Confirm the preview, then continue to signing field placement."}
             </p>
           </div>
-
-          {fullTextEditing && editableBlocks.length > 0 ? (
+          {step === "SETUP" ? (
             <div className="space-y-3">
-              <p className="text-sm font-semibold text-foreground">Editable Paragraphs</p>
-              {editableBlocks.map((block, index) => {
-                const key = block.id ?? `block_${index}`;
-                return (
-                  <div key={key}>
-                    <Label htmlFor={key}>Paragraph {index + 1}</Label>
-                    <textarea
-                      id={key}
-                      value={blockOverrides[key] ?? block.text ?? ""}
-                      onChange={(event) =>
-                        setBlockOverrides((prev) => ({
-                          ...prev,
-                          [key]: event.target.value,
-                        }))
-                      }
-                      className="mt-1.5 w-full rounded-md border border-input bg-card px-3 py-2 text-sm resize-none min-h-[100px]"
-                    />
-                  </div>
-                );
-              })}
+              <div>
+                <Label htmlFor="requestTitle">Request Title</Label>
+                <Input
+                  id="requestTitle"
+                  value={requestTitle}
+                  onChange={(event) => setRequestTitle(event.target.value)}
+                  className="mt-1.5"
+                />
+              </div>
+              {groupedVariables.setup.map((variable) => (
+                <VariableInput
+                  key={variable.key}
+                  variable={variable}
+                  value={values[variable.key] ?? ""}
+                  onChange={(nextValue) => setValues((prev) => ({ ...prev, [variable.key]: nextValue }))}
+                />
+              ))}
             </div>
           ) : null}
 
-          <Button type="submit" disabled={submitting} className="w-full gap-2">
-            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Continue to Signing Setup"}
-          </Button>
+          {step === "PARTY_A" ? (
+            <div className="space-y-3">
+              {groupedVariables.partyA.map((variable) => (
+                <VariableInput
+                  key={variable.key}
+                  variable={variable}
+                  value={values[variable.key] ?? ""}
+                  onChange={(nextValue) => setValues((prev) => ({ ...prev, [variable.key]: nextValue }))}
+                />
+              ))}
+            </div>
+          ) : null}
+
+          {step === "PARTY_B" ? (
+            <div className="space-y-3">
+              {groupedVariables.partyB.map((variable) => (
+                <VariableInput
+                  key={variable.key}
+                  variable={variable}
+                  value={values[variable.key] ?? ""}
+                  onChange={(nextValue) => setValues((prev) => ({ ...prev, [variable.key]: nextValue }))}
+                />
+              ))}
+            </div>
+          ) : null}
+
+          {step === "TERMS" ? (
+            <div className="space-y-4">
+              {groupedVariables.terms.map((variable) => (
+                <VariableInput
+                  key={variable.key}
+                  variable={variable}
+                  value={values[variable.key] ?? ""}
+                  onChange={(nextValue) => setValues((prev) => ({ ...prev, [variable.key]: nextValue }))}
+                />
+              ))}
+              {(schema.clauses ?? []).length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-foreground">Optional Clauses</p>
+                  {(schema.clauses ?? []).map((clause) => {
+                    const checked = clause.required || enabledClauses.includes(clause.id);
+                    return (
+                      <label key={clause.id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={Boolean(clause.required)}
+                          onChange={() => toggleClause(clause.id, Boolean(clause.required))}
+                        />
+                        <span className={clause.required ? "text-foreground font-medium" : "text-foreground"}>
+                          {clause.label}
+                          {clause.required ? " (required)" : ""}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : null}
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={fullTextEditing}
+                    onChange={(event) => setFullTextEditing(event.target.checked)}
+                  />
+                  <span className="text-foreground font-medium">Enable advanced text editing</span>
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Rewrite editable paragraphs for this send only.
+                </p>
+              </div>
+
+              {fullTextEditing && editableBlocks.length > 0 ? (
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-foreground">Editable Paragraphs</p>
+                  {editableBlocks.map((block, index) => {
+                    const key = block.id ?? `block_${index}`;
+                    return (
+                      <div key={key}>
+                        <Label htmlFor={key}>Paragraph {index + 1}</Label>
+                        <textarea
+                          id={key}
+                          value={blockOverrides[key] ?? block.text ?? ""}
+                          onChange={(event) =>
+                            setBlockOverrides((prev) => ({
+                              ...prev,
+                              [key]: event.target.value,
+                            }))
+                          }
+                          className="mt-1.5 w-full rounded-md border border-input bg-card px-3 py-2 text-sm resize-none min-h-[100px]"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {step === "REVIEW" ? (
+            <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground space-y-2">
+              <p className="text-sm font-semibold text-foreground">Ready to Continue</p>
+              <p>
+                Next step opens signing setup where you can position Sign, Initials, Date, and other fields before sending.
+              </p>
+              <p>
+                Required values complete:{" "}
+                <span className="font-medium text-foreground">
+                  {schema.variables.filter((v) => v.required && (values[v.key] ?? "").trim()).length}/
+                  {schema.variables.filter((v) => v.required).length}
+                </span>
+              </p>
+            </div>
+          ) : null}
+
+          <div className="flex gap-2 pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={goPrevStep}
+              disabled={currentStepIndex <= 0 || submitting}
+              className="flex-1"
+            >
+              Back
+            </Button>
+            {step !== "REVIEW" ? (
+              <Button type="button" onClick={goNextStep} disabled={submitting} className="flex-1">
+                Continue
+              </Button>
+            ) : (
+              <Button type="submit" disabled={submitting} className="flex-1 gap-2">
+                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Continue to Signing Setup"}
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="rounded-xl border border-border bg-card p-5">
@@ -374,6 +537,45 @@ export default function UseDocumentTemplatePage() {
           </div>
         </div>
       </form>
+    </div>
+  );
+}
+
+function VariableInput({
+  variable,
+  value,
+  onChange,
+}: {
+  variable: VariableDef;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div>
+      <Label htmlFor={variable.key}>
+        {variable.label}
+        {variable.required ? <span className="text-red-600"> *</span> : null}
+      </Label>
+      {variable.type === "multiline" || variable.type === "address" ? (
+        <textarea
+          id={variable.key}
+          value={value}
+          required={variable.required}
+          maxLength={variable.maxLength}
+          onChange={(event) => onChange(event.target.value)}
+          className="mt-1.5 w-full rounded-md border border-input bg-card px-3 py-2 text-sm resize-none min-h-[86px]"
+        />
+      ) : (
+        <Input
+          id={variable.key}
+          type={variable.type === "email" ? "email" : variable.type === "number" ? "number" : "text"}
+          value={value}
+          required={variable.required}
+          maxLength={variable.maxLength}
+          onChange={(event) => onChange(event.target.value)}
+          className="mt-1.5"
+        />
+      )}
     </div>
   );
 }
