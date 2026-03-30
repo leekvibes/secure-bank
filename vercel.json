@@ -1,12 +1,7 @@
 {
   "crons": [
-    {
-      "path": "/api/cron/cleanup",
-      "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/cron/backup",
-      "schedule": "0 3 * * *"
-    }
+    { "path": "/api/cron/cleanup", "schedule": "0 2 * * *" },
+    { "path": "/api/cron/backup", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/expiry-reminders", "schedule": "0 8 * * *" }
   ]
 }

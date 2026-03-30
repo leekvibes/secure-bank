@@ -62,6 +62,7 @@ model User {
   fileTransfers          FileTransfer[]
   feedback               Feedback[]
   docSignRequests        DocSignRequest[]
+  docSignTemplates       DocSignTemplate[]
   templateUsages         TemplateUsage[]
 }
 
@@ -433,8 +434,9 @@ model DocSignRequest {
   consentVersion     String?    // e.g. "v1" — bumped when text changes
   authLevel          String?    @default("LINK_ONLY")  // LINK_ONLY | EMAIL_OTP | SMS_OTP
   signedDocumentHash String?    // SHA-256 of assembled signed PDF (for tamper detection on download)
-  expiresAt     DateTime
-  completedAt   DateTime?
+  expiresAt               DateTime
+  completedAt             DateTime?
+  expiryReminderSentAt    DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -470,6 +472,7 @@ model DocSignRecipient {
   otpHash              String?    // bcrypt hash of pending OTP code
   otpExpiresAt         DateTime?
   otpAttempts          Int        @default(0)
+  isAgent       Boolean   @default(false)
   createdAt     DateTime  @default(now())
 
   request DocSignRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
@@ -536,6 +539,35 @@ model DocSignAuditLog {
 
   requestId String
   request   DocSignRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}
+
+model DocSignTemplate {
+  id           String   @id @default(cuid())
+  agentId      String
+  title        String
+  originalName String?
+  blobUrl      String
+  fieldsJson   String   // JSON: Array<{ type, page, x, y, width, height, required, options?, slotIndex }>
+  pagesJson    String   // JSON: Array<{ page, widthPts, heightPts }>
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  agent          User                  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  recipientSlots DocSignTemplateSlot[]
+
+  @@index([agentId, createdAt])
+}
+
+model DocSignTemplateSlot {
+  id         String   @id @default(cuid())
+  templateId String
+  slotIndex  Int
+  role       String
+  createdAt  DateTime @default(now())
+
+  template DocSignTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

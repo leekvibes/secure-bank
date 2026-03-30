@@ -821,6 +821,56 @@ export async function sendDocSignRecipientCopyEmail(args: {
   });
 }
 
+// ── DocSign: Expiry Reminder → Recipient ─────────────────────────────────────
+
+export async function sendDocSignExpiryReminderEmail({
+  toEmail,
+  recipientName,
+  agentName,
+  title,
+  signUrl,
+  expiresAt,
+  daysLeft,
+}: {
+  toEmail: string;
+  recipientName: string;
+  agentName: string;
+  title: string | null;
+  signUrl: string;
+  expiresAt: Date;
+  daysLeft: number;
+}): Promise<void> {
+  const client = getClient();
+  if (!client) return;
+
+  const docTitle = title?.trim() || "a document";
+  const expiryStr = expiresAt.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "America/New_York",
+  });
+
+  const html = emailTemplate({
+    heading: `Action Required: Sign before it expires`,
+    body:
+      p(`Hi ${recipientName},`) +
+      p(`This is a reminder that <strong>${docTitle}</strong> sent by <strong>${agentName}</strong> requires your signature and will expire in <strong>${daysLeft} day${daysLeft === 1 ? "" : "s"}</strong> on <strong>${expiryStr}</strong>.`) +
+      p(`Please sign before it expires to avoid needing a new invitation.`),
+    ctaLabel: "Sign Document Now",
+    ctaUrl: signUrl,
+    notice: `This signing link expires on ${expiryStr}. Contact ${agentName} if you need more time.`,
+  });
+
+  await client.emails.send({
+    from: FROM_TRANSACTIONAL,
+    to: toEmail,
+    subject: `⏰ Reminder: "${docTitle}" expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`,
+    html,
+  });
+}
+
 // ── DocSign: Next Signer Notified (Sequential) ────────────────────────────────
 
 export async function sendDocSignDeclinedEmail(args: {

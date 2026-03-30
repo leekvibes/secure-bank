@@ -7,11 +7,13 @@ import {
   ArrowLeft,
   Ban,
   BellRing,
+  Calendar,
   CheckCircle2,
   Clock,
   Download,
   Edit2,
   FileText,
+  LayoutTemplate,
   Loader2,
   Mail,
   Send,
@@ -20,6 +22,7 @@ import {
   UserCheck,
   XCircle,
 } from "lucide-react";
+import { SigningOrderFlow } from "@/components/signing/signing-order-flow";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +39,8 @@ interface Recipient {
   status: RecipientStatus;
   completedAt: string | null;
   token: string;
+  isAgent?: boolean;
+  phone?: string | null;
 }
 
 interface AuditLog {
@@ -73,6 +78,7 @@ interface SigningRequestDetail {
   signingMode: "PARALLEL" | "SEQUENTIAL" | string;
   expiresAt: string;
   completedAt: string | null;
+  expiryReminderSentAt?: string | null;
   voidedAt: string | null;
   createdAt: string;
   blobUrl: string | null;
@@ -121,6 +127,10 @@ function eventLabel(event: string) {
     DECLINED: "Recipient declined",
     VOIDED: "Request voided",
     REMINDER_SENT: "Reminder sent",
+    RECIPIENT_REASSIGNED: "Recipient reassigned",
+    DEADLINE_EXTENDED: "Deadline extended",
+    CREATED_FROM_TEMPLATE: "Created from template",
+    EXPIRY_REMINDER_SENT: "Expiry reminder sent",
   };
   return map[event] ?? event;
 }
@@ -147,6 +157,10 @@ export default function SigningRequestDetailPage() {
   const [resendEmail, setResendEmail] = useState<string>("");
   const [resendError, setResendError] = useState<string | null>(null);
   const [resendSuccess, setResendSuccess] = useState<string | null>(null);
+  const [extendBusy, setExtendBusy] = useState(false);
+  const [reassignTarget, setReassignTarget] = useState<Recipient | null>(null);
+  const [saveTemplateBusy, setSaveTemplateBusy] = useState(false);
+  const [saveTemplateSuccess, setSaveTemplateSuccess] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -179,6 +193,8 @@ export default function SigningRequestDetailPage() {
   const canVoid = status !== "COMPLETED" && status !== "VOIDED" && status !== "EXPIRED";
   const isEditable = request?.isEditable ?? status === "DRAFT";
   const canDelete = !!status; // any status can be deleted (API enforces soft-delete)
+  const isExpiringSoon = request && (status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED") && new Date(request.expiresAt).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000 && new Date(request.expiresAt).getTime() > Date.now();
+  const canSaveTemplate = status === "SENT" || status === "COMPLETED";
 
   async function reload() {
     if (!id) return;
@@ -299,6 +315,46 @@ export default function SigningRequestDetailPage() {
     }
   }
 
+  async function handleExtend(days: number) {
+    if (!id) return;
+    setExtendBusy(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/signing/requests/${encodeURIComponent(id)}/extend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: { message?: string } }).error?.message ?? "Failed to extend deadline.");
+      await reload();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to extend deadline.");
+    } finally {
+      setExtendBusy(false);
+    }
+  }
+
+  async function handleSaveTemplate() {
+    if (!id) return;
+    setSaveTemplateBusy(true);
+    try {
+      const res = await fetch("/api/signing/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId: id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: { message?: string } }).error?.message ?? "Failed to save template.");
+      setSaveTemplateSuccess(true);
+      setTimeout(() => setSaveTemplateSuccess(false), 3000);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to save template.");
+    } finally {
+      setSaveTemplateBusy(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="h-56 flex items-center justify-center">
@@ -368,7 +424,44 @@ export default function SigningRequestDetailPage() {
               {remindBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BellRing className="w-3.5 h-3.5" />}
               Remind
             </Button>
-            <Button variant="outline" size="sm" onClick={() => handleDownload("signed")} disabled={downloadBusy !== null} className="h-8 gap-1.5">
+            {canSaveTemplate && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handleSaveTemplate()}
+                disabled={saveTemplateBusy}
+                className="h-8 gap-1.5"
+              >
+                {saveTemplateBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LayoutTemplate className="w-3.5 h-3.5" />}
+                {saveTemplateSuccess ? "Saved!" : "Save as Template"}
+              </Button>
+            )}
+            {isExpiringSoon && (
+              <div className="relative">
+                <details className="group">
+                  <summary className="list-none cursor-pointer">
+                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-amber-700 border-amber-300 hover:bg-amber-50" disabled={extendBusy} asChild>
+                      <span>
+                        {extendBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Calendar className="w-3.5 h-3.5" />}
+                        Extend Deadline
+                      </span>
+                    </Button>
+                  </summary>
+                  <div className="absolute top-full left-0 mt-1 z-50 bg-card border border-border rounded-xl shadow-lg py-1 w-44">
+                    {[3, 7, 14, 30].map((days) => (
+                      <button
+                        key={days}
+                        className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                        onClick={() => { void handleExtend(days); (document.querySelector("details") as HTMLDetailsElement | null)?.removeAttribute("open"); }}
+                      >
+                        + {days} days
+                      </button>
+                    ))}
+                  </div>
+                </details>
+              </div>
+            )}
+            <Button variant="outline" size="sm" onClick={() => void handleDownload("signed")} disabled={downloadBusy !== null} className="h-8 gap-1.5">
               {downloadBusy === "signed" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
               PDF
             </Button>
@@ -528,10 +621,24 @@ export default function SigningRequestDetailPage() {
           {resendSuccess ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{resendSuccess}</div> : null}
           {resendError ? <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{resendError}</div> : null}
 
+          <SigningOrderFlow
+            signingMode={request.signingMode}
+            recipients={request.recipients.map((r) => ({
+              id: r.id,
+              name: r.name,
+              email: r.email,
+              order: r.order,
+              status: r.status,
+              completedAt: r.completedAt,
+              isAgent: r.isAgent,
+            }))}
+          />
+
           <div className="space-y-2">
             {fieldCountsByRecipient.map(({ recipient, count }) => {
               const badge = recipientStatusBadge(recipient.status);
               const canResend = recipient.status === "PENDING" || recipient.status === "OPENED";
+              const canReassign = (status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED") && (recipient.status === "PENDING" || recipient.status === "OPENED");
               const isShowingForm = resendFormId === recipient.id;
               return (
                 <div key={recipient.id} className="rounded-lg border border-border p-3 space-y-2">
@@ -545,10 +652,21 @@ export default function SigningRequestDetailPage() {
                       <Badge className={badge.className}>{badge.label}</Badge>
                       {recipient.completedAt ? <p className="text-[11px] text-muted-foreground mt-1">{new Date(recipient.completedAt).toLocaleString()}</p> : null}
                       {canResend && !isShowingForm ? (
-                        <button type="button" onClick={() => openResendForm(recipient)} className="mt-1 text-[11px] text-primary hover:underline inline-flex items-center gap-1">
-                          <Mail className="w-3 h-3" />
-                          Resend
-                        </button>
+                        <div className="flex items-center gap-1 justify-end mt-1">
+                          <button type="button" onClick={() => openResendForm(recipient)} className="text-[11px] text-primary hover:underline inline-flex items-center gap-1">
+                            <Mail className="w-3 h-3" />
+                            Resend
+                          </button>
+                          {canReassign && (
+                            <button
+                              type="button"
+                              onClick={() => setReassignTarget(recipient)}
+                              className="text-[11px] text-muted-foreground hover:text-foreground underline ml-2"
+                            >
+                              Reassign
+                            </button>
+                          )}
+                        </div>
                       ) : null}
                     </div>
                   </div>
@@ -577,6 +695,15 @@ export default function SigningRequestDetailPage() {
               );
             })}
           </div>
+
+          {reassignTarget && (
+            <ReassignModal
+              requestId={id}
+              recipient={reassignTarget}
+              onClose={() => setReassignTarget(null)}
+              onSuccess={async () => { setReassignTarget(null); await reload(); }}
+            />
+          )}
         </section>
       )}
 
@@ -648,6 +775,76 @@ export default function SigningRequestDetailPage() {
 
       <div className="flex justify-end">
         <Button variant="outline" onClick={() => router.push("/dashboard/signing")}>Back to List</Button>
+      </div>
+    </div>
+  );
+}
+
+function ReassignModal({
+  requestId,
+  recipient,
+  onClose,
+  onSuccess,
+}: {
+  requestId: string;
+  recipient: Recipient;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [name, setName] = useState(recipient.name);
+  const [email, setEmail] = useState(recipient.email);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleConfirm() {
+    if (!name.trim()) { setError("Name is required."); return; }
+    if (!email.trim()) { setError("Email is required."); return; }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/signing/requests/${requestId}/recipients/${recipient.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), email: email.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: { message?: string } }).error?.message ?? "Failed to reassign recipient.");
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reassign.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-card border border-border rounded-2xl w-full max-w-sm shadow-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-border">
+          <h3 className="font-bold text-sm text-foreground">Reassign Recipient</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">The original signing link will be invalidated. A new invitation will be sent to the new email.</p>
+        </div>
+        <div className="px-5 py-4 space-y-3">
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground block mb-1">Full Name</label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} className="h-9 text-sm" placeholder="Full name" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground block mb-1">Email Address</label>
+            <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" className="h-9 text-sm" placeholder="email@example.com" />
+          </div>
+          {error && <p className="text-xs text-red-600">{error}</p>}
+        </div>
+        <div className="px-5 py-3 border-t border-border flex gap-2">
+          <Button variant="outline" size="sm" className="flex-1" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button size="sm" className="flex-1" onClick={() => void handleConfirm()} disabled={busy}>
+            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
+            Reassign &amp; Resend
+          </Button>
+        </div>
       </div>
     </div>
   );

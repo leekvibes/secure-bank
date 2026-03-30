@@ -12,6 +12,7 @@ import {
   Clock3,
   FileSignature,
   Filter,
+  LayoutTemplate,
   Loader2,
   Plus,
   RotateCcw,
@@ -332,12 +333,20 @@ export default function AgreementsPage() {
           <h1 className="ui-page-title">Agreements</h1>
           <p className="text-sm text-muted-foreground mt-1">Track signature requests with a cleaner, card-first control center.</p>
         </div>
-        <Button asChild className="gap-2 h-10 px-4">
-          <Link href="/dashboard/signing/new">
-            <Plus className="w-4 h-4" />
-            New Agreement
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" className="gap-2 h-10 px-4">
+            <Link href="/dashboard/signing/templates">
+              <LayoutTemplate className="w-4 h-4" />
+              Templates
+            </Link>
+          </Button>
+          <Button asChild className="gap-2 h-10 px-4">
+            <Link href="/dashboard/signing/new">
+              <Plus className="w-4 h-4" />
+              New Agreement
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
