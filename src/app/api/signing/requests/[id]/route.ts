@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth/options";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { isDeclineReasonCode } from "@/lib/signing/decline-reasons";
+import { buildReadingAnalytics } from "@/lib/signing/page-analytics";
 
 // GET /api/signing/requests/[id] — full detail for agent dashboard
 export async function GET(
@@ -72,10 +73,23 @@ export async function GET(
       };
     });
 
+    const readingAnalytics = buildReadingAnalytics({
+      auditLogs: request.auditLogs,
+      pages: request.pages,
+      recipients: recipients.map((r) => ({
+        id: r.id,
+        name: r.name,
+        email: r.email,
+        status: r.status,
+        completedAt: r.completedAt,
+      })),
+    });
+
     return apiSuccess({
       request: {
         ...request,
         recipients,
+        readingAnalytics,
         displayStatus,
         completedRecipients: completedCount,
         isEditable,

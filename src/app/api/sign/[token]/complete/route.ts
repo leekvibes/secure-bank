@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { z } from "zod";
 import { generateSignatureId } from "@/lib/signing/signature-id";
+import { buildReadingAnalytics } from "@/lib/signing/page-analytics";
 
 const fieldValueSchema = z.object({
   id: z.string().min(1),
@@ -241,10 +242,22 @@ export async function POST(
           ipAddress: e.ipAddress,
           recipientId: e.recipientId,
           metadata: e.metadata,
-          createdAt: e.createdAt,
+        createdAt: e.createdAt,
+      })),
+      completedAt
+    );
+
+      const readingAnalyticsSnapshot = buildReadingAnalytics({
+        auditLogs: auditEvents,
+        pages: request.pages,
+        recipients: allRecipients.map((r) => ({
+          id: r.id,
+          name: r.name,
+          email: r.email,
+          status: r.status,
+          completedAt: r.completedAt,
         })),
-        completedAt
-      );
+      });
 
       // Persist completion state
       await db.$transaction([
@@ -262,6 +275,13 @@ export async function POST(
             requestId: request.id,
             event: "COMPLETED",
             metadata: JSON.stringify({ allSigned: true }),
+          },
+        }),
+        db.docSignAuditLog.create({
+          data: {
+            requestId: request.id,
+            event: "READING_ANALYTICS_SNAPSHOT",
+            metadata: JSON.stringify(readingAnalyticsSnapshot),
           },
         }),
         db.certificateOfCompletion.create({
