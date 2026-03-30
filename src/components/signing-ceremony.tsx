@@ -883,6 +883,7 @@ export function SigningCeremony({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   initialData?: Record<string, any> | null;
 }) {
+  const ENABLE_PAGE_VIEW_ANALYTICS = false;
   const [screen, setScreen] = useState<Screen>("loading");
   const [data, setData] = useState<DocData | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
@@ -1078,6 +1079,7 @@ export function SigningCeremony({
 
   const flushActivePageView = useCallback(
     async (source: string, opts?: { keepalive?: boolean; preferBeacon?: boolean }) => {
+      if (!ENABLE_PAGE_VIEW_ANALYTICS) return;
       if (screen !== "signing") return;
       const active = activePageViewRef.current;
       if (!active) return;
@@ -1114,7 +1116,7 @@ export function SigningCeremony({
         // Non-blocking analytics call.
       }
     },
-    [screen, token]
+    [ENABLE_PAGE_VIEW_ANALYTICS, screen, token]
   );
 
   const startPageView = useCallback(
@@ -1148,6 +1150,7 @@ export function SigningCeremony({
   }, []);
 
   useEffect(() => {
+    if (!ENABLE_PAGE_VIEW_ANALYTICS) return;
     if (screen !== "signing") return;
     if (!visiblePage) return;
 
@@ -1159,18 +1162,20 @@ export function SigningCeremony({
       updateActiveScrollDepth();
     };
     void run();
-  }, [screen, visiblePage, flushActivePageView, startPageView, updateActiveScrollDepth]);
+  }, [ENABLE_PAGE_VIEW_ANALYTICS, screen, visiblePage, flushActivePageView, startPageView, updateActiveScrollDepth]);
 
   useEffect(() => {
+    if (!ENABLE_PAGE_VIEW_ANALYTICS) return;
     if (screen !== "signing") return;
     const container = scrollContainerRef.current;
     if (!container) return;
     const onScroll = () => updateActiveScrollDepth();
     container.addEventListener("scroll", onScroll, { passive: true });
     return () => container.removeEventListener("scroll", onScroll);
-  }, [screen, updateActiveScrollDepth]);
+  }, [ENABLE_PAGE_VIEW_ANALYTICS, screen, updateActiveScrollDepth]);
 
   useEffect(() => {
+    if (!ENABLE_PAGE_VIEW_ANALYTICS) return;
     if (screen !== "signing") return;
     if (pageImages.length === 0) return;
     const container = scrollContainerRef.current;
@@ -1200,9 +1205,10 @@ export function SigningCeremony({
     }
 
     return () => observer.disconnect();
-  }, [screen, pageImages.length]);
+  }, [ENABLE_PAGE_VIEW_ANALYTICS, screen, pageImages.length]);
 
   useEffect(() => {
+    if (!ENABLE_PAGE_VIEW_ANALYTICS) return;
     const handleVisibility = () => {
       if (document.visibilityState === "hidden") {
         void flushActivePageView("tab-hidden", { keepalive: true, preferBeacon: true });
@@ -1222,12 +1228,13 @@ export function SigningCeremony({
       window.removeEventListener("beforeunload", handleUnload);
       window.removeEventListener("pagehide", handlePageHide);
     };
-  }, [flushActivePageView]);
+  }, [ENABLE_PAGE_VIEW_ANALYTICS, flushActivePageView]);
 
   useEffect(() => {
+    if (!ENABLE_PAGE_VIEW_ANALYTICS) return;
     if (screen === "signing") return;
     void flushActivePageView("screen-exit", { keepalive: true });
-  }, [screen, flushActivePageView]);
+  }, [ENABLE_PAGE_VIEW_ANALYTICS, screen, flushActivePageView]);
 
   // Auto-place INITIALS and DATE_SIGNED without opening a modal
   const handleFieldClick = useCallback(

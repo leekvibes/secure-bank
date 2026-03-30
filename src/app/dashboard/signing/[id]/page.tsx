@@ -14,7 +14,6 @@ import {
   Clock,
   Copy,
   Download,
-  Eye,
   Edit2,
   ExternalLink,
   FileText,
@@ -50,6 +49,7 @@ interface Recipient {
   email: string;
   order: number;
   status: RecipientStatus;
+  openedAt?: string | null;
   completedAt: string | null;
   token: string;
   isAgent?: boolean;
@@ -241,33 +241,12 @@ function fmtDuration(ms: number): string {
   return `${min}m ${sec}s`;
 }
 
-function trackingHealth(recipient: {
-  readCompletenessPct: number;
-  totalDwellMs: number;
-  pagesViewed: number;
-  pagesTotal: number;
-}) {
-  const hasNoActivity = recipient.totalDwellMs <= 0 || recipient.pagesViewed === 0;
-  if (hasNoActivity) {
-    return {
-      label: "No activity",
-      tone: "text-slate-700 bg-slate-100 border-slate-200",
-    };
-  }
-  const strongRead =
-    recipient.readCompletenessPct >= 80 &&
-    recipient.totalDwellMs >= 12000 &&
-    recipient.pagesViewed >= Math.max(1, Math.ceil(recipient.pagesTotal * 0.8));
-  if (strongRead) {
-    return {
-      label: "Strong evidence read",
-      tone: "text-emerald-700 bg-emerald-50 border-emerald-200",
-    };
-  }
-  return {
-    label: "Partial activity",
-    tone: "text-amber-700 bg-amber-50 border-amber-200",
-  };
+function sessionDurationMs(openedAt?: string | null, completedAt?: string | null): number | null {
+  if (!openedAt || !completedAt) return null;
+  const opened = new Date(openedAt).getTime();
+  const completed = new Date(completedAt).getTime();
+  if (!Number.isFinite(opened) || !Number.isFinite(completed) || completed < opened) return null;
+  return completed - opened;
 }
 
 export default function SigningRequestDetailPage() {
@@ -353,6 +332,24 @@ export default function SigningRequestDetailPage() {
   const isExpiringSoon = request && (status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED") && new Date(request.expiresAt).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000 && new Date(request.expiresAt).getTime() > Date.now();
   const canSaveTemplate = status === "SENT" || status === "COMPLETED";
   const analyticsLiveTracking = status === "SENT" || status === "OPENED" || status === "PARTIALLY_SIGNED";
+  const recipientSessionRows = useMemo(
+    () =>
+      (request?.recipients ?? []).map((recipient) => {
+        const durationMs = sessionDurationMs(recipient.openedAt, recipient.completedAt);
+        return {
+          recipient,
+          durationMs,
+          inProgressMs:
+            recipient.status === "OPENED" && recipient.openedAt
+              ? Math.max(0, Date.now() - new Date(recipient.openedAt).getTime())
+              : null,
+        };
+      }),
+    [request?.recipients]
+  );
+  const completedSessionCount = recipientSessionRows.filter((row) => row.durationMs != null).length;
+  const totalSessionMs = recipientSessionRows.reduce((sum, row) => sum + (row.durationMs ?? 0), 0);
+  const avgSessionMs = completedSessionCount > 0 ? Math.round(totalSessionMs / completedSessionCount) : 0;
 
   const reload = useCallback(async () => {
     if (!id) return;
@@ -908,8 +905,10 @@ export default function SigningRequestDetailPage() {
                   .map((f) => {
                     const signer = request.recipients.find((r) => r.id === f.recipientId);
                     let meta: { url?: string; name?: string; size?: number; type?: string } = {};
-                    try { meta = JSON.parse(f.value!) as typeof meta; } catch { /* base64 fallback */ }
-                    const isBlob = !!meta.url;
+                    try { meta = JSON.parse(f.value!) as typeof meta; } catch { /* base64 or plain URL */ }
+                    // Support blob URL (JSON), direct URL string, or base64 data URI
+                    const downloadUrl = meta.url || (f.value!.startsWith("https://") ? f.value! : null);
+                    const isBase64 = !downloadUrl && f.value!.startsWith("data:");
                     const displayName = meta.name ?? "Attachment";
                     const fileSizeLabel = meta.size ? ` · ${meta.size > 1024 * 1024 ? `${(meta.size / 1024 / 1024).toFixed(1)} MB` : `${Math.round(meta.size / 1024)} KB`}` : "";
                     return (
@@ -923,11 +922,18 @@ export default function SigningRequestDetailPage() {
                             <p className="text-xs text-muted-foreground">{signer?.name ?? "Unknown signer"}{fileSizeLabel}</p>
                           </div>
                         </div>
-                        {isBlob ? (
-                          <a href={meta.url} target="_blank" rel="noopener noreferrer" download={meta.name}>
+                        {downloadUrl ? (
+                          <a href={downloadUrl} target="_blank" rel="noopener noreferrer" download={meta.name}>
                             <Button variant="outline" size="sm" className="h-8 text-xs gap-1 shrink-0">
                               <Download className="w-3 h-3" />
                               Download
+                            </Button>
+                          </a>
+                        ) : isBase64 ? (
+                          <a href={f.value!} target="_blank" rel="noopener noreferrer">
+                            <Button variant="outline" size="sm" className="h-8 text-xs gap-1 shrink-0">
+                              <Download className="w-3 h-3" />
+                              View
                             </Button>
                           </a>
                         ) : (
@@ -1350,7 +1356,7 @@ export default function SigningRequestDetailPage() {
                 Signing Analytics
               </h2>
               <p className="text-xs text-muted-foreground mt-1">
-                Per-page read behavior by recipient (time, scroll depth, and coverage).
+                Simple session tracking: time from opening the document to submitting signatures.
               </p>
             </div>
             <div className="flex flex-col items-end gap-1">
@@ -1372,79 +1378,69 @@ export default function SigningRequestDetailPage() {
             </div>
           </div>
 
-          {!request.readingAnalytics || request.readingAnalytics.recipients.length === 0 ? (
+          {recipientSessionRows.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border bg-muted/30 p-5">
-              <p className="text-sm font-medium text-foreground">No page-view analytics captured yet.</p>
+              <p className="text-sm font-medium text-foreground">No recipient session data yet.</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Data appears once recipients open the document and view pages in the signing flow.
+                Data appears after recipients open the signing document.
               </p>
             </div>
           ) : (
             <>
-              <div className="grid md:grid-cols-4 gap-3">
+              <div className="grid md:grid-cols-3 gap-3">
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2">
-                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Avg Read</p>
-                  <p className="text-sm font-semibold text-emerald-800 mt-0.5">{request.readingAnalytics.summary.avgReadCompletenessPct}%</p>
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Completed Sessions</p>
+                  <p className="text-sm font-semibold text-emerald-800 mt-0.5">{completedSessionCount}</p>
                 </div>
                 <div className="rounded-lg border border-sky-200 bg-sky-50/70 px-3 py-2">
-                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Total View Time</p>
-                  <p className="text-sm font-semibold text-sky-800 mt-0.5">{fmtDuration(request.readingAnalytics.summary.totalDwellMs)}</p>
-                </div>
-                <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2">
-                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Signed w/ Unread</p>
-                  <p className="text-sm font-semibold text-amber-800 mt-0.5">{request.readingAnalytics.summary.signedWithUnreadCount}</p>
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Session Time</p>
+                  <p className="text-sm font-semibold text-sky-800 mt-0.5">{fmtDuration(totalSessionMs)}</p>
                 </div>
                 <div className="rounded-lg border border-violet-200 bg-violet-50/70 px-3 py-2">
-                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Recipients</p>
-                  <p className="text-sm font-semibold text-violet-800 mt-0.5">{request.readingAnalytics.summary.recipientCount}</p>
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Avg Session Time</p>
+                  <p className="text-sm font-semibold text-violet-800 mt-0.5">{fmtDuration(avgSessionMs)}</p>
                 </div>
               </div>
 
               <div className="rounded-xl border border-border overflow-x-auto bg-card/70">
-                <table className="w-full min-w-[720px] text-sm">
+                <table className="w-full min-w-[760px] text-sm">
                   <thead>
                     <tr style={{ borderBottom: "1px solid hsl(var(--border))" }}>
                       <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Recipient</th>
-                      <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Tracking Health</th>
-                      <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Read Coverage</th>
-                      <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Time</th>
-                      <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Views</th>
-                      <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Unread Pages</th>
+                      <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Status</th>
+                      <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Opened</th>
+                      <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Submitted</th>
+                      <th className="text-left py-2.5 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">Session Time</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {request.readingAnalytics.recipients.map((recipient) => {
-                      const health = trackingHealth(recipient);
+                    {recipientSessionRows.map(({ recipient, durationMs, inProgressMs }) => {
+                      const rdot = recipientDot(recipient.status);
                       return (
-                        <tr key={`summary-${recipient.recipientId}`} style={{ borderBottom: "1px solid hsl(var(--border) / 0.6)" }}>
+                        <tr key={`summary-${recipient.id}`} style={{ borderBottom: "1px solid hsl(var(--border) / 0.6)" }}>
                           <td className="py-2.5 px-3">
-                            <p className="font-medium text-foreground">{recipient.recipientName}</p>
-                            <p className="text-xs text-muted-foreground">{recipient.recipientEmail}</p>
+                            <p className="font-medium text-foreground">{recipient.name}</p>
+                            <p className="text-xs text-muted-foreground">{recipient.email}</p>
                           </td>
                           <td className="py-2.5 px-3">
-                            <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${health.tone}`}>
-                              {health.label}
+                            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <span style={{ width: 7, height: 7, borderRadius: "50%", background: rdot.color, display: "inline-block" }} />
+                              {rdot.label}
                             </span>
                           </td>
-                          <td className="py-2.5 px-3">
-                            <div className="flex items-center gap-2 min-w-[170px]">
-                              <div className="h-2 rounded-full bg-muted overflow-hidden flex-1">
-                                <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${recipient.readCompletenessPct}%` }} />
-                              </div>
-                              <span className="inline-flex items-center rounded-md border border-border px-2 py-0.5 text-xs font-medium shrink-0">
-                                {recipient.readCompletenessPct}%
-                              </span>
-                            </div>
+                          <td className="py-2.5 px-3 text-muted-foreground text-xs">
+                            {recipient.openedAt ? new Date(recipient.openedAt).toLocaleString() : "Not opened"}
                           </td>
-                          <td className="py-2.5 px-3 text-muted-foreground">{fmtDuration(recipient.totalDwellMs)}</td>
-                          <td className="py-2.5 px-3 text-muted-foreground">
-                            {recipient.pages.reduce((sum, page) => sum + page.viewCount, 0)}
+                          <td className="py-2.5 px-3 text-muted-foreground text-xs">
+                            {recipient.completedAt ? new Date(recipient.completedAt).toLocaleString() : "Not submitted"}
                           </td>
                           <td className="py-2.5 px-3">
-                            {recipient.unreadPages.length > 0 ? (
-                              <span className="text-xs text-amber-700">{recipient.unreadPages.join(", ")}</span>
+                            {durationMs != null ? (
+                              <span className="text-xs font-medium text-foreground">{fmtDuration(durationMs)}</span>
+                            ) : inProgressMs != null ? (
+                              <span className="text-xs text-sky-700">In progress ({fmtDuration(inProgressMs)})</span>
                             ) : (
-                              <span className="text-xs text-emerald-700">None</span>
+                              <span className="text-xs text-muted-foreground">N/A</span>
                             )}
                           </td>
                         </tr>
@@ -1452,60 +1448,6 @@ export default function SigningRequestDetailPage() {
                     })}
                   </tbody>
                 </table>
-              </div>
-
-              <div className="space-y-3">
-                {request.readingAnalytics.recipients.map((recipient) => {
-                  const health = trackingHealth(recipient);
-                  return (
-                  <div key={recipient.recipientId} className="rounded-xl border border-border p-4 space-y-3 bg-card/60">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">{recipient.recipientName}</p>
-                        <p className="text-xs text-muted-foreground">{recipient.recipientEmail}</p>
-                        <span className={`mt-2 inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-medium ${health.tone}`}>
-                          {health.label}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-foreground">{recipient.readCompletenessPct}% read</p>
-                        <p className="text-[11px] text-muted-foreground">{fmtDuration(recipient.totalDwellMs)}</p>
-                      </div>
-                    </div>
-
-                    <div className="h-2 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-primary transition-all"
-                        style={{ width: `${recipient.readCompletenessPct}%` }}
-                      />
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      {recipient.pages.map((p) => (
-                        <span
-                          key={`${recipient.recipientId}-${p.page}`}
-                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] ${
-                            p.completed
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-amber-200 bg-amber-50 text-amber-700"
-                          }`}
-                        >
-                          <Eye className="w-3 h-3" />
-                          P{p.page}
-                          <span className="text-[10px] opacity-80">{fmtDuration(p.totalDwellMs)}</span>
-                          <span className="text-[10px] opacity-80">{Math.round(p.maxScrollPct)}%</span>
-                          <span className="text-[10px] opacity-80">({p.viewCount} views)</span>
-                        </span>
-                      ))}
-                    </div>
-
-                    {recipient.unreadPages.length > 0 && (
-                      <p className="text-xs text-amber-700">
-                        Unread pages: {recipient.unreadPages.join(", ")}
-                      </p>
-                    )}
-                  </div>
-                )})}
               </div>
             </>
           )}
