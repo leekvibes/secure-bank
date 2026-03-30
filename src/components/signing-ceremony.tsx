@@ -1025,6 +1025,12 @@ export function SigningCeremony({
         setActiveFieldId(field.id);
         return;
       }
+      // CHECKBOX: direct toggle on the PDF — no modal needed
+      if (field.type === "CHECKBOX") {
+        const current = fieldValues[field.id] ?? "";
+        setFieldValue(field.id, current === "true" ? "" : "true");
+        return;
+      }
       setActiveFieldId(field.id);
     },
     [data, fieldValues, setFieldValue]
@@ -2116,14 +2122,17 @@ export function SigningCeremony({
                             <span style={{ color: "#ef4444", marginLeft: "4px" }}>*</span>
                           )}
                         </p>
-                        {val && !val.startsWith("data:") && (
-                          <p style={{ fontSize: "12px", color: "#64748b" }}>{val}</p>
+                        {val && !val.startsWith("data:") && field.type !== "CHECKBOX" && (
+                          <p style={{ fontSize: "13px", color: colors.text, fontWeight: 500, marginTop: "2px" }}>{val}</p>
+                        )}
+                        {val === "true" && field.type === "CHECKBOX" && (
+                          <p style={{ fontSize: "13px", color: "#15803d", fontWeight: 600, marginTop: "2px" }}>✓ Checked</p>
                         )}
                         {val && val.startsWith("data:image") && (
-                          <p style={{ fontSize: "12px", color: "#10b981" }}>✓ Captured</p>
+                          <p style={{ fontSize: "12px", color: "#10b981", marginTop: "2px" }}>✓ Captured</p>
                         )}
                         {val && val.startsWith("data:") && !val.startsWith("data:image") && (
-                          <p style={{ fontSize: "12px", color: "#10b981" }}>📎 File attached</p>
+                          <p style={{ fontSize: "12px", color: "#10b981", marginTop: "2px" }}>📎 File attached</p>
                         )}
                       </div>
                       {done ? (
@@ -2200,10 +2209,14 @@ export function SigningCeremony({
                               width: `${field.width * 100}%`,
                               height: `${field.height * 100}%`,
                               cursor: "pointer",
-                              border: `${isNext && !done ? "2px" : "1.5px"} solid ${colors.border}`,
+                              border: `${done || (isNext && !done) ? "2px" : "1.5px"} solid ${colors.border}`,
                               borderRadius: "3px",
                               boxSizing: "border-box",
-                              background: done ? (isImg ? "rgba(255,255,255,0.05)" : colors.bg + "cc") : colors.bg + "cc",
+                              background: done
+                                ? (isImg ? "rgba(255,255,255,0.05)"
+                                  : field.type === "CHECKBOX" ? "#16a34a"
+                                  : colors.bg)
+                                : colors.bg + "99",
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
@@ -2223,37 +2236,45 @@ export function SigningCeremony({
                                 }}
                               />
                             ) : done && field.type === "ATTACHMENT" ? (
-                              <span style={{ fontSize: "clamp(9px,2vw,12px)", color: colors.text, fontWeight: 700 }}>📎 Attached</span>
+                              <span style={{ fontSize: "clamp(10px,2.2vw,13px)", color: colors.text, fontWeight: 700 }}>📎 Attached</span>
+                            ) : done && field.type === "CHECKBOX" ? (
+                              // Large ✓ on solid green background — unmissable
+                              <svg viewBox="0 0 14 12" style={{ width: "60%", height: "60%" }} fill="none">
+                                <path d="M1 6l4 4L13 1" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
                             ) : done && field.type === "DATE_SIGNED" ? (
                               <span
                                 style={{
-                                  fontSize: "clamp(9px, 1.8vw, 13px)",
+                                  fontSize: "clamp(10px, 2.2vw, 14px)",
                                   color: colors.text,
                                   fontWeight: 700,
-                                  padding: "0 3px",
+                                  padding: "0 4px",
                                   whiteSpace: "nowrap",
                                   overflow: "hidden",
                                   textOverflow: "ellipsis",
                                   maxWidth: "100%",
-                                  lineHeight: 1.1,
+                                  lineHeight: 1.2,
+                                  textShadow: "0 0 0 transparent",
                                 }}
                               >
                                 {fmtDate(val)}
                               </span>
                             ) : done ? (
+                              // All other text fields: show value clearly with readable font size
                               <span
                                 style={{
-                                  fontSize: "clamp(9px, 1.8vw, 13px)",
+                                  fontSize: "clamp(10px, 2.2vw, 14px)",
                                   color: colors.text,
-                                  fontWeight: 600,
-                                  padding: "0 3px",
+                                  fontWeight: 700,
+                                  padding: "0 4px",
                                   whiteSpace: "nowrap",
                                   overflow: "hidden",
                                   textOverflow: "ellipsis",
                                   maxWidth: "100%",
+                                  lineHeight: 1.2,
                                 }}
                               >
-                                {field.type === "CHECKBOX" ? "✓" : val}
+                                {val}
                               </span>
                             ) : (
                               <div
